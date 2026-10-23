@@ -1,0 +1,72 @@
+"use client";
+
+import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
+import { STATUS_NAMES } from "@/lib/constants";
+
+export default function LeadsToolbar({ members, showOwner }) {
+  const router = useRouter();
+  const params = useSearchParams();
+  const view = params.get("view") === "list" ? "list" : "board";
+
+  const go = (key, value) => {
+    const next = new URLSearchParams(params);
+    if (value) next.set(key, value);
+    else next.delete(key);
+    router.push(`/leads?${next.toString()}`);
+  };
+
+  const viewHref = (v) => {
+    const next = new URLSearchParams(params);
+    if (v === "board") next.delete("view");
+    else next.set("view", v);
+    return `/leads?${next.toString()}`;
+  };
+
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <form
+        className="min-w-[200px] flex-1 sm:max-w-xs"
+        onSubmit={(e) => {
+          e.preventDefault();
+          go("q", new FormData(e.currentTarget).get("q"));
+        }}
+      >
+        <input name="q" defaultValue={params.get("q") || ""} placeholder="Search name, brand, phone, IM-…" className="field" />
+      </form>
+
+      {showOwner && (
+        <select value={params.get("owner") || ""} onChange={(e) => go("owner", e.target.value)} className="field w-auto">
+          <option value="">Everyone</option>
+          <option value="unassigned">Unassigned</option>
+          {members.map((m) => (
+            <option key={m.id} value={m.id}>
+              {m.name}
+            </option>
+          ))}
+        </select>
+      )}
+
+      {view === "list" && (
+        <select value={params.get("status") || ""} onChange={(e) => go("status", e.target.value)} className="field w-auto">
+          <option value="">All statuses</option>
+          {STATUS_NAMES.map((s) => (
+            <option key={s}>{s}</option>
+          ))}
+        </select>
+      )}
+
+      <div className="ml-auto flex rounded-lg border border-line p-0.5 text-sm">
+        {["board", "list"].map((v) => (
+          <Link
+            key={v}
+            href={viewHref(v)}
+            className={`rounded-md px-3 py-1.5 capitalize ${view === v ? "bg-panel-2 text-white" : "text-muted hover:text-white"}`}
+          >
+            {v}
+          </Link>
+        ))}
+      </div>
+    </div>
+  );
+}
