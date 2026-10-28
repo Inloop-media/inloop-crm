@@ -56,7 +56,7 @@ export default function LeadsToolbar({ members, showOwner }) {
         </select>
       )}
 
-      <div className="ml-auto flex rounded-lg border border-line p-0.5 text-sm">
+      <div className="ml-auto flex rounded-lg border border-line bg-panel p-0.5 text-sm">
         {["board", "list"].map((v) => (
           <Link
             key={v}

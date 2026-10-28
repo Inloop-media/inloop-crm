@@ -8,6 +8,7 @@ export default function GoogleButton({ domain }) {
 
   const signIn = async () => {
     setBusy(true);
+    document.cookie = "crm_next=; path=/; max-age=0";
     const { error } = await createClient().auth.signInWithOAuth({
       provider: "google",
       options: {

@@ -1,14 +1,19 @@
 @import "tailwindcss";
 
-/* Inloop CRM — dark, calm, brand accent from the website */
+/* Inloop CRM — dark, calm, premium. Brand accent from the website. */
 @theme {
-  --color-bg: #09090b;
-  --color-panel: #121215;
-  --color-panel-2: #18181c;
-  --color-line: #26262c;
-  --color-muted: #9b9ba6;
-  --color-brand: #818cf8;
+  --color-bg: #08080a;
+  --color-panel: #0f0f12;
+  --color-panel-2: #16161a;
+  --color-panel-3: #1e1e24;
+  --color-line: #212127;
+  --color-line-strong: #2e2e36;
+  --color-muted: #8d8d99;
+  --color-faint: #5a5a66;
+  --color-brand: #8b93ff;
+  --color-brand-strong: #6d74f5;
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-serif: var(--font-instrument), ui-serif, Georgia, serif;
 }
 
 :root {
@@ -16,21 +21,67 @@
 }
 
 body {
-  background: var(--color-bg);
+  background:
+    radial-gradient(1200px 520px at 70% -180px, rgb(139 147 255 / 0.09), transparent 70%),
+    radial-gradient(800px 400px at -10% -120px, rgb(232 121 249 / 0.05), transparent 70%),
+    var(--color-bg);
+  background-attachment: fixed;
   color: #f4f4f5;
+  font-feature-settings: "cv11", "ss01", "ss03";
+}
+
+::selection {
+  background: color-mix(in srgb, var(--color-brand) 35%, transparent);
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-line-strong) transparent;
 }
 
 @layer components {
+  /* Glassy panel with a hairline highlight on top */
+  .card {
+    @apply rounded-2xl border border-white/[0.06] bg-panel/80 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.04),0_20px_40px_-24px_rgba(0,0,0,0.6)] backdrop-blur-sm;
+  }
+  .card-hover {
+    @apply transition hover:border-white/[0.11] hover:bg-panel-2/80;
+  }
   .field {
-    @apply w-full rounded-lg border border-line bg-bg px-3 py-2 text-sm text-white outline-none transition placeholder:text-muted/70 focus:border-brand/70 focus:ring-2 focus:ring-brand/20;
+    @apply w-full rounded-lg border border-line bg-bg/70 px-3 py-2 text-sm text-white outline-none transition placeholder:text-faint hover:border-line-strong focus:border-brand/70 focus:ring-2 focus:ring-brand/20 disabled:opacity-60;
   }
   .btn-primary {
-    @apply inline-flex items-center justify-center gap-2 rounded-lg px-3.5 py-2 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-50 bg-brand text-black hover:bg-brand/85;
+    @apply inline-flex items-center justify-center gap-2 rounded-lg bg-gradient-to-b from-[#a1a7ff] to-brand px-3.5 py-2 text-sm font-medium text-black shadow-[inset_0_1px_0_rgba(255,255,255,0.35),0_8px_24px_-10px_rgba(139,147,255,0.7)] transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50;
   }
   .btn-ghost {
-    @apply inline-flex items-center justify-center gap-2 rounded-lg px-3.5 py-2 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-50 border border-line text-white hover:bg-panel-2;
+    @apply inline-flex items-center justify-center gap-2 rounded-lg border border-line bg-white/[0.02] px-3.5 py-2 text-sm font-medium text-white transition hover:border-line-strong hover:bg-panel-2 disabled:cursor-not-allowed disabled:opacity-50;
   }
   .label {
-    @apply mb-1.5 block text-xs font-medium uppercase tracking-wide text-muted;
+    @apply mb-1.5 block text-[11px] font-medium uppercase tracking-[0.08em] text-muted;
+  }
+  .eyebrow {
+    @apply text-[11px] font-medium uppercase tracking-[0.1em] text-muted;
+  }
+  .chip {
+    @apply inline-flex items-center gap-1.5 rounded-full border border-line bg-panel-2 px-2 py-0.5 text-[11px] text-white/80;
+  }
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.rise {
+  animation: rise 0.45s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .rise {
+    animation: none;
   }
 }

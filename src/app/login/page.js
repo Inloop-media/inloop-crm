@@ -9,11 +9,12 @@ export const metadata = { title: "Sign in" };
 export default async function LoginPage({ searchParams }) {
   const { error } = await searchParams;
   const configured = isConfigured();
-  if (configured && (await getCurrentMember())) redirect("/leads");
+  if (configured && (await getCurrentMember())) redirect("/");
 
   return (
-    <main className="flex min-h-svh items-center justify-center px-4">
-      <div className="w-full max-w-sm rounded-2xl border border-line bg-panel p-8">
+    <main className="relative flex min-h-svh items-center justify-center overflow-hidden px-4">
+      <div className="pointer-events-none absolute left-1/2 top-1/3 h-[420px] w-[620px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-brand/10 blur-[120px]" />
+      <div className="relative w-full max-w-sm rounded-2xl border border-line bg-panel/80 p-8 shadow-2xl shadow-black/40 backdrop-blur">
         <Logo />
         <h1 className="mt-8 text-xl font-semibold">Sign in to Inloop CRM</h1>
         <p className="mt-2 text-sm text-muted">Use your Inloop Media Google account.</p>

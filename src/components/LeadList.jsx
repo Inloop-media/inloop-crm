@@ -3,11 +3,11 @@ import StatusBadge from "@/components/StatusBadge";
 import { fmtDateTime, fullName } from "@/lib/format";
 
 export default function LeadList({ leads, owners }) {
-  if (!leads.length) return <p className="rounded-xl border border-line bg-panel p-8 text-center text-sm text-muted">No leads match.</p>;
+  if (!leads.length) return <p className="card p-10 text-center text-sm text-muted">No leads match.</p>;
   return (
-    <div className="overflow-hidden rounded-xl border border-line bg-panel">
+    <div className="card overflow-hidden">
       <table className="w-full text-left text-sm">
-        <thead className="hidden border-b border-line text-xs uppercase tracking-wide text-muted md:table-header-group">
+        <thead className="hidden border-b border-line bg-panel-2/50 text-[11px] uppercase tracking-[0.08em] text-muted md:table-header-group">
           <tr>
             <th className="px-4 py-3 font-medium">Lead</th>
             <th className="px-4 py-3 font-medium">Service</th>
