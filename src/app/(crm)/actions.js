@@ -135,12 +135,13 @@ const calendarFail = (err) =>
 
 /**
  * Books a Google Meet from the signed-in member's calendar.
- * discovery: the lead's executive, only at "Discovery Call" — invites the lead + MEETING_GUEST_EMAIL; status stays.
+ * discovery: the lead's executive, only at "Discovery Call" — invites the lead + the guests they picked
+ *            (meeting_guests ids; emails are looked up here, never sent to the browser); status stays.
  * proposal:  admin / ops, once the brief is written — invites only the lead, moves the status to
  *            "Proposal Meeting Scheduled" and shares the brief with the creative strategists (+ Slack).
  * `when` is a datetime-local value ("2026-10-29T15:30"), read as India time.
  */
-export async function scheduleMeeting(leadId, kind, when) {
+export async function scheduleMeeting(leadId, kind, when, guestIds = []) {
   const me = await requireMember();
   if (!MEETING_KINDS[kind]) return { ok: false, error: "Unknown meeting type." };
   const { data: lead } = await db().from("leads").select("*").eq("id", leadId).maybeSingle();
@@ -171,8 +172,22 @@ export async function scheduleMeeting(leadId, kind, when) {
   const end = new Date(start.getTime() + MEETING_MINUTES[kind] * 60000);
   const attendees = [];
   if (/^\S+@\S+\.\S+$/.test(lead.email)) attendees.push(lead.email.toLowerCase());
-  const guest = String(process.env.MEETING_GUEST_EMAIL || "").trim().toLowerCase();
-  if (kind === "discovery" && guest && guest !== me.email && !attendees.includes(guest)) attendees.push(guest);
+  // What the person booking sees: the client by email, teammates by name
+  const invited = attendees.length ? ["the client"] : [];
+  if (kind === "discovery") {
+    const ids = (Array.isArray(guestIds) ? guestIds : []).filter(isUuid).slice(0, 20);
+    if (ids.length) {
+      const { data: guests } = await db().from("meeting_guests").select("name, email").in("id", ids).eq("active", true);
+      for (const g of guests || []) {
+        const email = g.email.toLowerCase();
+        // The organiser is on the event already
+        if (email !== me.email && !attendees.includes(email)) {
+          attendees.push(email);
+          invited.push(g.name);
+        }
+      }
+    }
+  }
 
   const brand = lead.brand || fullName(lead);
   const message = { firstName: lead.first_name, brand: lead.brand, service: lead.service, sender: me.name };
@@ -234,7 +249,7 @@ export async function scheduleMeeting(leadId, kind, when) {
   revalidatePath(`/leads/${leadId}`);
   revalidatePath("/briefs");
   revalidatePath("/");
-  return { ok: true, invited: attendees };
+  return { ok: true, invited };
 }
 
 /** Cancels a meeting in Google Calendar (guests get an email) and removes it from the CRM. */
@@ -348,5 +363,33 @@ export async function updateGroup(id, patch) {
   }
   revalidatePath("/team");
   revalidatePath("/updates");
+  return { ok: true };
+}
+
+/* -------------------------- Meeting guests -------------------------- */
+
+export async function addGuest(_prev, formData) {
+  const me = await requireMember();
+  if (!canManageTeam(me)) return { error: "Only admins can change the guest list." };
+  const name = str(formData.get("name"), 80);
+  const email = str(formData.get("email"), 200).toLowerCase();
+  if (!name) return { error: "Enter a name." };
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return { error: "Enter a valid email." };
+  const { error } = await db().from("meeting_guests").upsert({ name, email, active: true }, { onConflict: "email" });
+  if (error) return { error: error.message };
+  revalidatePath("/team");
+  return { ok: true, message: `${name} can now be added to discovery calls.` };
+}
+
+export async function updateGuest(id, patch) {
+  const me = await requireMember();
+  if (!canManageTeam(me)) return { ok: false, error: "Only admins can change the guest list." };
+  if (!isUuid(id)) return { ok: false, error: "Guest not found." };
+  const changes = {};
+  if (typeof patch.active === "boolean") changes.active = patch.active;
+  if (typeof patch.is_default === "boolean") changes.is_default = patch.is_default;
+  const { error } = await db().from("meeting_guests").update(changes).eq("id", id);
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/team");
   return { ok: true };
 }

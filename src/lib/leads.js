@@ -112,9 +112,11 @@ export async function listMeetings(me, { leadId, from, to } = {}) {
     throw new Error(error.message);
   }
   const now = Date.now();
+  // Show teammates by name; only the client's own address stays as an email
+  const names = Object.fromEntries((await listGuests({ activeOnly: false })).map((g) => [g.email, g.name]));
   return (data || [])
     .filter((m) => canSeeMeetingKind(me, m.kind))
-    .map((m) => ({ ...m, past: new Date(m.ends_at).getTime() < now }));
+    .map((m) => ({ ...m, attendees: (m.attendees || []).map((e) => names[e] || e), past: new Date(m.ends_at).getTime() < now }));
 }
 
 /** Everything the dashboard needs, limited to what this member may see. */
@@ -247,4 +249,15 @@ export async function openLeadCounts() {
   const counts = {};
   for (const l of data || []) if (!CLOSED_STATUSES.includes(l.status)) counts[l.assigned_to] = (counts[l.assigned_to] || 0) + 1;
   return counts;
+}
+
+/* ----------------------------- Meeting guests ----------------------------- */
+
+/** Everyone who can be added to a discovery call. Full rows — server only; send just { id, name } to the browser. */
+export async function listGuests({ activeOnly = true } = {}) {
+  let q = db().from("meeting_guests").select("id, name, email, is_default, active").order("name");
+  if (activeOnly) q = q.eq("active", true);
+  const { data, error } = await q;
+  if (error) return []; // before supabase/migrations/005_meeting_guests.sql
+  return data || [];
 }

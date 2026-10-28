@@ -8,7 +8,7 @@ import { StagePill, StepTrack } from "@/components/ui";
 import StatusBadge from "@/components/StatusBadge";
 import Timeline from "@/components/Timeline";
 import { requireMember } from "@/lib/auth";
-import { getLead, listAssignees, listMembers, openLeadCounts } from "@/lib/leads";
+import { getLead, listAssignees, listGuests, listMembers, openLeadCounts } from "@/lib/leads";
 import { canAssign, canBookDiscovery, canBookProposal, canEnterCommercials, canSeeLeads, isStrategist, statusOptions } from "@/lib/permissions";
 import { fmtDateTime, fullName } from "@/lib/format";
 
@@ -43,12 +43,15 @@ function Section({ title, children, action, id }) {
 export default async function LeadPage({ params }) {
   const { id } = await params;
   const me = await requireMember(canSeeLeads);
-  const [lead, members, assignees, openCounts] = await Promise.all([
+  const [lead, members, assignees, openCounts, guestRows] = await Promise.all([
     getLead(me, id),
     listMembers({ activeOnly: true }),
     listAssignees(),
     canAssign(me) ? openLeadCounts() : {},
+    listGuests(),
   ]);
+  // Names only in the browser — the server looks the emails up when booking
+  const guests = guestRows.map(({ id, name, is_default }) => ({ id, name, is_default }));
   if (!lead) notFound();
   const owner = members.find((m) => m.id === lead.assigned_to);
   const phone = lead.phone.replace(/[^\d+]/g, "");
@@ -135,6 +138,7 @@ export default async function LeadPage({ params }) {
               canProposal={canBookProposal(me)}
               connected={Boolean(me.calendar_connected_at)}
               domain={process.env.ALLOWED_DOMAIN}
+              guests={guests}
             />
           </Section>
 

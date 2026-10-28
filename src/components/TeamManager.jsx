@@ -3,7 +3,7 @@
 import { useActionState, useState, useTransition } from "react";
 import Icon from "@/components/Icon";
 import { Avatar } from "@/components/ui";
-import { addMember, createGroup, updateGroup, updateMember } from "@/app/(crm)/actions";
+import { addGuest, addMember, createGroup, updateGroup, updateGuest, updateMember } from "@/app/(crm)/actions";
 import { GROUP_KINDS, ROLES, UPDATE_EVENTS } from "@/lib/constants";
 
 const KIND_TONE = {
@@ -235,7 +235,75 @@ function NewGroup() {
   );
 }
 
-export default function TeamManager({ members, groups, meId }) {
+/* --------------------------- Meeting guests --------------------------- */
+
+function GuestRow({ g }) {
+  const { pending, error, change } = useChange(updateGuest);
+  return (
+    <li className={`flex flex-wrap items-center gap-x-4 gap-y-2 px-5 py-3 ${g.active ? "" : "opacity-50"}`}>
+      <div className="flex min-w-0 flex-1 basis-56 items-center gap-3">
+        <Avatar name={g.name} size={28} />
+        <div className="min-w-0">
+          <div className="truncate text-sm">{g.name}</div>
+          <div className="truncate text-xs text-muted">{g.email}</div>
+          {error && <div className="mt-1 text-xs text-rose-400">{error}</div>}
+        </div>
+      </div>
+      <label className="flex cursor-pointer items-center gap-2 text-xs text-muted">
+        <input
+          type="checkbox"
+          checked={g.is_default}
+          disabled={pending || !g.active}
+          onChange={(e) => change(g.id, { is_default: e.target.checked })}
+          className="accent-[var(--color-brand)]"
+        />
+        Pre-selected
+      </label>
+      <button disabled={pending} onClick={() => change(g.id, { active: !g.active })} className="text-xs text-muted hover:text-rose-300">
+        {g.active ? "Remove" : "Restore"}
+      </button>
+    </li>
+  );
+}
+
+function GuestsSection({ guests }) {
+  const [state, action, pending] = useActionState(addGuest, {});
+  return (
+    <section id="guests" className="flex scroll-mt-6 flex-col gap-4">
+      <div>
+        <h2 className="text-lg font-semibold tracking-tight">Meeting guests</h2>
+        <p className="text-sm text-muted">
+          Who executives can add to a discovery call. They pick by name; the invite goes to these emails. &quot;Pre-selected&quot; people are ticked by default.
+        </p>
+      </div>
+      <form action={action} key={state?.message} className="card grid gap-3 p-5 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+        <div>
+          <label className="label" htmlFor="guest-name">Name</label>
+          <input id="guest-name" name="name" required className="field" placeholder="Ananya" />
+        </div>
+        <div>
+          <label className="label" htmlFor="guest-email">Email</label>
+          <input id="guest-email" name="email" type="email" required className="field" placeholder="name@inloopmedia.com" />
+        </div>
+        <button disabled={pending} className="btn-primary">
+          <Icon name="plus" size={14} /> {pending ? "Adding…" : "Add guest"}
+        </button>
+        {(state?.error || state?.message) && (
+          <p className={`text-sm sm:col-span-3 ${state.error ? "text-rose-400" : "text-emerald-400"}`}>{state.error || state.message}</p>
+        )}
+      </form>
+      {guests.length > 0 && (
+        <ul className="card divide-y divide-line overflow-hidden">
+          {guests.map((g) => (
+            <GuestRow key={g.id} g={g} />
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+
+export default function TeamManager({ members, groups, guests = [], meId }) {
   return (
     <div className="flex flex-col gap-10">
       <section className="flex flex-col gap-4">
@@ -273,6 +341,8 @@ export default function TeamManager({ members, groups, meId }) {
           <NewGroup />
         </div>
       </section>
+
+      <GuestsSection guests={guests} />
     </div>
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import ConnectCalendar from "@/components/ConnectCalendar";
 import Icon from "@/components/Icon";
 import { cancelMeeting, scheduleMeeting } from "@/app/(crm)/actions";
@@ -10,15 +10,85 @@ import { fmtMeeting } from "@/lib/format";
 // datetime-local value for "now" in India time, so past slots can't be picked
 const nowIST = () => new Date(Date.now() + 5.5 * 3600e3).toISOString().slice(0, 16);
 
-function Booker({ leadId, kind, ready, blockedReason, connected, domain }) {
+/** Multi-select of teammates to add to the invite. Names only — the server knows the emails. */
+function GuestPicker({ guests, value, onChange }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  useEffect(() => {
+    if (!open) return;
+    const close = (e) => ref.current && !ref.current.contains(e.target) && setOpen(false);
+    document.addEventListener("mousedown", close);
+    return () => document.removeEventListener("mousedown", close);
+  }, [open]);
+  const toggle = (id) => onChange(value.includes(id) ? value.filter((x) => x !== id) : [...value, id]);
+  const picked = guests.filter((g) => value.includes(g.id));
+
+  return (
+    <div ref={ref} className="relative">
+      <span className="label">Add guests</span>
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="field flex min-h-[38px] flex-wrap items-center gap-1.5 text-left"
+        aria-expanded={open}
+      >
+        {picked.length ? (
+          picked.map((g) => (
+            <span key={g.id} className="chip">
+              {g.name}
+              <span
+                role="button"
+                aria-label={`Remove ${g.name}`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  toggle(g.id);
+                }}
+                className="text-faint hover:text-rose-300"
+              >
+                ×
+              </span>
+            </span>
+          ))
+        ) : (
+          <span className="text-faint">No guests — only the client is invited</span>
+        )}
+        <span className="ml-auto text-faint">▾</span>
+      </button>
+      {open && (
+        <ul className="absolute z-30 mt-1.5 max-h-64 w-full overflow-y-auto rounded-xl border border-line-strong bg-panel-2 p-1 shadow-2xl shadow-black/50">
+          {guests.map((g) => {
+            const on = value.includes(g.id);
+            return (
+              <li key={g.id}>
+                <button
+                  type="button"
+                  onClick={() => toggle(g.id)}
+                  className={`flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm transition hover:bg-white/[0.05] ${on ? "text-white" : "text-white/75"}`}
+                >
+                  <span className={`grid h-4 w-4 shrink-0 place-items-center rounded border ${on ? "border-brand bg-brand text-black" : "border-line-strong"}`}>
+                    {on && <Icon name="check" size={11} />}
+                  </span>
+                  {g.name}
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+function Booker({ leadId, kind, ready, blockedReason, connected, domain, guests = [] }) {
   const [when, setWhen] = useState("");
+  const [guestIds, setGuestIds] = useState(() => guests.filter((g) => g.is_default).map((g) => g.id));
   const [pending, start] = useTransition();
   const [msg, setMsg] = useState(null);
   const info = MEETING_KINDS[kind];
 
   const book = () =>
     start(async () => {
-      const res = await scheduleMeeting(leadId, kind, when);
+      const res = await scheduleMeeting(leadId, kind, when, kind === "discovery" ? guestIds : []);
       if (res.ok) {
         setWhen("");
         setMsg({ ok: true, text: res.invited?.length ? `Booked — invite sent to ${res.invited.join(", ")}` : "Booked." });
@@ -40,6 +110,11 @@ function Booker({ leadId, kind, ready, blockedReason, connected, domain }) {
         </div>
       ) : (
         <>
+          {kind === "discovery" && guests.length > 0 && (
+            <div className="mt-3">
+              <GuestPicker guests={guests} value={guestIds} onChange={setGuestIds} />
+            </div>
+          )}
           <div className="mt-3 flex flex-col gap-2 sm:flex-row">
             <input
               type="datetime-local"
@@ -56,7 +131,7 @@ function Booker({ leadId, kind, ready, blockedReason, connected, domain }) {
             </button>
           </div>
           <p className="mt-2 text-[11px] text-faint">
-            30 min · Google Meet link · {kind === "discovery" ? "invites the client and the ops guest" : "invites only the client · brief goes to the strategists"}
+            30 min · Google Meet link · {kind === "discovery" ? "invites the client and the guests above" : "invites only the client · brief goes to the strategists"}
           </p>
         </>
       )}
@@ -118,7 +193,7 @@ function MeetingRow({ m, meId, canCancelProposal, isAdmin }) {
   );
 }
 
-export default function MeetingsPanel({ lead, meetings, me, canDiscovery, canProposal, connected, domain }) {
+export default function MeetingsPanel({ lead, meetings, me, canDiscovery, canProposal, connected, domain, guests }) {
   const live = (kind) => meetings.some((m) => m.kind === kind && !m.past);
   const isAdmin = me.role === "admin";
 
@@ -138,6 +213,7 @@ export default function MeetingsPanel({ lead, meetings, me, canDiscovery, canPro
         <Booker
           leadId={lead.id}
           kind="discovery"
+          guests={guests}
           ready={lead.status === DISCOVERY_STATUS}
           blockedReason={`Set the status to "${DISCOVERY_STATUS}" to book the first call.`}
           connected={connected}
