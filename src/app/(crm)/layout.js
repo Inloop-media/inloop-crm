@@ -40,11 +40,16 @@ export default async function CrmLayout({ children }) {
 
   return (
     <div className="min-h-svh md:grid md:grid-cols-[232px_1fr]">
-      <aside className="sticky top-0 z-20 flex items-center justify-between gap-4 border-b border-line bg-panel/90 px-4 py-3 backdrop-blur md:h-svh md:flex-col md:items-stretch md:justify-start md:border-b-0 md:border-r md:bg-panel/60 md:px-3 md:py-5">
-        <div className="md:px-2">
-          <Logo />
+      <aside className="sticky top-0 z-20 flex items-center justify-between gap-2 border-b border-line bg-panel/90 px-3 py-3 pt-[max(0.75rem,env(safe-area-inset-top))] backdrop-blur md:pt-5 md:h-svh md:flex-col md:items-stretch md:justify-start md:border-b-0 md:border-r md:bg-panel/60 md:px-3 md:py-5">
+        <div className="shrink-0 md:px-2">
+          <span className="md:hidden">
+            <Logo compact />
+          </span>
+          <span className="hidden md:block">
+            <Logo />
+          </span>
         </div>
-        <div className="flex-1 md:mt-8">
+        <div className="min-w-0 flex-1 md:mt-8">
           <div className="eyebrow mb-2 hidden px-3 md:block">Workspace</div>
           <Nav items={items} />
         </div>
@@ -72,7 +77,7 @@ export default async function CrmLayout({ children }) {
           )}
         </div>
 
-        <div className="flex items-center gap-3 md:border-t md:border-line md:px-2 md:pt-4">
+        <div className="flex shrink-0 items-center gap-1.5 md:gap-3 md:border-t md:border-line md:px-2 md:pt-4">
           <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-gradient-to-br from-brand to-fuchsia-400 text-xs font-semibold text-black">
             {initials(me.name)}
           </span>
