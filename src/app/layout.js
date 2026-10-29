@@ -8,11 +8,11 @@ export const metadata = {
   title: { default: "Inloop CRM", template: "%s · Inloop CRM" },
   description: "Lead management for Inloop Media",
   robots: { index: false, follow: false },
-  appleWebApp: { capable: true, title: "Inloop CRM", statusBarStyle: "black" },
+  appleWebApp: { capable: true, title: "Inloop CRM", statusBarStyle: "black-translucent" },
   icons: { apple: "/icons/apple-touch-icon.png" },
 };
 
-export const viewport = { themeColor: "#08080a" };
+export const viewport = { themeColor: "#0b0b0e", viewportFit: "cover" };
 
 export default function RootLayout({ children }) {
   return (

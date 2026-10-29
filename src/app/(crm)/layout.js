@@ -1,5 +1,6 @@
 import Logo from "@/components/Logo";
-import Nav from "@/components/Nav";
+import Nav, { TabBar } from "@/components/Nav";
+import MobileHeader from "@/components/MobileHeader";
 import Icon from "@/components/Icon";
 import ConnectCalendar from "@/components/ConnectCalendar";
 import PushSetup from "@/components/PushSetup";
@@ -40,25 +41,26 @@ export default async function CrmLayout({ children }) {
 
   return (
     <div className="min-h-svh md:grid md:grid-cols-[232px_1fr]">
-      <aside className="sticky top-0 z-20 flex items-center justify-between gap-2 border-b border-line bg-panel/90 px-3 py-3 pt-[max(0.75rem,env(safe-area-inset-top))] backdrop-blur md:pt-5 md:h-svh md:flex-col md:items-stretch md:justify-start md:border-b-0 md:border-r md:bg-panel/60 md:px-3 md:py-5">
-        <div className="shrink-0 md:px-2">
-          <span className="md:hidden">
-            <Logo compact />
-          </span>
-          <span className="hidden md:block">
-            <Logo />
-          </span>
+      <MobileHeader
+        name={me.name}
+        initials={initials(me.name)}
+        roleLabel={roleLabel}
+        calendar={canSeeLeads(me) ? Boolean(me.calendar_connected_at) : null}
+        domain={process.env.ALLOWED_DOMAIN}
+      />
+
+      <aside className="sticky top-0 hidden h-svh flex-col border-r border-line bg-panel/60 px-3 py-5 backdrop-blur md:flex">
+        <div className="px-2">
+          <Logo />
         </div>
-        <div className="min-w-0 flex-1 md:mt-8">
-          <div className="eyebrow mb-2 hidden px-3 md:block">Workspace</div>
+        <div className="mt-8 flex-1">
+          <div className="eyebrow mb-2 px-3">Workspace</div>
           <Nav items={items} />
         </div>
 
-        <div className="hidden md:block">
-          <PushSetup />
-        </div>
-        <div className={canSeeLeads(me) ? "hidden md:block" : "hidden"}>
-          {me.calendar_connected_at ? (
+        <PushSetup />
+        {canSeeLeads(me) &&
+          (me.calendar_connected_at ? (
             <div className="mx-1 mb-3 flex items-center gap-2 rounded-lg border border-line px-3 py-2 text-xs text-muted">
               <Icon name="calendar" size={14} className="text-emerald-400" />
               Calendar connected
@@ -74,19 +76,15 @@ export default async function CrmLayout({ children }) {
                 Connect →
               </ConnectCalendar>
             </div>
-          )}
-        </div>
+          ))}
 
-        <div className="flex shrink-0 items-center gap-1.5 md:gap-3 md:border-t md:border-line md:px-2 md:pt-4">
+        <div className="flex items-center gap-3 border-t border-line px-2 pt-4">
           <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-gradient-to-br from-brand to-fuchsia-400 text-xs font-semibold text-black">
             {initials(me.name)}
           </span>
-          <div className="hidden min-w-0 flex-1 md:block">
+          <div className="min-w-0 flex-1">
             <div className="truncate text-sm">{me.name}</div>
             <div className="truncate text-xs text-muted">{roleLabel}</div>
-          </div>
-          <div className="md:hidden">
-            <PushSetup variant="bell" />
           </div>
           <form action="/auth/signout" method="post">
             <button title="Sign out" className="grid h-8 w-8 place-items-center rounded-lg text-muted transition hover:bg-panel-2 hover:text-white">
@@ -95,7 +93,9 @@ export default async function CrmLayout({ children }) {
           </form>
         </div>
       </aside>
-      <main className="min-w-0">{children}</main>
+
+      <main className="min-w-0 pb-[calc(env(safe-area-inset-bottom)+80px)] md:pb-0">{children}</main>
+      <TabBar items={items} />
     </div>
   );
 }

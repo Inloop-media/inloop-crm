@@ -118,6 +118,35 @@ export default function PushSetup({ variant = "card" }) {
     </>
   );
 
+  if (variant === "row") {
+    return (
+      <div className="rounded-2xl border border-line px-4 py-3.5">
+        <div className="flex items-center gap-3">
+          <Icon name="bell" size={18} className={state === "on" ? "text-emerald-400" : "text-brand"} />
+          <span className="flex-1 text-sm">{state === "on" ? "Notifications on" : copy.title}</span>
+          {state === "on" ? (
+            <span className="flex gap-3 text-sm">
+              <button onClick={() => run(sendTestPush)} disabled={pending} className="text-muted">
+                Test
+              </button>
+              <button onClick={() => run(disable)} disabled={pending} className="text-rose-300">
+                Turn off
+              </button>
+            </span>
+          ) : (
+            state === "off" && (
+              <button onClick={() => run(enable)} disabled={pending} className="text-sm font-medium text-brand">
+                {pending ? "Turning on…" : "Turn on"}
+              </button>
+            )
+          )}
+        </div>
+        {state !== "on" && state !== "off" && <p className="mt-2 text-xs leading-relaxed text-muted">{copy.text}</p>}
+        {error && <p className="mt-2 text-xs text-rose-400">{error}</p>}
+      </div>
+    );
+  }
+
   if (variant === "card") {
     return <div className={`mx-1 mb-3 rounded-lg border p-3 ${state === "on" ? "border-line py-2" : "border-brand/25 bg-brand/[0.06]"}`}>{body}</div>;
   }
@@ -128,13 +157,18 @@ export default function PushSetup({ variant = "card" }) {
       <button
         onClick={() => setOpen((o) => !o)}
         title="Notifications"
-        className="relative grid h-8 w-8 place-items-center rounded-lg text-muted transition hover:bg-panel-2 hover:text-white"
+        className={`relative grid h-9 w-9 place-items-center rounded-full border transition ${
+          open ? "border-brand/40 bg-brand/10 text-white" : "border-line text-muted hover:text-white"
+        }`}
       >
-        <Icon name="bell" />
-        {state !== "on" && <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-brand" />}
+        <Icon name="bell" size={17} />
+        {state !== "on" && <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-brand ring-2 ring-[#0b0b0e]" />}
       </button>
       {open && (
-        <div className="absolute right-0 top-10 z-30 w-64 rounded-xl border border-line bg-panel p-3 shadow-2xl">{body}</div>
+        <>
+          <button aria-label="Close" onClick={() => setOpen(false)} className="fixed inset-0 z-30 cursor-default" />
+          <div className="rise absolute right-0 top-12 z-40 w-[min(18rem,calc(100vw-2rem))] rounded-2xl border border-line bg-panel p-4 shadow-2xl">{body}</div>
+        </>
       )}
     </div>
   );
