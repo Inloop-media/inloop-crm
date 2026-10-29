@@ -19,6 +19,7 @@ import { DISCOVERY_STATUS, GROUP_KINDS, MEETING_KINDS, MEETING_MINUTES, PROPOSAL
 import { CalendarError, cancelEvent, createMeetEvent } from "@/lib/google";
 import { discoveryMessage, proposalMessage } from "@/lib/messages";
 import { announce } from "@/lib/updates";
+import { pushTo } from "@/lib/push";
 import { shareBriefWithStrategists } from "@/lib/proposals";
 import { fmtDateTime, fullName } from "@/lib/format";
 
@@ -86,10 +87,47 @@ export async function updateLead(id, patch) {
   const { error } = await db().from("leads").update(changes).eq("id", id);
   if (error) return { ok: false, error: error.message };
   await addEvents(id, me.id, events);
+  if (changes.assigned_to && changes.assigned_to !== me.id) after(() => pushNewLead([changes.assigned_to], lead, "New lead assigned to you"));
 
   revalidatePath("/leads");
   revalidatePath(`/leads/${id}`);
   revalidatePath("/");
+  return { ok: true };
+}
+
+/** Phone notification about a lead, e.g. to the executive it was just assigned to. */
+async function pushNewLead(memberIds, lead, title) {
+  const { data } = await db().from("leads").select("id, code, brand, first_name, last_name, service").eq("id", lead.id).single();
+  if (!data) return;
+  await pushTo(memberIds, { title: `${title} — ${data.brand || fullName(data)} (${data.code})`, body: data.service || "", url: `/leads/${data.id}`, tag: `lead-${data.id}` });
+}
+
+/* ------------------------- Push notifications ------------------------- */
+
+/** Saves this device's push subscription for the signed-in member. */
+export async function savePushSubscription(sub, userAgent = "") {
+  const me = await requireMember();
+  const endpoint = str(sub?.endpoint, 2000);
+  const p256dh = str(sub?.keys?.p256dh, 400);
+  const auth = str(sub?.keys?.auth, 400);
+  if (!endpoint.startsWith("https://") || !p256dh || !auth) return { ok: false, error: "This browser sent an invalid subscription." };
+  const { error } = await db()
+    .from("push_subscriptions")
+    .upsert({ member_id: me.id, endpoint, p256dh, auth, user_agent: str(userAgent, 300) }, { onConflict: "endpoint" });
+  if (error) return { ok: false, error: error.message };
+  return { ok: true };
+}
+
+export async function removePushSubscription(endpoint) {
+  const me = await requireMember();
+  await db().from("push_subscriptions").delete().eq("member_id", me.id).eq("endpoint", str(endpoint, 2000));
+  return { ok: true };
+}
+
+/** Sends a test notification to all of the signed-in member's devices. */
+export async function sendTestPush() {
+  const me = await requireMember();
+  await pushTo([me.id], { title: "Notifications are on", body: `You'll hear from the CRM here, ${me.name.split(" ")[0]}.`, url: "/", tag: "test" });
   return { ok: true };
 }
 
@@ -122,6 +160,7 @@ export async function createLead(_prev, formData) {
   const { data, error } = await db().from("leads").insert(row).select("id").single();
   if (error) return { error: error.message };
   await addEvents(data.id, me.id, [{ type: "created", data: { source: row.source } }]);
+  if (row.assigned_to && row.assigned_to !== me.id) after(() => pushNewLead([row.assigned_to], { ...row, ...data }, "New lead assigned to you"));
   revalidatePath("/leads");
   redirect(`/leads/${data.id}`);
 }

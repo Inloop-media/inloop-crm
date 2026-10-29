@@ -2,6 +2,7 @@ import Logo from "@/components/Logo";
 import Nav from "@/components/Nav";
 import Icon from "@/components/Icon";
 import ConnectCalendar from "@/components/ConnectCalendar";
+import PushSetup from "@/components/PushSetup";
 import { requireMember } from "@/lib/auth";
 import { db } from "@/lib/supabase/server";
 import { listFeeds } from "@/lib/leads";
@@ -48,6 +49,9 @@ export default async function CrmLayout({ children }) {
           <Nav items={items} />
         </div>
 
+        <div className="hidden md:block">
+          <PushSetup />
+        </div>
         <div className={canSeeLeads(me) ? "hidden md:block" : "hidden"}>
           {me.calendar_connected_at ? (
             <div className="mx-1 mb-3 flex items-center gap-2 rounded-lg border border-line px-3 py-2 text-xs text-muted">
@@ -75,6 +79,9 @@ export default async function CrmLayout({ children }) {
           <div className="hidden min-w-0 flex-1 md:block">
             <div className="truncate text-sm">{me.name}</div>
             <div className="truncate text-xs text-muted">{roleLabel}</div>
+          </div>
+          <div className="md:hidden">
+            <PushSetup variant="bell" />
           </div>
           <form action="/auth/signout" method="post">
             <button title="Sign out" className="grid h-8 w-8 place-items-center rounded-lg text-muted transition hover:bg-panel-2 hover:text-white">

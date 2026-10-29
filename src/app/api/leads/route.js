@@ -1,6 +1,8 @@
 import { timingSafeEqual } from "node:crypto";
 import { db } from "@/lib/supabase/server";
+import { after } from "next/server";
 import { addEvents } from "@/lib/leads";
+import { pushTo, staffIds } from "@/lib/push";
 
 const REQUIRED = ["firstName", "lastName", "phone", "email", "company", "location", "service"];
 const str = (v, max = 5000) => String(v ?? "").trim().slice(0, max);
@@ -46,5 +48,13 @@ export async function POST(request) {
   if (error) return Response.json({ ok: false, error: error.message }, { status: 500 });
 
   await addEvents(data.id, null, [{ type: "created", data: { source: "website" } }]);
+  after(async () =>
+    pushTo(await staffIds(), {
+      title: `New website lead — ${str(body.company, 200)} (${data.code})`,
+      body: [str(body.service, 200), str(body.budget, 100)].filter(Boolean).join(" · "),
+      url: `/leads/${data.id}`,
+      tag: `lead-${data.id}`,
+    })
+  );
   return Response.json({ ok: true, id: data.code });
 }
