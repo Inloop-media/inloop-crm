@@ -66,7 +66,7 @@ function DocSlot({ leadId, def, docs, editable }) {
   };
 
   return (
-    <div className={`rounded-xl border p-4 transition ${done ? "border-emerald-400/20 bg-emerald-400/[0.03]" : "border-line bg-white/[0.015]"}`}>
+    <div className={`rounded-xl border p-4 transition ${done ? "border-emerald-400/20 bg-emerald-400/[0.03]" : "border-line bg-ink/[0.015]"}`}>
       <div className="flex items-start gap-3">
         <span className={`mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-full border ${done ? "border-emerald-400/40 bg-emerald-400/15 text-emerald-300" : "border-line text-faint"}`}>
           <Icon name={done ? "check" : "file"} size={12} />
@@ -116,7 +116,7 @@ function DocSlot({ leadId, def, docs, editable }) {
                 <Icon name="upload" size={13} /> {progress ? "Uploading…" : "Upload file"}
               </button>
               {!def.pdf && (
-                <button onClick={() => setShowLink((v) => !v)} className="px-1 text-xs text-muted hover:text-white">
+                <button onClick={() => setShowLink((v) => !v)} className="px-1 text-xs text-muted hover:text-ink">
                   or add a link
                 </button>
               )}
@@ -161,7 +161,7 @@ function Deliverable({ label, href, note, icon = "external" }) {
       target="_blank"
       rel="noreferrer"
       className={`flex items-center gap-3 rounded-xl border p-3.5 transition ${
-        ready ? "border-white/[0.08] bg-gradient-to-br from-brand/[0.08] to-transparent hover:border-brand/40" : "pointer-events-none border-dashed border-line"
+        ready ? "border-ink/[0.08] bg-gradient-to-br from-brand/[0.08] to-transparent hover:border-brand/40" : "pointer-events-none border-dashed border-line"
       }`}
     >
       <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-lg ${ready ? "bg-brand/15 text-brand" : "bg-panel-2 text-faint"}`}>
@@ -194,7 +194,7 @@ export default function ProposalWorkspace({ proposal: p, canPick, canWork, canCo
       {/* Status line */}
       <div
         className={`flex flex-wrap items-center gap-3 rounded-xl border px-4 py-3 text-sm ${
-          stage.error ? "border-rose-400/25 bg-rose-400/[0.05]" : p.stage === "awaiting_commercials" ? "border-amber-400/25 bg-amber-400/[0.05]" : "border-line bg-white/[0.015]"
+          stage.error ? "border-rose-400/25 bg-rose-400/[0.05]" : p.stage === "awaiting_commercials" ? "border-amber-400/25 bg-amber-400/[0.05]" : "border-line bg-ink/[0.015]"
         }`}
       >
         {busy && <span className="h-2 w-2 animate-pulse rounded-full bg-brand" />}
@@ -278,7 +278,7 @@ export default function ProposalWorkspace({ proposal: p, canPick, canWork, canCo
               </div>
             </form>
           ) : (
-            <p className="mt-2 whitespace-pre-wrap text-sm text-white/85">{canCommercials ? p.commercials : "Entered by the admin."}</p>
+            <p className="mt-2 whitespace-pre-wrap text-sm text-ink/85">{canCommercials ? p.commercials : "Entered by the admin."}</p>
           )}
         </section>
       )}

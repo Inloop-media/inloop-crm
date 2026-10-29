@@ -1,4 +1,5 @@
 import { Inter, Instrument_Serif } from "next/font/google";
+import { getTheme } from "@/lib/theme";
 import "./globals.css";
 
 const inter = Inter({ variable: "--font-inter", subsets: ["latin"] });
@@ -12,11 +13,14 @@ export const metadata = {
   icons: { apple: "/icons/apple-touch-icon.png" },
 };
 
-export const viewport = { themeColor: "#0b0b0e", viewportFit: "cover" };
+export async function generateViewport() {
+  return { themeColor: (await getTheme()) === "light" ? "#f5f5f8" : "#070709", viewportFit: "cover" };
+}
 
-export default function RootLayout({ children }) {
+export default async function RootLayout({ children }) {
+  const theme = await getTheme();
   return (
-    <html lang="en" className={`${inter.variable} ${serif.variable} h-full antialiased`}>
+    <html lang="en" data-theme={theme} className={`${inter.variable} ${serif.variable} h-full antialiased`}>
       <body className="min-h-full">{children}</body>
     </html>
   );

@@ -61,7 +61,7 @@ export function StatusPicker({ lead, statuses }) {
                       active
                         ? "font-medium text-black"
                         : allowed
-                          ? "border-line text-white/80 hover:border-line-strong hover:bg-white/[0.03]"
+                          ? "border-line text-ink/80 hover:border-line-strong hover:bg-ink/[0.03]"
                           : "cursor-not-allowed border-line/60 text-faint"
                     }`}
                     style={active ? { background: s.color, borderColor: s.color } : undefined}
@@ -97,7 +97,7 @@ export function OwnerPicker({ lead, members, assignees, canAssign, openCounts = 
 
   return (
     <div>
-      <div className={`flex items-center gap-3 rounded-xl border p-3 ${owner ? "border-white/[0.08] bg-white/[0.02]" : "border-dashed border-amber-400/30 bg-amber-400/[0.04]"}`}>
+      <div className={`flex items-center gap-3 rounded-xl border p-3 ${owner ? "border-ink/[0.08] bg-ink/[0.02]" : "border-dashed border-amber-400/30 bg-amber-400/[0.04]"}`}>
         {owner ? (
           <Avatar name={owner.name} size={36} />
         ) : (
@@ -127,10 +127,10 @@ export function OwnerPicker({ lead, members, assignees, canAssign, openCounts = 
                     <button
                       onClick={() => assign(m.id)}
                       disabled={pending}
-                      className="group flex w-full items-center gap-2.5 rounded-lg px-2 py-1.5 text-left transition hover:bg-white/[0.04] disabled:opacity-50"
+                      className="group flex w-full items-center gap-2.5 rounded-lg px-2 py-1.5 text-left transition hover:bg-ink/[0.04] disabled:opacity-50"
                     >
                       <Avatar name={m.name} size={26} />
-                      <span className="min-w-0 flex-1 truncate text-sm text-white/85">{m.name}</span>
+                      <span className="min-w-0 flex-1 truncate text-sm text-ink/85">{m.name}</span>
                       <span className="text-[11px] tabular-nums text-faint">{openCounts[m.id] || 0} open</span>
                       <span className="text-xs text-brand opacity-0 transition group-hover:opacity-100">Assign</span>
                     </button>

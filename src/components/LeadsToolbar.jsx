@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import Icon from "@/components/Icon";
 import { STATUS_NAMES } from "@/lib/constants";
 
 export default function LeadsToolbar({ members, showOwner }) {
@@ -26,13 +27,14 @@ export default function LeadsToolbar({ members, showOwner }) {
   return (
     <div className="flex flex-wrap items-center gap-2">
       <form
-        className="min-w-[200px] flex-1 sm:max-w-xs"
+        className="relative min-w-[200px] flex-1 sm:max-w-sm"
         onSubmit={(e) => {
           e.preventDefault();
           go("q", new FormData(e.currentTarget).get("q"));
         }}
       >
-        <input name="q" defaultValue={params.get("q") || ""} placeholder="Search name, brand, phone, IM-…" className="field" />
+        <input name="q" defaultValue={params.get("q") || ""} placeholder="Search name, brand, phone, IM-…" className="field pl-10" />
+        <Icon name="search" size={16} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-faint" />
       </form>
 
       {showOwner && (
@@ -56,13 +58,10 @@ export default function LeadsToolbar({ members, showOwner }) {
         </select>
       )}
 
-      <div className="ml-auto flex rounded-lg border border-line bg-panel p-0.5 text-sm">
+      <div className="seg ml-auto">
         {["board", "list"].map((v) => (
-          <Link
-            key={v}
-            href={viewHref(v)}
-            className={`rounded-md px-3 py-1.5 capitalize ${view === v ? "bg-panel-2 text-white" : "text-muted hover:text-white"}`}
-          >
+          <Link key={v} href={viewHref(v)} data-on={view === v} className="seg-item flex items-center gap-1.5 capitalize">
+            <Icon name={v === "board" ? "leads" : "brief"} size={14} />
             {v}
           </Link>
         ))}

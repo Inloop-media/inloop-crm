@@ -22,11 +22,12 @@ export default async function LeadsPage({ searchParams }) {
   const all = canSeeAllLeads(me);
 
   return (
-    <div className="px-4 py-6 md:px-8 md:py-8">
-      <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
+    <div className="relative z-[1] px-4 py-6 md:px-8 md:py-9">
+      <div className="rise mb-6 flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">{all ? "Leads" : "My leads"}</h1>
-          <p className="text-sm text-muted">
+          <p className="eyebrow">Pipeline</p>
+          <h1 className="page-title mt-1.5">{all ? "Leads" : "My leads"}</h1>
+          <p className="mt-1 text-sm text-muted">
             {leads.length} lead{leads.length === 1 ? "" : "s"}
             {!all && " assigned to you"}
           </p>
@@ -37,7 +38,7 @@ export default async function LeadsPage({ searchParams }) {
           </Link>
         )}
       </div>
-      <div className="mb-5">
+      <div className="rise rise-1 mb-5">
         <Suspense>
           <LeadsToolbar members={members.filter((m) => m.active && m.groups.some((g) => g.kind === "sales"))} showOwner={all} />
         </Suspense>

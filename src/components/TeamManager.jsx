@@ -9,7 +9,7 @@ import { GROUP_KINDS, ROLES, UPDATE_EVENTS } from "@/lib/constants";
 const KIND_TONE = {
   sales: "border-cyan-400/30 bg-cyan-400/10 text-cyan-200",
   strategy: "border-fuchsia-400/30 bg-fuchsia-400/10 text-fuchsia-200",
-  other: "border-line bg-panel-2 text-white/70",
+  other: "border-line bg-panel-2 text-ink/70",
 };
 
 function useChange(fn) {
@@ -57,7 +57,7 @@ function MemberRow({ m, isMe, groups }) {
               disabled={pending}
               onClick={() => toggle(g.id)}
               title={on ? `Remove from ${g.name}` : `Add to ${g.name}`}
-              className={`rounded-full border px-2.5 py-1 text-[11px] transition ${on ? KIND_TONE[g.kind] : "border-dashed border-line text-faint hover:border-line-strong hover:text-white"}`}
+              className={`rounded-full border px-2.5 py-1 text-[11px] transition ${on ? KIND_TONE[g.kind] : "border-dashed border-line text-faint hover:border-line-strong hover:text-ink"}`}
             >
               {on ? "✓ " : "+ "}
               {g.name}
@@ -160,7 +160,7 @@ function GroupCard({ g, members }) {
                 disabled={pending}
                 onClick={() => change(g.id, { notify: on ? g.notify.filter((x) => x !== e.id) : [...(g.notify || []), e.id] })}
                 className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] transition ${
-                  on ? "border-brand/40 bg-brand/10 text-brand" : "border-dashed border-line text-faint hover:border-line-strong hover:text-white"
+                  on ? "border-brand/40 bg-brand/10 text-brand" : "border-dashed border-line text-faint hover:border-line-strong hover:text-ink"
                 }`}
               >
                 <Icon name={e.icon} size={11} />
@@ -220,7 +220,7 @@ function NewGroup() {
         <div className="eyebrow mb-2">Posts here</div>
         <div className="flex flex-col gap-1.5">
           {UPDATE_EVENTS.map((e) => (
-            <label key={e.id} className="flex cursor-pointer items-center gap-2 text-sm text-white/80">
+            <label key={e.id} className="flex cursor-pointer items-center gap-2 text-sm text-ink/80">
               <input type="checkbox" name="notify" value={e.id} className="accent-[var(--color-brand)]" />
               {e.label}
             </label>

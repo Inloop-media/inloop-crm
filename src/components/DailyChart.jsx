@@ -13,7 +13,7 @@ export default function DailyChart({ days }) {
     <div className="flex h-full flex-1 flex-col">
       <div className="mb-3 flex h-5 items-baseline justify-between text-xs text-muted">
         <span>{active ? active.label : `${days[0]?.label} – ${days.at(-1)?.label}`}</span>
-        <span className="tabular-nums text-white">{active ? `${active.count} lead${active.count === 1 ? "" : "s"}` : `${total} total`}</span>
+        <span className="tabular-nums text-ink">{active ? `${active.count} lead${active.count === 1 ? "" : "s"}` : `${total} total`}</span>
       </div>
       <div className="relative min-h-52 flex-1" onMouseLeave={() => setHover(null)}>
         {/* recessive gridlines at 0, half and max */}
@@ -34,7 +34,7 @@ export default function DailyChart({ days }) {
                 className="w-full max-w-[14px] rounded-t-[4px] transition-colors"
                 style={{
                   height: d.count ? `${Math.max(4, (d.count / max) * 100)}%` : "2px",
-                  background: d.count ? (hover === i ? "#b3b8ff" : "var(--color-brand)") : "var(--color-line-strong)",
+                  background: d.count ? (hover === i ? "var(--color-brand-soft)" : "var(--color-brand)") : "var(--color-line-strong)",
                   opacity: hover == null || hover === i ? 1 : 0.55,
                 }}
               />

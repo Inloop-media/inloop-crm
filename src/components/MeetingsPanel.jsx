@@ -63,9 +63,9 @@ function GuestPicker({ guests, value, onChange }) {
                 <button
                   type="button"
                   onClick={() => toggle(g.id)}
-                  className={`flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm transition hover:bg-white/[0.05] ${on ? "text-white" : "text-white/75"}`}
+                  className={`flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm transition hover:bg-ink/[0.05] ${on ? "text-ink" : "text-ink/75"}`}
                 >
-                  <span className={`grid h-4 w-4 shrink-0 place-items-center rounded border ${on ? "border-brand bg-brand text-black" : "border-line-strong"}`}>
+                  <span className={`grid h-4 w-4 shrink-0 place-items-center rounded border ${on ? "border-brand bg-brand text-on-brand" : "border-line-strong"}`}>
                     {on && <Icon name="check" size={11} />}
                   </span>
                   {g.name}

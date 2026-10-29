@@ -8,23 +8,23 @@ export const describe = (e) => {
     case "status":
       return (
         <>
-          Status: {e.data?.from} → <span className="text-white">{e.data?.to}</span>
+          Status: {e.data?.from} → <span className="text-ink">{e.data?.to}</span>
         </>
       );
     case "assigned":
-      return e.data?.to ? <>Assigned to <span className="text-white">{e.data.to}</span></> : "Unassigned";
+      return e.data?.to ? <>Assigned to <span className="text-ink">{e.data.to}</span></> : "Unassigned";
     case "remarks":
-      return <>Remarks updated{e.data?.text ? <span className="mt-1 block whitespace-pre-wrap text-white/80">{e.data.text}</span> : null}</>;
+      return <>Remarks updated{e.data?.text ? <span className="mt-1 block whitespace-pre-wrap text-ink/80">{e.data.text}</span> : null}</>;
     case "brief":
-      return <>Brief updated{e.data?.text ? <span className="mt-1 block whitespace-pre-wrap text-white/80">{e.data.text}</span> : null}</>;
+      return <>Brief updated{e.data?.text ? <span className="mt-1 block whitespace-pre-wrap text-ink/80">{e.data.text}</span> : null}</>;
     case "meeting":
-      return <>{MEETING_KINDS[e.data?.kind]?.label || "Meeting"} booked for <span className="text-white">{fmtMeeting(e.data?.at)}</span></>;
+      return <>{MEETING_KINDS[e.data?.kind]?.label || "Meeting"} booked for <span className="text-ink">{fmtMeeting(e.data?.at)}</span></>;
     case "meeting_cancelled":
       return <>{MEETING_KINDS[e.data?.kind]?.label || "Meeting"} on {fmtMeeting(e.data?.at)} cancelled</>;
     case "proposal_shared":
       return "Brief shared with the creative strategists";
     case "proposal_picked":
-      return <>Brief picked up by <span className="text-white">{e.data?.to}</span></>;
+      return <>Brief picked up by <span className="text-ink">{e.data?.to}</span></>;
     case "proposal_crl_queued":
       return "Documents sent to the CRL bot";
     case "proposal_crl_ready":

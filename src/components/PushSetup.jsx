@@ -92,7 +92,7 @@ export default function PushSetup({ variant = "card" }) {
         <div className="flex items-center gap-2 text-xs text-muted">
           <Icon name="bell" size={14} className="text-emerald-400" />
           <span className="flex-1">Notifications on</span>
-          <button onClick={() => run(sendTestPush)} disabled={pending} className="hover:text-white">
+          <button onClick={() => run(sendTestPush)} disabled={pending} className="hover:text-ink">
             Test
           </button>
           <span className="text-faint">·</span>
@@ -148,7 +148,7 @@ export default function PushSetup({ variant = "card" }) {
   }
 
   if (variant === "card") {
-    return <div className={`mx-1 mb-3 rounded-lg border p-3 ${state === "on" ? "border-line py-2" : "border-brand/25 bg-brand/[0.06]"}`}>{body}</div>;
+    return <div className={`rounded-xl border p-3 ${state === "on" ? "border-line py-2" : "border-brand/25 bg-brand/[0.06]"}`}>{body}</div>;
   }
 
   // Mobile top bar: a bell that opens the same card
@@ -158,16 +158,16 @@ export default function PushSetup({ variant = "card" }) {
         onClick={() => setOpen((o) => !o)}
         title="Notifications"
         className={`relative grid h-9 w-9 place-items-center rounded-full border transition ${
-          open ? "border-brand/40 bg-brand/10 text-white" : "border-line text-muted hover:text-white"
+          open ? "border-brand/40 bg-brand/10 text-ink" : "border-line text-muted hover:text-ink"
         }`}
       >
         <Icon name="bell" size={17} />
-        {state !== "on" && <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-brand ring-2 ring-[#0b0b0e]" />}
+        {state !== "on" && <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-brand ring-2 ring-bg" />}
       </button>
       {open && (
         <>
           <button aria-label="Close" onClick={() => setOpen(false)} className="fixed inset-0 z-30 cursor-default" />
-          <div className="rise absolute right-0 top-12 z-40 w-[min(18rem,calc(100vw-2rem))] rounded-2xl border border-line bg-panel p-4 shadow-2xl">{body}</div>
+          <div className="rise absolute right-0 top-12 z-40 w-[min(18rem,calc(100vw-2rem))] pop p-4">{body}</div>
         </>
       )}
     </div>

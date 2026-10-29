@@ -43,7 +43,7 @@ export default function Board({ leads: initial, owners, allowed }) {
   return (
     <div>
       {error && <p className="mb-3 text-sm text-rose-400">{error}</p>}
-      <div className="-mx-4 flex gap-2.5 overflow-x-auto px-4 pb-4 md:-mx-8 md:px-8">
+      <div className="-mx-4 flex snap-x snap-mandatory scroll-px-4 gap-3 overflow-x-auto px-4 pb-4 md:-mx-8 md:snap-none md:gap-2.5 md:px-8">
         {STATUSES.map((s) => {
           const items = leads.filter((l) => l.status === s.name);
           const drop = {
@@ -66,8 +66,8 @@ export default function Board({ leads: initial, owners, allowed }) {
                 key={s.name}
                 {...drop}
                 title={`${s.name} — drop a lead here`}
-                className={`flex h-[calc(100svh-230px)] min-h-[260px] w-10 shrink-0 flex-col items-center gap-3 rounded-2xl border py-3 transition ${
-                  over === s.name ? "w-[200px] border-brand/60 bg-brand/[0.06]" : "border-line/70 bg-panel/50"
+                className={`hidden h-[calc(100svh-250px)] min-h-[260px] w-10 shrink-0 flex-col items-center gap-3 rounded-2xl border border-dashed py-3 transition md:flex ${
+                  over === s.name ? "w-[200px] border-brand/60 bg-brand/[0.06]" : "border-line bg-panel/40"
                 }`}
               >
                 <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: s.color }} />
@@ -81,12 +81,12 @@ export default function Board({ leads: initial, owners, allowed }) {
             <section
               key={s.name}
               {...drop}
-              className={`flex max-h-[calc(100svh-230px)] min-w-[210px] max-w-[300px] flex-1 basis-[250px] flex-col rounded-2xl border bg-panel transition ${over === s.name ? "border-brand/60 bg-brand/[0.04]" : "border-line"}`}
+              className={`flex max-h-[calc(100svh-310px)] w-[84vw] shrink-0 snap-start flex-col rounded-2xl border bg-panel-2/40 transition md:max-h-[calc(100svh-250px)] md:w-auto md:min-w-[210px] md:max-w-[300px] md:flex-1 md:shrink md:basis-[250px] ${over === s.name ? "border-brand/60 bg-brand/[0.05]" : "border-line"}`}
             >
-              <header className="flex items-center gap-2 px-3.5 pb-2 pt-3">
+              <header className="flex items-center gap-2 px-3.5 pb-2.5 pt-3.5">
                 <span className="h-2 w-2 rounded-full" style={{ background: s.color }} />
-                <h2 className="truncate text-sm font-medium">{s.name}</h2>
-                <span className="ml-auto rounded-full bg-panel-3 px-2 py-0.5 text-[11px] tabular-nums text-muted">{items.length}</span>
+                <h2 className="truncate text-[13px] font-semibold">{s.name}</h2>
+                <span className="ml-auto rounded-full border border-line bg-panel px-2 py-0.5 text-[11px] font-medium tabular-nums text-muted">{items.length}</span>
               </header>
               <div className="flex flex-col gap-2 overflow-y-auto p-2 pt-1">
                 {items.map((l) => (
@@ -98,20 +98,20 @@ export default function Board({ leads: initial, owners, allowed }) {
                       e.dataTransfer.setData("text/plain", l.id);
                       e.dataTransfer.effectAllowed = "move";
                     }}
-                    className="block rounded-xl border border-line bg-panel-2 p-3 transition hover:-translate-y-px hover:border-line-strong hover:bg-panel-3 active:cursor-grabbing"
+                    className="card card-hover block rounded-xl p-3.5 active:cursor-grabbing"
                   >
                     <div className="flex items-center justify-between gap-2 text-[11px] text-faint">
-                      <span>{l.code}</span>
+                      <span className="rounded-md bg-panel-2 px-1.5 py-0.5 font-medium tabular-nums text-muted">{l.code}</span>
                       <span>{fmtDay(l.created_at)}</span>
                     </div>
-                    <div className="mt-1.5 truncate text-sm font-medium">{l.brand || fullName(l)}</div>
+                    <div className="mt-2 truncate text-[15px] font-semibold tracking-[-0.01em]">{l.brand || fullName(l)}</div>
                     <div className="truncate text-xs text-muted">{l.brand ? fullName(l) : l.email}</div>
-                    {l.service && <div className="mt-2.5 inline-block max-w-full truncate rounded-md bg-panel px-1.5 py-0.5 text-[11px] text-white/70">{l.service}</div>}
-                    <div className="mt-2.5 flex items-center gap-2 text-xs">
+                    {l.service && <div className="mt-2.5 inline-block max-w-full truncate rounded-md border border-line px-1.5 py-0.5 text-[11px] text-ink/70">{l.service}</div>}
+                    <div className="mt-3 flex items-center gap-2 border-t border-line pt-2.5 text-xs">
                       {l.assigned_to ? (
                         <>
                           <Avatar name={owners[l.assigned_to] || "?"} size={20} />
-                          <span className="truncate text-white/75">{owners[l.assigned_to] || "—"}</span>
+                          <span className="truncate text-ink/75">{owners[l.assigned_to] || "—"}</span>
                         </>
                       ) : (
                         <span className="text-amber-400">Unassigned</span>

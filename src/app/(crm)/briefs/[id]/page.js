@@ -34,8 +34,8 @@ export default async function BriefPage({ params }) {
   const lead = p.lead;
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-6 md:px-8 md:py-9">
-      <Link href="/briefs" className="inline-flex items-center gap-1.5 text-sm text-muted hover:text-white">
+    <div className="relative z-[1] mx-auto max-w-6xl px-4 py-6 md:px-8 md:py-9">
+      <Link href="/briefs" className="inline-flex items-center gap-1.5 text-sm text-muted hover:text-ink">
         <Icon name="back" size={14} /> Briefs
       </Link>
 
@@ -45,7 +45,7 @@ export default async function BriefPage({ params }) {
             <span className="rounded-md border border-line px-1.5 py-0.5 text-xs">{lead.code}</span>
             <span>Shared {fmtDateTime(p.shared_at)}</span>
           </div>
-          <h1 className="mt-2 text-3xl font-semibold tracking-tight">{lead.brand || fullName(lead)}</h1>
+          <h1 className="page-title mt-1.5">{lead.brand || fullName(lead)}</h1>
           <p className="mt-1 text-sm text-muted">{[lead.service, lead.location].filter(Boolean).join(" · ")}</p>
         </div>
         <StagePill stage={p.stage} />
@@ -58,7 +58,7 @@ export default async function BriefPage({ params }) {
       <div className="rise mt-6 grid gap-4 [animation-delay:120ms] lg:grid-cols-[380px_1fr]">
         <div className="flex flex-col gap-4">
           <Panel title="Client brief">
-            <p className="whitespace-pre-wrap text-sm leading-relaxed text-white/85">{lead.brief || "No brief text."}</p>
+            <p className="whitespace-pre-wrap text-sm leading-relaxed text-ink/85">{lead.brief || "No brief text."}</p>
           </Panel>
           <Panel title="About the lead">
             <dl className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
@@ -70,7 +70,7 @@ export default async function BriefPage({ params }) {
             {lead.details && (
               <div className="mt-4 border-t border-line pt-4">
                 <div className="eyebrow">Project details</div>
-                <p className="mt-1.5 whitespace-pre-wrap text-sm leading-relaxed text-white/75">{lead.details}</p>
+                <p className="mt-1.5 whitespace-pre-wrap text-sm leading-relaxed text-ink/75">{lead.details}</p>
               </div>
             )}
           </Panel>

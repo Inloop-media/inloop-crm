@@ -27,10 +27,10 @@ export default async function UpdatesPage({ searchParams }) {
   const leadHref = (lead) => (canSeeAllLeads(me) ? `/leads/${lead.id}` : isStrategist(me) ? `/briefs/${lead.id}` : null);
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-6 md:px-8 md:py-9">
+    <div className="relative z-[1] mx-auto max-w-6xl px-4 py-6 md:px-8 md:py-9">
       <header className="rise mb-7">
         <p className="eyebrow">Workspace</p>
-        <h1 className="mt-2 text-3xl font-semibold tracking-tight">Updates</h1>
+        <h1 className="page-title mt-1.5">Updates</h1>
         <p className="mt-2 text-sm text-muted">What the bots and the pipeline post to your groups — CRL links, proposals, new briefs.</p>
       </header>
 
@@ -45,8 +45,8 @@ export default async function UpdatesPage({ searchParams }) {
               <Link
                 key={g.id}
                 href={`/updates?group=${g.id}`}
-                className={`flex shrink-0 items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm transition ${
-                  current?.id === g.id ? "bg-panel-2 text-white" : "text-muted hover:bg-panel-2/60 hover:text-white"
+                className={`flex shrink-0 items-center gap-2.5 rounded-xl border px-3 py-2.5 text-sm transition md:border-transparent ${
+                  current?.id === g.id ? "border-brand/30 bg-brand/[0.08] text-ink md:bg-panel-2" : "border-line text-muted hover:bg-panel-2/60 hover:text-ink"
                 }`}
               >
                 <span className="text-faint">#</span>
@@ -58,7 +58,7 @@ export default async function UpdatesPage({ searchParams }) {
             ))}
           </nav>
 
-          <section className="card min-w-0 p-5">
+          <section className="card min-w-0 p-4 sm:p-6">
             <header className="mb-5 flex flex-wrap items-start justify-between gap-3 border-b border-line pb-4">
               <div className="min-w-0">
                 <h2 className="text-lg font-semibold tracking-tight"># {current.name}</h2>
@@ -69,14 +69,14 @@ export default async function UpdatesPage({ searchParams }) {
                 </p>
               </div>
               {canManageTeam(me) && (
-                <Link href="/team#groups" className="text-xs text-muted hover:text-white">
+                <Link href="/team#groups" className="text-xs text-muted hover:text-ink">
                   Change what posts here →
                 </Link>
               )}
             </header>
 
             {posts.length ? (
-              <ol className="flex flex-col gap-5">
+              <ol className="flex flex-col gap-6">
                 {posts.map((p) => {
                   const ev = UPDATE_EVENTS.find((e) => e.id === p.event);
                   const href = p.lead && leadHref(p.lead);
@@ -87,12 +87,12 @@ export default async function UpdatesPage({ searchParams }) {
                       </span>
                       <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-baseline gap-x-2">
-                          <span className="text-sm font-medium">Inloop bot</span>
+                          <span className="text-sm font-semibold">Inloop bot</span>
                           <span className="text-[11px] text-faint" title={fmtDateTime(p.created_at)}>
                             {ago(p.created_at)}
                           </span>
                         </div>
-                        <div className="mt-0.5 text-sm text-white/90">
+                        <div className="mt-0.5 text-sm text-ink/90">
                           {href ? (
                             <Link href={href} className="hover:text-brand">
                               {p.title}
@@ -106,7 +106,7 @@ export default async function UpdatesPage({ searchParams }) {
                             href={p.url}
                             target="_blank"
                             rel="noreferrer"
-                            className="mt-2 flex max-w-md items-center gap-3 rounded-xl border border-white/[0.08] bg-gradient-to-br from-brand/[0.08] to-transparent p-3 transition hover:border-brand/40"
+                            className="mt-2 flex max-w-md items-center gap-3 rounded-xl border border-ink/[0.08] bg-gradient-to-br from-brand/[0.08] to-transparent p-3 transition hover:border-brand/40"
                           >
                             <Icon name="external" size={14} className="shrink-0 text-brand" />
                             <span className="min-w-0 truncate text-sm text-brand">{p.url.replace(/^https?:\/\//, "")}</span>

@@ -42,16 +42,16 @@ function ActionList({ items }) {
     <ul className="-mx-2 flex flex-col">
       {items.map((it) => (
         <li key={it.key}>
-          <Link href={it.href} className="group flex items-center gap-3 rounded-xl px-2 py-2.5 transition hover:bg-white/[0.03]">
-            <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg border ${it.tone}`}>
-              <Icon name={it.icon} size={14} />
+          <Link href={it.href} className="group flex items-center gap-3 rounded-xl px-2 py-2.5 transition hover:bg-ink/[0.03]">
+            <span className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl border ${it.tone}`}>
+              <Icon name={it.icon} size={16} />
             </span>
             <div className="min-w-0 flex-1">
-              <div className="truncate text-sm">{it.title}</div>
+              <div className="truncate text-sm font-medium">{it.title}</div>
               <div className="truncate text-xs text-muted">{it.sub}</div>
             </div>
-            <span className="hidden shrink-0 text-xs text-faint sm:block">{it.code}</span>
-            <Icon name="arrow" size={14} className="shrink-0 text-faint transition group-hover:translate-x-0.5 group-hover:text-white" />
+            <span className="hidden shrink-0 rounded-md bg-panel-2 px-1.5 py-0.5 text-[11px] tabular-nums text-muted sm:block">{it.code}</span>
+            <Icon name="arrow" size={14} className="shrink-0 text-faint transition group-hover:translate-x-0.5 group-hover:text-ink" />
           </Link>
         </li>
       ))}
@@ -79,8 +79,8 @@ function MeetingAgenda({ meetings, now }) {
           <ul className="-mx-2">
             {g.items.map((m) => (
               <li key={m.id}>
-                <Link href={`/leads/${m.lead.id}`} className="flex items-center gap-3 rounded-xl px-2 py-2 transition hover:bg-white/[0.03]">
-                  <span className="w-[62px] shrink-0 text-xs tabular-nums text-white/80">{timeOnly.format(new Date(m.starts_at))}</span>
+                <Link href={`/leads/${m.lead.id}`} className="flex items-center gap-3 rounded-xl px-2 py-2 transition hover:bg-ink/[0.03]">
+                  <span className="w-[62px] shrink-0 text-xs tabular-nums text-ink/80">{timeOnly.format(new Date(m.starts_at))}</span>
                   <span className="h-7 w-[3px] shrink-0 rounded-full" style={{ background: MEETING_KINDS[m.kind].color }} />
                   <div className="min-w-0 flex-1">
                     <div className="truncate text-sm">{brandOf(m.lead)}</div>
@@ -114,7 +114,7 @@ function Activity({ events }) {
           )}
           <div className="min-w-0 flex-1 text-xs">
             <div className="text-muted">
-              <Link href={`/leads/${e.lead.id}`} className="font-medium text-white hover:text-brand">
+              <Link href={`/leads/${e.lead.id}`} className="font-medium text-ink hover:text-brand">
                 {brandOf(e.lead)}
               </Link>{" "}
               <span className="text-faint">{e.lead.code}</span>
@@ -141,13 +141,13 @@ function PipelineBars({ leads }) {
           <Link
             href={`/leads?view=list&status=${encodeURIComponent(s.name)}`}
             title={`${s.name}: ${by[s.name]}`}
-            className="group grid grid-cols-[minmax(0,180px)_1fr_28px] items-center gap-3 rounded-lg px-1.5 py-1.5 transition hover:bg-white/[0.03]"
+            className="group grid grid-cols-[minmax(0,180px)_1fr_28px] items-center gap-3 rounded-lg px-1.5 py-1.5 transition hover:bg-ink/[0.03]"
           >
-            <span className="flex min-w-0 items-center gap-2 text-xs text-white/80">
+            <span className="flex min-w-0 items-center gap-2 text-xs text-ink/80">
               <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: s.color }} />
               <span className="truncate">{s.name}</span>
             </span>
-            <span className="h-1.5 overflow-hidden rounded-full bg-white/[0.04]">
+            <span className="h-1.5 overflow-hidden rounded-full bg-ink/[0.04]">
               <span
                 className="block h-full rounded-full bg-gradient-to-r from-brand/50 to-brand transition group-hover:brightness-125"
                 style={{ width: by[s.name] ? `${Math.max(3, (by[s.name] / max) * 100)}%` : 0 }}
@@ -179,7 +179,7 @@ function ProposalBoard({ proposals, hrefFor }) {
           const n = proposals.filter((p) => s.stages.includes(p.stage)).length;
           const hot = s.label === "Commercials" && n > 0;
           return (
-            <div key={s.label} className={`rounded-xl border px-3 py-2.5 ${hot ? "border-amber-400/30 bg-amber-400/[0.06]" : "border-line bg-white/[0.015]"}`}>
+            <div key={s.label} className={`rounded-xl border px-3 py-2.5 ${hot ? "border-amber-400/30 bg-amber-400/[0.06]" : "border-line bg-ink/[0.015]"}`}>
               <div className={`text-xl font-semibold tabular-nums ${n ? "" : "text-faint"}`}>{n}</div>
               <div className="mt-0.5 truncate text-[11px] text-muted">{s.label}</div>
             </div>
@@ -190,7 +190,7 @@ function ProposalBoard({ proposals, hrefFor }) {
         <ul className="-mx-2 flex flex-col">
           {live.slice(0, 6).map((p) => (
             <li key={p.id}>
-              <Link href={hrefFor(p)} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-6 gap-y-2 rounded-xl px-2 py-2.5 transition hover:bg-white/[0.03] sm:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)_136px]">
+              <Link href={hrefFor(p)} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-6 gap-y-2 rounded-xl px-2 py-2.5 transition hover:bg-ink/[0.03] sm:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)_136px]">
                 <div className="min-w-0">
                   <div className="truncate text-sm">{brandOf(p.lead)}</div>
                   <div className="truncate text-xs text-muted">
@@ -287,20 +287,31 @@ export default function DashboardView({ me, data }) {
   const waiting = actions.length;
 
   return (
-    <div className="mx-auto max-w-[1320px] px-4 py-6 md:px-8 md:py-9">
+    <div className="page max-w-[1320px]">
       {/* Header */}
-      <header className="rise mb-8 flex flex-wrap items-end justify-between gap-4">
-        <div>
+      <header className="rise card relative mb-4 overflow-hidden p-5 sm:p-8">
+        <span className="pointer-events-none absolute -right-24 -top-32 h-80 w-80 rounded-full bg-brand/20 blur-3xl" />
+        <span className="pointer-events-none absolute -bottom-32 right-40 h-64 w-64 rounded-full bg-fuchsia-400/10 blur-3xl" />
+        <div className="relative flex flex-wrap items-end justify-between gap-5">
+        <div className="min-w-0">
           <p className="eyebrow">{weekday.format(new Date(now))}</p>
-          <h1 className="mt-2 text-3xl font-semibold tracking-tight md:text-[40px] md:leading-[1.1]">
+          <h1 className="mt-2 text-[30px] font-semibold leading-[1.1] tracking-[-0.02em] md:text-[44px]">
             {greeting()}, <span className="font-serif text-[1.12em] font-normal italic text-brand">{firstName}</span>
           </h1>
-          <p className="mt-2 text-sm text-muted">
-            {waiting ? `${waiting} thing${waiting === 1 ? "" : "s"} waiting on you` : "Nothing waiting on you right now"}
-            {meetingsWeek.length ? ` · ${meetingsWeek.length} meeting${meetingsWeek.length === 1 ? "" : "s"} this week` : ""}
-          </p>
+          <div className="mt-4 flex flex-wrap gap-2 text-xs">
+            <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 ${waiting ? "border-amber-400/30 bg-amber-400/10 text-amber-300" : "border-emerald-400/30 bg-emerald-400/10 text-emerald-300"}`}>
+              <span className="h-1.5 w-1.5 rounded-full bg-current" />
+              {waiting ? `${waiting} thing${waiting === 1 ? "" : "s"} waiting on you` : "All caught up"}
+            </span>
+            {meetingsWeek.length > 0 && (
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-line bg-panel-2/70 px-2.5 py-1 text-muted">
+                <Icon name="calendar" size={12} />
+                {meetingsWeek.length} meeting{meetingsWeek.length === 1 ? "" : "s"} this week
+              </span>
+            )}
+          </div>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           {canSeeLeads(me) && (
             <Link href="/leads" className="btn-ghost">
               Pipeline <Icon name="arrow" size={14} />
@@ -316,6 +327,7 @@ export default function DashboardView({ me, data }) {
               <Icon name="plus" size={14} /> New lead
             </Link>
           )}
+        </div>
         </div>
       </header>
 
@@ -360,7 +372,7 @@ export default function DashboardView({ me, data }) {
             title="Proposal pipeline"
             sub="Brief → documents → CRL → commercials → proposal deck"
             action={
-              <Link href="/briefs" className="text-xs text-muted hover:text-white">
+              <Link href="/briefs" className="text-xs text-muted hover:text-ink">
                 All briefs →
               </Link>
             }
@@ -389,13 +401,13 @@ export default function DashboardView({ me, data }) {
                 <ul className="flex flex-col gap-1">
                   {team.map((m, i) => (
                     <li key={m.id}>
-                      <Link href={`/leads?owner=${m.id}`} className="grid grid-cols-[20px_minmax(0,1fr)_repeat(3,56px)] items-center gap-3 rounded-xl px-2 py-2 transition hover:bg-white/[0.03]">
+                      <Link href={`/leads?owner=${m.id}`} className="grid grid-cols-[16px_minmax(0,1fr)_44px_52px] items-center gap-2.5 rounded-xl px-2 py-2 transition hover:bg-ink/[0.03] sm:grid-cols-[20px_minmax(0,1fr)_repeat(3,56px)] sm:gap-3">
                         <span className="text-xs tabular-nums text-faint">{i + 1}</span>
                         <span className="flex min-w-0 items-center gap-2.5">
                           <Avatar name={m.name} />
                           <span className="min-w-0 flex-1">
                             <span className="block truncate text-sm">{m.name}</span>
-                            <span className="mt-1 block h-1 overflow-hidden rounded-full bg-white/[0.04]">
+                            <span className="mt-1 block h-1 overflow-hidden rounded-full bg-ink/[0.04]">
                               <span className="block h-full rounded-full bg-brand/70" style={{ width: `${(m.assigned / teamMax) * 100}%` }} />
                             </span>
                           </span>
@@ -403,7 +415,7 @@ export default function DashboardView({ me, data }) {
                         <span className="text-right text-xs tabular-nums text-muted" title="Open / assigned">
                           {m.open}/{m.assigned}
                         </span>
-                        <span className="text-right text-xs tabular-nums text-muted" title="Discovery calls">
+                        <span className="hidden text-right text-xs tabular-nums text-muted sm:block" title="Discovery calls">
                           {m.calls} calls
                         </span>
                         <span className="text-right text-xs font-medium tabular-nums text-emerald-300" title="Won">
@@ -426,11 +438,11 @@ export default function DashboardView({ me, data }) {
 
       {sales && leads.length > 0 && (
         <div className="rise mt-3 [animation-delay:360ms]">
-          <Panel title="Latest leads" action={<Link href="/leads?view=list" className="text-xs text-muted hover:text-white">See all →</Link>}>
+          <Panel title="Latest leads" action={<Link href="/leads?view=list" className="text-xs text-muted hover:text-ink">See all →</Link>}>
             <ul className="-mx-2">
               {leads.slice(0, 6).map((l) => (
                 <li key={l.id}>
-                  <Link href={`/leads/${l.id}`} className="flex items-center gap-3 rounded-xl px-2 py-2 transition hover:bg-white/[0.03]">
+                  <Link href={`/leads/${l.id}`} className="flex items-center gap-3 rounded-xl px-2 py-2 transition hover:bg-ink/[0.03]">
                     <span className="w-12 shrink-0 text-xs text-faint">{l.code}</span>
                     <span className="min-w-0 flex-1 truncate text-sm">{brandOf(l)}</span>
                     <StatusBadge status={l.status} />

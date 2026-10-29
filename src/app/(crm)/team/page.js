@@ -8,10 +8,10 @@ export default async function TeamPage() {
   const me = await requireMember(["admin"]);
   const [members, groups, guests] = await Promise.all([listMembers(), listGroups(), listGuests({ activeOnly: false })]);
   return (
-    <div className="mx-auto max-w-6xl px-4 py-6 md:px-8 md:py-9">
+    <div className="relative z-[1] mx-auto max-w-6xl px-4 py-6 md:px-8 md:py-9">
       <header className="rise mb-8">
         <p className="eyebrow">Workspace</p>
-        <h1 className="mt-2 text-3xl font-semibold tracking-tight">Team & groups</h1>
+        <h1 className="page-title mt-1.5">Team & groups</h1>
       </header>
       <TeamManager members={members} groups={groups} guests={guests} meId={me.id} />
     </div>

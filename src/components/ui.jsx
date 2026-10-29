@@ -20,7 +20,7 @@ export function Avatar({ name, size = 28 }) {
     <span
       title={name}
       className="grid shrink-0 place-items-center rounded-full font-semibold ring-2 ring-bg"
-      style={{ width: size, height: size, fontSize: size * 0.38, background: `${c}26`, color: c }}
+      style={{ width: size, height: size, fontSize: size * 0.38, background: `${c}26`, color: `color-mix(in oklab, ${c} 70%, var(--color-ink))` }}
     >
       {initials(name)}
     </span>
@@ -29,11 +29,11 @@ export function Avatar({ name, size = 28 }) {
 
 export function Panel({ title, sub, action, children, className = "", bodyClass = "" }) {
   return (
-    <section className={`card flex flex-col p-5 ${className}`}>
+    <section className={`card flex min-w-0 flex-col p-4 sm:p-6 ${className}`}>
       {(title || action) && (
-        <header className="mb-4 flex items-start justify-between gap-3">
+        <header className="mb-4 flex items-start justify-between gap-3 sm:mb-5">
           <div className="min-w-0">
-            <h2 className="text-[13px] font-medium tracking-tight">{title}</h2>
+            <h2 className="text-[15px] font-semibold tracking-[-0.01em]">{title}</h2>
             {sub && <p className="mt-0.5 text-xs text-muted">{sub}</p>}
           </div>
           {action}
@@ -69,18 +69,21 @@ export function Sparkline({ values, width = 96, height = 32 }) {
 
 export function Stat({ label, value, sub, delta, spark, icon, className = "" }) {
   return (
-    <div className={`card relative overflow-hidden p-4 sm:p-5 ${className}`}>
-      <div className="flex items-center justify-between">
+    <div className={`card card-hover group relative overflow-hidden p-4 sm:p-5 ${className}`}>
+      {/* Accent hairline + soft glow in the corner */}
+      <span className="pointer-events-none absolute inset-x-5 top-0 h-px bg-gradient-to-r from-transparent via-brand/50 to-transparent opacity-0 transition group-hover:opacity-100" />
+      <span className="pointer-events-none absolute -right-10 -top-10 h-28 w-28 rounded-full bg-brand/10 blur-2xl" />
+      <div className="relative flex items-center justify-between gap-2">
         <span className="eyebrow truncate">{label}</span>
         {icon && (
-          <span className="hidden h-7 w-7 shrink-0 place-items-center rounded-lg border border-line bg-panel-2 text-muted sm:grid">
+          <span className="hidden h-7 w-7 shrink-0 place-items-center rounded-lg bg-brand/10 text-brand sm:grid">
             <Icon name={icon} size={14} />
           </span>
         )}
       </div>
-      <div className="mt-3 flex items-end justify-between gap-3 sm:mt-4">
-        <div>
-          <div className="text-[28px] font-semibold leading-none tabular-nums tracking-tight sm:text-[34px]">{value}</div>
+      <div className="relative mt-3 flex items-end justify-between gap-3 sm:mt-4">
+        <div className="min-w-0">
+          <div className="text-[30px] font-semibold leading-none tabular-nums tracking-[-0.03em] sm:text-[38px]">{value}</div>
           <div className="mt-2.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted">
             {delta != null && (
               <span
@@ -107,8 +110,8 @@ export function Stat({ label, value, sub, delta, spark, icon, className = "" }) 
 export function Empty({ icon = "check", children }) {
   return (
     <div className="flex flex-col items-center justify-center gap-2 py-8 text-center text-sm text-muted">
-      <span className="grid h-9 w-9 place-items-center rounded-full border border-line bg-panel-2">
-        <Icon name={icon} size={15} />
+      <span className="grid h-10 w-10 place-items-center rounded-2xl border border-line bg-panel-2 text-faint">
+        <Icon name={icon} size={16} />
       </span>
       {children}
     </div>
@@ -128,7 +131,7 @@ export function StepTrack({ stage, compact = false }) {
         return (
           <li key={label} className="flex min-w-0 flex-1 flex-col gap-1.5" title={label}>
             <span className={`h-1 rounded-full ${color}`} />
-            {!compact && <span className={`truncate text-[10px] ${here || done ? "text-white/80" : "text-faint"}`}>{label}</span>}
+            {!compact && <span className={`truncate text-[10px] ${here || done ? "text-ink/80" : "text-faint"}`}>{label}</span>}
           </li>
         );
       })}
