@@ -333,7 +333,7 @@ export default function DashboardView({ me, data }) {
             <Stat label="Open briefs" value={pool.length} sub="Waiting to be picked up" icon="brief" />
             <Stat label="My briefs" value={myProposals.filter((p) => p.stage !== "done").length} sub="In progress" icon="upload" />
             <Stat label="With the bots" value={myProposals.filter((p) => /queued|running|awaiting/.test(p.stage)).length} sub="CRL / commercials / deck" icon="sparkle" />
-            <Stat label="Delivered" value={myProposals.filter((p) => p.stage === "done").length} sub="Strategy doc & deck ready" icon="check" />
+            <Stat label="Delivered" value={myProposals.filter((p) => p.stage === "done").length} sub="CRL & deck ready" icon="check" />
           </>
         )}
       </div>
@@ -358,7 +358,7 @@ export default function DashboardView({ me, data }) {
         <div className="rise mt-3 [animation-delay:180ms]">
           <Panel
             title="Proposal pipeline"
-            sub="Brief → documents → CRL → commercials → strategy doc & deck"
+            sub="Brief → documents → CRL → commercials → proposal deck"
             action={
               <Link href="/briefs" className="text-xs text-muted hover:text-white">
                 All briefs →

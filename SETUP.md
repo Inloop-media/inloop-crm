@@ -93,7 +93,7 @@ Each person then clicks **Connect your calendar** in the sidebar once. Meetings 
 
 30 minutes, Google Meet link, India time. Cancelling a meeting in the CRM cancels it in Google Calendar and emails the guests.
 
-## Proposal pipeline (briefs → CRL → commercials → strategy doc & deck)
+## Proposal pipeline (briefs → CRL → commercials → proposal deck)
 
 Run [`supabase/migrations/003_groups_proposals.sql`](supabase/migrations/003_groups_proposals.sql) once (after 002).
 It adds the groups, the new statuses, the proposal tables, the job queue and the private `lead-docs` storage bucket.
@@ -104,7 +104,7 @@ It adds the groups, the new statuses, the proposal tables, the job queue and the
    brand strategy, brand identity (PDF) — and clicks **Send to CRL bot**.
 3. The **CRM worker on the Mac** runs the CRL bot and sends the live CRL link back to the lead.
 4. The admin is asked (dashboard + Slack) to **enter the commercials** on the lead.
-5. The worker runs the **proposal bot** (strategy doc + deck); the links / files land on the same lead.
+5. The worker runs the **proposal bot** (proposal deck); the link / files land on the same lead.
 
 ### The Mac worker
 
@@ -120,7 +120,7 @@ jobs wait in the queue and run when it's back.
 CRL link) and `docs/` (all uploaded files + `links.txt`). When done it writes `result.json`:
 
 ```json
-{ "strategy_doc_url": "https://…", "deck_url": "https://…", "files": ["strategy-doc.pdf"] }
+{ "deck_url": "https://…", "files": ["proposal-deck.pdf"] }
 ```
 
 `files` are paths inside the job folder; they're uploaded and attached to the lead. Exit non-zero to report a failure.
@@ -130,7 +130,7 @@ CRL link) and `docs/` (all uploaded files + `links.txt`). When done it writes `r
 Run [`supabase/migrations/004_group_updates.sql`](supabase/migrations/004_group_updates.sql) once (after 003).
 It creates the **Inloop CRLs** group, which receives every live CRL link.
 
-Under **Team → Groups**, "Posts here" picks which updates a group gets: CRL live links, strategy doc & deck ready,
+Under **Team → Groups**, "Posts here" picks which updates a group gets: CRL live links, proposal deck ready,
 new briefs, proposal meetings (with the brief), bot failures. Members read them under **Updates** (unread count in
 the sidebar); admin / ops can read every group. Slack is optional — if `SLACK_WEBHOOK_URL` is set, the same updates
 also go there.

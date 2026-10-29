@@ -115,7 +115,7 @@ export async function submitForCrl(leadId) {
   return { ok: true };
 }
 
-/** Admin enters the commercials once the CRL is ready → the proposal bot builds the strategy doc + deck. */
+/** Admin enters the commercials once the CRL is ready → the proposal bot builds the proposal deck. */
 export async function saveCommercials(leadId, text) {
   const me = await requireMember();
   if (!canEnterCommercials(me)) return { ok: false, error: "Only admins can enter commercials." };

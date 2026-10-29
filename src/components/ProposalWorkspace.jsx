@@ -205,9 +205,9 @@ export default function ProposalWorkspace({ proposal: p, canPick, canWork, canCo
             {p.stage === "picked_up" && `${p.strategist?.name || "The strategist"} is collecting the 4 documents.`}
             {p.stage === "crl_queued" && "Waiting for the Mac worker to pick it up — it runs when the Mac is on."}
             {p.stage === "crl_running" && (job?.progress || "The CRL bot is downloading the references and building the page.")}
-            {p.stage === "awaiting_commercials" && "CRL is ready. An admin needs to enter the commercials for the strategy doc."}
+            {p.stage === "awaiting_commercials" && "CRL is ready. An admin needs to enter the commercials for the proposal deck."}
             {p.stage === "proposal_queued" && "Waiting for the Mac worker to pick up the proposal job."}
-            {p.stage === "proposal_running" && (job?.progress || "The proposal bot is writing the strategy doc and the deck.")}
+            {p.stage === "proposal_running" && (job?.progress || "The proposal bot is building the deck.")}
             {p.stage === "done" && `Delivered ${fmtDateTime(p.done_at)}.`}
             {stage.error && (p.error || "The bot reported an error.")}
           </div>
@@ -286,10 +286,9 @@ export default function ProposalWorkspace({ proposal: p, canPick, canWork, canCo
       {/* Deliverables */}
       <section>
         <h3 className="mb-3 text-[13px] font-medium">Deliverables</h3>
-        <div className="grid gap-2.5 md:grid-cols-3">
+        <div className="grid gap-2.5 md:grid-cols-2">
           <Deliverable label="CRL" href={p.crl_url} note="Built from the reference links + identity" />
-          <Deliverable label="Strategy doc" href={p.strategy_doc_url} note="After the commercials" icon="file" />
-          <Deliverable label="Proposal deck" href={p.deck_url} note="After the strategy doc" icon="sparkle" />
+          <Deliverable label="Proposal deck" href={p.deck_url} note="After the CRL + commercials" icon="sparkle" />
         </div>
         {outputs.length > 0 && (
           <ul className="mt-3 flex flex-col gap-1.5">

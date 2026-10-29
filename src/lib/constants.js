@@ -89,7 +89,7 @@ export const BUDGETS = ["Under ₹50K / month", "₹50K to ₹2L / month", "₹2
 // Updates a group can receive in its feed (Team → group → "Posts here"). Order = how they're listed.
 export const UPDATE_EVENTS = [
   { id: "crl_ready", label: "CRL live links", icon: "link" },
-  { id: "proposal_ready", label: "Strategy doc & deck ready", icon: "sparkle" },
+  { id: "proposal_ready", label: "Proposal deck ready", icon: "sparkle" },
   { id: "brief_shared", label: "New briefs for strategists", icon: "brief" },
   { id: "proposal_meeting", label: "Proposal meetings booked (with brief)", icon: "calendar" },
   { id: "bot_failed", label: "Bot failures", icon: "alert" },

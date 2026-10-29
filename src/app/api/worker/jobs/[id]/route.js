@@ -6,7 +6,7 @@ import { unauthorised, workerAuthorised } from "@/lib/worker-auth";
  * Updates from the Mac worker about one job — POST with { action, ... }:
  *   progress  { message }                          → shown in the CRM, keeps the job alive
  *   upload    { name }                             → { path, token, url } to upload an output file to
- *   complete  { crl_url } | { strategy_doc_url, deck_url, files: [{ path, name, size }] }
+ *   complete  { crl_url } | { deck_url, files: [{ path, name, size }] }
  *   fail      { error }
  */
 export async function POST(request, { params }) {
@@ -37,7 +37,6 @@ export async function POST(request, { params }) {
       const files = (Array.isArray(body.files) ? body.files : []).filter((f) => String(f.path || "").startsWith(`${job.lead.code}/output/`));
       await completeJob(job, {
         crl_url: body.crl_url,
-        strategy_doc_url: body.strategy_doc_url,
         deck_url: body.deck_url,
         files,
       });

@@ -7,7 +7,7 @@ import { fullName } from "@/lib/format";
 
 // The proposal pipeline, shared by the server actions (people) and /api/worker/* (the Mac bots):
 //   proposal meeting booked → brief shared → strategist picks it up → uploads the 4 documents → submits
-//   → CRL bot (Mac) → admin enters commercials → proposal bot (Mac) builds strategy doc + deck → done
+//   → CRL bot (Mac) → admin enters commercials → proposal bot (Mac) builds the deck → done
 
 export const BUCKET = "lead-docs";
 const brandOf = (lead) => lead.brand || fullName(lead);
@@ -75,14 +75,13 @@ export async function completeJob(job, result) {
       lead,
       title: `CRL is live — ${brandOf(lead)} (${lead.code})`,
       url: String(result.crl_url || ""),
-      body: "Next: the admin enters the commercials for the strategy doc.",
+      body: "Next: the admin enters the commercials for the proposal deck.",
     });
   } else {
     await db()
       .from("proposals")
       .update({
         stage: "done",
-        strategy_doc_url: String(result.strategy_doc_url || ""),
         deck_url: String(result.deck_url || ""),
         done_at: now,
         updated_at: now,
@@ -92,8 +91,8 @@ export async function completeJob(job, result) {
     await announce("proposal_ready", {
       lead,
       title: `Proposal ready — ${brandOf(lead)} (${lead.code})`,
-      url: String(result.deck_url || result.strategy_doc_url || ""),
-      body: [result.strategy_doc_url && `Strategy doc: ${result.strategy_doc_url}`, result.deck_url && `Deck: ${result.deck_url}`].filter(Boolean).join("\n"),
+      url: String(result.deck_url || ""),
+      body: result.deck_url ? `Deck: ${result.deck_url}` : "",
     });
   }
 }

@@ -36,7 +36,7 @@ export const describe = (e) => {
     case "proposal_proposal_failed":
       return <>Proposal bot failed{e.data?.text ? <span className="mt-1 block text-rose-300/80">{e.data.text}</span> : null}</>;
     case "proposal_done":
-      return <span className="text-emerald-300">Strategy doc & deck ready</span>;
+      return <span className="text-emerald-300">Proposal deck ready</span>;
     default:
       return e.type;
   }
