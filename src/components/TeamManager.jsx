@@ -7,9 +7,9 @@ import { addGuest, addMember, createGroup, updateGroup, updateGuest, updateMembe
 import { GROUP_KINDS, ROLES, UPDATE_EVENTS } from "@/lib/constants";
 
 const KIND_TONE = {
-  sales: "border-cyan-400/30 bg-cyan-400/10 text-cyan-200",
-  strategy: "border-fuchsia-400/30 bg-fuchsia-400/10 text-fuchsia-200",
-  other: "border-line bg-panel-2 text-ink/70",
+  sales: "tint-blue text-ink",
+  strategy: "tint-pink text-ink",
+  other: "tint-lavender text-ink",
 };
 
 function useChange(fn) {
@@ -31,16 +31,16 @@ function MemberRow({ m, isMe, groups }) {
   const toggle = (gid) => change(m.id, { groups: mine.includes(gid) ? mine.filter((x) => x !== gid) : [...mine, gid] });
 
   return (
-    <li className={`flex flex-wrap items-center gap-x-4 gap-y-3 px-5 py-4 ${m.active ? "" : "opacity-50"}`}>
+    <li className={`flex flex-wrap items-center gap-x-4 gap-y-3 rounded-2xl px-4 py-3.5 transition hover:bg-panel-2 ${m.active ? "" : "opacity-50"}`}>
       <div className="flex min-w-0 flex-1 basis-60 items-center gap-3">
-        <Avatar name={m.name} size={34} />
+        <Avatar name={m.name} size={40} />
         <div className="min-w-0">
           <div className="truncate text-sm font-medium">
             {m.name} {isMe && <span className="text-xs font-normal text-muted">(you)</span>}
           </div>
           <div className="truncate text-xs text-muted">
             {m.email}
-            <span className={m.calendar_connected_at ? "text-emerald-400/80" : "text-faint"}>
+            <span className={m.calendar_connected_at ? "text-emerald-400" : "text-faint"}>
               {" · "}
               {m.calendar_connected_at ? "Calendar connected" : "Calendar not connected"}
             </span>
@@ -57,7 +57,7 @@ function MemberRow({ m, isMe, groups }) {
               disabled={pending}
               onClick={() => toggle(g.id)}
               title={on ? `Remove from ${g.name}` : `Add to ${g.name}`}
-              className={`rounded-full border px-2.5 py-1 text-[11px] transition ${on ? KIND_TONE[g.kind] : "border-dashed border-line text-faint hover:border-line-strong hover:text-ink"}`}
+              className={`rounded-full px-3 py-1 text-[11px] font-medium transition ${on ? KIND_TONE[g.kind] : "border border-dashed border-line-strong text-faint hover:text-ink"}`}
             >
               {on ? "✓ " : "+ "}
               {g.name}
@@ -65,7 +65,7 @@ function MemberRow({ m, isMe, groups }) {
           );
         })}
       </div>
-      <select value={m.role} disabled={pending || isMe} onChange={(e) => change(m.id, { role: e.target.value })} className="field w-auto py-1.5 text-xs">
+      <select value={m.role} disabled={pending || isMe} onChange={(e) => change(m.id, { role: e.target.value })} className="field w-auto rounded-full py-2 text-xs">
         {ROLES.map((r) => (
           <option key={r.id} value={r.id}>
             {r.label}
@@ -73,7 +73,7 @@ function MemberRow({ m, isMe, groups }) {
         ))}
       </select>
       {!isMe && (
-        <button disabled={pending} onClick={() => change(m.id, { active: !m.active })} className="text-xs text-muted hover:text-rose-300">
+        <button disabled={pending} onClick={() => change(m.id, { active: !m.active })} className="rounded-full px-3 py-1.5 text-xs text-muted transition hover:bg-panel hover:text-rose-400">
           {m.active ? "Remove access" : "Restore"}
         </button>
       )}
@@ -84,7 +84,11 @@ function MemberRow({ m, isMe, groups }) {
 function AddPerson({ groups }) {
   const [state, action, pending] = useActionState(addMember, {});
   return (
-    <form action={action} key={state?.message} className="card grid gap-4 p-5 lg:grid-cols-[1fr_1fr_150px]">
+    <form action={action} key={state?.message} className="card grid gap-4 p-6 lg:grid-cols-[1fr_1fr_170px]">
+      <div className="flex items-center gap-3 lg:col-span-3">
+        <span className="icon-tile h-9 w-9"><Icon name="plus" size={15} /></span>
+        <div className="font-medium">Add a person</div>
+      </div>
       <div>
         <label className="label" htmlFor="name">Name</label>
         <input id="name" name="name" required className="field" placeholder="Aryan Verma" />
@@ -107,7 +111,7 @@ function AddPerson({ groups }) {
         <span className="label">Groups</span>
         <div className="flex flex-wrap gap-2">
           {groups.map((g) => (
-            <label key={g.id} className="flex cursor-pointer items-center gap-2 rounded-lg border border-line px-3 py-1.5 text-sm has-[:checked]:border-brand/50 has-[:checked]:bg-brand/10">
+            <label key={g.id} className="flex cursor-pointer items-center gap-2 rounded-full bg-panel-2 px-3.5 py-2 text-sm transition has-[:checked]:bg-tint-lavender has-[:checked]:shadow-[inset_0_0_0_1.5px_var(--color-brand)]">
               <input type="checkbox" name="groups" value={g.id} className="accent-[var(--color-brand)]" />
               {g.name}
             </label>
@@ -133,24 +137,24 @@ function GroupCard({ g, members }) {
   const outside = members.filter((m) => m.active && !g.members.some((x) => x.id === m.id));
 
   return (
-    <div className="card flex flex-col p-5">
+    <div className="card card-hover flex flex-col p-6">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <div className="truncate font-medium">{g.name}</div>
-          <span className={`mt-1.5 inline-block rounded-full border px-2 py-0.5 text-[11px] ${KIND_TONE[g.kind]}`}>{kind?.label}</span>
+          <div className="truncate text-lg font-medium">{g.name}</div>
+          <span className={`mt-1.5 inline-block rounded-full px-2.5 py-0.5 text-[11px] font-medium ${KIND_TONE[g.kind]}`}>{kind?.label}</span>
         </div>
         <button
           disabled={pending}
           onClick={() => confirm(`Delete the group "${g.name}"? People stay on the team.`) && change(g.id, { delete: true })}
           title="Delete group"
-          className="grid h-7 w-7 place-items-center rounded-lg text-faint hover:bg-panel-2 hover:text-rose-300"
+          className="icon-btn h-8 w-8 hover:text-rose-400"
         >
           <Icon name="trash" size={14} />
         </button>
       </div>
       <p className="mt-3 text-xs leading-relaxed text-muted">{kind?.help}</p>
       <div className="mt-4">
-        <div className="eyebrow mb-2">Posts here</div>
+        <div className="mb-2 text-xs font-medium text-muted">Posts here</div>
         <div className="flex flex-wrap gap-1.5">
           {UPDATE_EVENTS.map((e) => {
             const on = (g.notify || []).includes(e.id);
@@ -159,8 +163,8 @@ function GroupCard({ g, members }) {
                 key={e.id}
                 disabled={pending}
                 onClick={() => change(g.id, { notify: on ? g.notify.filter((x) => x !== e.id) : [...(g.notify || []), e.id] })}
-                className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] transition ${
-                  on ? "border-brand/40 bg-brand/10 text-brand" : "border-dashed border-line text-faint hover:border-line-strong hover:text-ink"
+                className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium transition ${
+                  on ? "solid" : "border border-dashed border-line-strong text-faint hover:text-ink"
                 }`}
               >
                 <Icon name={e.icon} size={11} />
@@ -170,13 +174,13 @@ function GroupCard({ g, members }) {
           })}
         </div>
       </div>
-      <div className="eyebrow mb-1 mt-5">Members</div>
+      <div className="mb-1.5 mt-5 text-xs font-medium text-muted">Members</div>
       <ul className="flex flex-1 flex-col gap-1.5">
         {g.members.map((m) => (
-          <li key={m.id} className="flex items-center gap-2.5 rounded-lg px-1 py-1 text-sm">
+          <li key={m.id} className="flex items-center gap-2.5 rounded-xl px-1.5 py-1.5 text-sm transition hover:bg-panel-2">
             <Avatar name={m.name} size={24} />
             <span className="min-w-0 flex-1 truncate">{m.name}</span>
-            <button disabled={pending} onClick={() => change(g.id, { removeMember: m.id })} title="Remove from group" className="text-faint hover:text-rose-300">
+            <button disabled={pending} onClick={() => change(g.id, { removeMember: m.id })} title="Remove from group" className="grid h-6 w-6 place-items-center rounded-full text-faint hover:bg-panel hover:text-rose-400">
               <Icon name="x" size={13} />
             </button>
           </li>
@@ -188,7 +192,7 @@ function GroupCard({ g, members }) {
           value=""
           disabled={pending}
           onChange={(e) => e.target.value && change(g.id, { addMember: e.target.value })}
-          className="field mt-4 py-1.5 text-xs"
+          className="field mt-4 rounded-full py-2 text-xs"
         >
           <option value="">+ Add someone…</option>
           {outside.map((m) => (
@@ -206,10 +210,13 @@ function GroupCard({ g, members }) {
 function NewGroup() {
   const [state, action, pending] = useActionState(createGroup, {});
   return (
-    <form action={action} key={state?.message} className="card flex flex-col gap-3 border-dashed p-5">
-      <div className="font-medium">New group</div>
-      <input name="name" required placeholder="e.g. Performance Team" className="field" />
-      <select name="kind" defaultValue="other" className="field">
+    <form action={action} key={state?.message} className="well-empty flex flex-col gap-3 bg-panel/40 p-6">
+      <div className="flex items-center gap-3">
+        <span className="icon-tile h-9 w-9"><Icon name="plus" size={15} /></span>
+        <div className="text-lg font-medium">New group</div>
+      </div>
+      <input name="name" required placeholder="e.g. Performance Team" className="field bg-panel" />
+      <select name="kind" defaultValue="other" className="field bg-panel">
         {GROUP_KINDS.map((k) => (
           <option key={k.id} value={k.id}>
             Works like: {k.label}
@@ -217,7 +224,7 @@ function NewGroup() {
         ))}
       </select>
       <div>
-        <div className="eyebrow mb-2">Posts here</div>
+        <div className="mb-2 text-xs font-medium text-muted">Posts here</div>
         <div className="flex flex-col gap-1.5">
           {UPDATE_EVENTS.map((e) => (
             <label key={e.id} className="flex cursor-pointer items-center gap-2 text-sm text-ink/80">
@@ -227,7 +234,7 @@ function NewGroup() {
           ))}
         </div>
       </div>
-      <button disabled={pending} className="btn-ghost">
+      <button disabled={pending} className="btn-primary">
         <Icon name="plus" size={14} /> {pending ? "Creating…" : "Create group"}
       </button>
       {(state?.error || state?.message) && <p className={`text-xs ${state.error ? "text-rose-400" : "text-emerald-400"}`}>{state.error || state.message}</p>}
@@ -240,9 +247,9 @@ function NewGroup() {
 function GuestRow({ g }) {
   const { pending, error, change } = useChange(updateGuest);
   return (
-    <li className={`flex flex-wrap items-center gap-x-4 gap-y-2 px-5 py-3 ${g.active ? "" : "opacity-50"}`}>
+    <li className={`flex flex-wrap items-center gap-x-4 gap-y-2 rounded-2xl px-4 py-3 transition hover:bg-panel-2 ${g.active ? "" : "opacity-50"}`}>
       <div className="flex min-w-0 flex-1 basis-56 items-center gap-3">
-        <Avatar name={g.name} size={28} />
+        <Avatar name={g.name} size={36} />
         <div className="min-w-0">
           <div className="truncate text-sm">{g.name}</div>
           <div className="truncate text-xs text-muted">{g.email}</div>
@@ -259,7 +266,7 @@ function GuestRow({ g }) {
         />
         Pre-selected
       </label>
-      <button disabled={pending} onClick={() => change(g.id, { active: !g.active })} className="text-xs text-muted hover:text-rose-300">
+      <button disabled={pending} onClick={() => change(g.id, { active: !g.active })} className="rounded-full px-3 py-1.5 text-xs text-muted transition hover:bg-panel hover:text-rose-400">
         {g.active ? "Remove" : "Restore"}
       </button>
     </li>
@@ -271,12 +278,12 @@ function GuestsSection({ guests }) {
   return (
     <section id="guests" className="flex scroll-mt-6 flex-col gap-4">
       <div>
-        <h2 className="text-lg font-semibold tracking-tight">Meeting guests</h2>
+        <h2 className="text-2xl font-medium tracking-tight">Meeting guests</h2>
         <p className="text-sm text-muted">
           Who executives can add to a discovery call. They pick by name; the invite goes to these emails. &quot;Pre-selected&quot; people are ticked by default.
         </p>
       </div>
-      <form action={action} key={state?.message} className="card grid gap-3 p-5 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+      <form action={action} key={state?.message} className="card grid gap-3 p-6 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
         <div>
           <label className="label" htmlFor="guest-name">Name</label>
           <input id="guest-name" name="name" required className="field" placeholder="Ananya" />
@@ -293,7 +300,7 @@ function GuestsSection({ guests }) {
         )}
       </form>
       {guests.length > 0 && (
-        <ul className="card divide-y divide-line overflow-hidden">
+        <ul className="card flex flex-col gap-0.5 p-2">
           {guests.map((g) => (
             <GuestRow key={g.id} g={g} />
           ))}
@@ -308,18 +315,18 @@ export default function TeamManager({ members, groups, guests = [], meId }) {
     <div className="flex flex-col gap-10">
       <section className="flex flex-col gap-4">
         <div>
-          <h2 className="text-lg font-semibold tracking-tight">People</h2>
+          <h2 className="text-2xl font-medium tracking-tight">People</h2>
           <p className="text-sm text-muted">Only people listed here can sign in. Click a group chip to add or remove someone.</p>
         </div>
         <AddPerson groups={groups} />
-        <ul className="card divide-y divide-line overflow-hidden">
+        <ul className="card flex flex-col gap-0.5 p-2">
           {members.map((m) => (
             <MemberRow key={m.id} m={m} isMe={m.id === meId} groups={groups} />
           ))}
         </ul>
         <dl className="grid gap-3 text-sm sm:grid-cols-3">
           {ROLES.map((r) => (
-            <div key={r.id} className="rounded-xl border border-line p-4">
+            <div key={r.id} className="well p-5">
               <dt className="font-medium">{r.label}</dt>
               <dd className="mt-1 text-muted">{r.help}</dd>
             </div>
@@ -329,12 +336,12 @@ export default function TeamManager({ members, groups, guests = [], meId }) {
 
       <section id="groups" className="flex scroll-mt-6 flex-col gap-4">
         <div>
-          <h2 className="text-lg font-semibold tracking-tight">Groups</h2>
+          <h2 className="text-2xl font-medium tracking-tight">Groups</h2>
           <p className="text-sm text-muted">
             What a member can do comes from their groups. &quot;Posts here&quot; picks which bot updates show up in the group&apos;s feed under Updates.
           </p>
         </div>
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {groups.map((g) => (
             <GroupCard key={g.id} g={g} members={members} />
           ))}

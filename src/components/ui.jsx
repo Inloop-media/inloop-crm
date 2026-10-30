@@ -28,9 +28,9 @@ export function Avatar({ name, size = 28 }) {
   );
 }
 
-export function Panel({ title, sub, action, children, className = "", bodyClass = "" }) {
+export function Panel({ title, sub, action, children, className = "", bodyClass = "", id }) {
   return (
-    <section className={`card flex min-w-0 flex-col p-5 sm:p-6 ${className}`}>
+    <section id={id} className={`card flex min-w-0 flex-col p-5 sm:p-6 ${className}`}>
       {(title || action) && (
         <header className="mb-5 flex items-start justify-between gap-3">
           <div className="min-w-0">
@@ -42,6 +42,28 @@ export function Panel({ title, sub, action, children, className = "", bodyClass 
       )}
       <div className={`min-h-0 flex-1 ${bodyClass}`}>{children}</div>
     </section>
+  );
+}
+
+/** The top of every page: optional back link, a small kicker, the title, a line of context, actions. */
+export function PageHeader({ back, kicker, title, sub, actions, children }) {
+  return (
+    <header className="rise mb-6">
+      {back && (
+        <Link href={back.href} className="mb-4 inline-flex items-center gap-1.5 rounded-full bg-panel px-3 py-1.5 text-xs font-medium text-muted shadow-[var(--card-shadow)] transition hover:text-ink">
+          <Icon name="back" size={13} /> {back.label}
+        </Link>
+      )}
+      <div className="flex flex-wrap items-end justify-between gap-x-8 gap-y-4">
+        <div className="min-w-0">
+          {kicker && <p className="text-sm text-muted">{kicker}</p>}
+          {title && <h1 className="page-title mt-1">{title}</h1>}
+          {sub && <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted">{sub}</p>}
+        </div>
+        {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
+      </div>
+      {children}
+    </header>
   );
 }
 
@@ -108,11 +130,16 @@ export function StepTrack({ stage, compact = false }) {
 export function StagePill({ stage }) {
   const info = PROPOSAL_STAGES[stage] || PROPOSAL_STAGES.brief_shared;
   const tone = info.error
-    ? "border-rose-400/30 bg-rose-400/10 text-rose-300"
+    ? "bg-rose-400/12 text-rose-400"
     : stage === "done"
-      ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-300"
+      ? "bg-emerald-400/12 text-emerald-400"
       : stage === "awaiting_commercials"
-        ? "border-amber-400/30 bg-amber-400/10 text-amber-200"
-        : "border-brand/30 bg-brand/10 text-brand";
-  return <span className={`inline-flex shrink-0 items-center rounded-full border px-2 py-0.5 text-[11px] font-medium ${tone}`}>{info.label}</span>;
+        ? "bg-amber-400/15 text-amber-300"
+        : "bg-brand/12 text-brand";
+  return (
+    <span className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ${tone}`}>
+      <span className={`h-1.5 w-1.5 rounded-full bg-current ${/queued|running/.test(stage) ? "animate-pulse" : ""}`} />
+      {info.label}
+    </span>
+  );
 }

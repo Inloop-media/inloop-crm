@@ -66,8 +66,8 @@ export default function Board({ leads: initial, owners, allowed }) {
                 key={s.name}
                 {...drop}
                 title={`${s.name} — drop a lead here`}
-                className={`hidden h-[calc(100svh-250px)] min-h-[260px] w-10 shrink-0 flex-col items-center gap-3 rounded-2xl border border-dashed py-3 transition md:flex ${
-                  over === s.name ? "w-[200px] border-brand/60 bg-brand/[0.06]" : "border-line bg-panel/40"
+                className={`hidden h-[calc(100svh-290px)] min-h-[260px] w-11 shrink-0 flex-col items-center gap-3 rounded-[22px] py-4 transition md:flex ${
+                  over === s.name ? "w-[200px] bg-brand/10 ring-2 ring-brand/40" : "bg-panel/40 ring-1 ring-inset ring-line"
                 }`}
               >
                 <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: s.color }} />
@@ -81,14 +81,14 @@ export default function Board({ leads: initial, owners, allowed }) {
             <section
               key={s.name}
               {...drop}
-              className={`flex max-h-[calc(100svh-310px)] w-[84vw] shrink-0 snap-start flex-col rounded-2xl border bg-panel-2/40 transition md:max-h-[calc(100svh-250px)] md:w-auto md:min-w-[210px] md:max-w-[300px] md:flex-1 md:shrink md:basis-[250px] ${over === s.name ? "border-brand/60 bg-brand/[0.05]" : "border-line"}`}
+              className={`flex max-h-[calc(100svh-330px)] w-[84vw] shrink-0 snap-start flex-col rounded-[24px] transition md:max-h-[calc(100svh-290px)] md:w-auto md:min-w-[220px] md:max-w-[300px] md:flex-1 md:shrink md:basis-[260px] ${over === s.name ? "bg-brand/10 ring-2 ring-brand/40" : "bg-panel/50 ring-1 ring-inset ring-line/70"}`}
             >
-              <header className="flex items-center gap-2 px-3.5 pb-2.5 pt-3.5">
-                <span className="h-2 w-2 rounded-full" style={{ background: s.color }} />
-                <h2 className="truncate text-[13px] font-semibold">{s.name}</h2>
-                <span className="ml-auto rounded-full border border-line bg-panel px-2 py-0.5 text-[11px] font-medium tabular-nums text-muted">{items.length}</span>
+              <header className="flex items-center gap-2 px-4 pb-3 pt-4">
+                <span className="h-2 w-2 rounded-full" style={{ background: s.color, boxShadow: `0 0 0 3px color-mix(in srgb, ${s.color} 22%, transparent)` }} />
+                <h2 className="truncate text-sm font-medium">{s.name}</h2>
+                <span className="ml-auto rounded-full bg-panel px-2 py-0.5 text-[11px] font-medium tabular-nums text-muted shadow-[var(--card-shadow)]">{items.length}</span>
               </header>
-              <div className="flex flex-col gap-2 overflow-y-auto p-2 pt-1">
+              <div className="flex flex-col gap-2.5 overflow-y-auto p-2.5 pt-0">
                 {items.map((l) => (
                   <Link
                     key={l.id}
@@ -98,23 +98,23 @@ export default function Board({ leads: initial, owners, allowed }) {
                       e.dataTransfer.setData("text/plain", l.id);
                       e.dataTransfer.effectAllowed = "move";
                     }}
-                    className="card card-hover block rounded-xl p-3.5 active:cursor-grabbing"
+                    className="card card-hover block !rounded-[20px] p-4 active:cursor-grabbing"
                   >
                     <div className="flex items-center justify-between gap-2 text-[11px] text-faint">
-                      <span className="rounded-md bg-panel-2 px-1.5 py-0.5 font-medium tabular-nums text-muted">{l.code}</span>
+                      <span className="code">{l.code}</span>
                       <span>{fmtDay(l.created_at)}</span>
                     </div>
-                    <div className="mt-2 truncate text-[15px] font-semibold tracking-[-0.01em]">{l.brand || fullName(l)}</div>
+                    <div className="mt-2.5 truncate text-[15px] font-medium tracking-[-0.01em]">{l.brand || fullName(l)}</div>
                     <div className="truncate text-xs text-muted">{l.brand ? fullName(l) : l.email}</div>
-                    {l.service && <div className="mt-2.5 inline-block max-w-full truncate rounded-md border border-line px-1.5 py-0.5 text-[11px] text-ink/70">{l.service}</div>}
-                    <div className="mt-3 flex items-center gap-2 border-t border-line pt-2.5 text-xs">
+                    {l.service && <div className="chip mt-3 max-w-full truncate text-[11px]">{l.service}</div>}
+                    <div className="mt-3.5 flex items-center gap-2 border-t border-line pt-3 text-xs">
                       {l.assigned_to ? (
                         <>
                           <Avatar name={owners[l.assigned_to] || "?"} size={20} />
                           <span className="truncate text-ink/75">{owners[l.assigned_to] || "—"}</span>
                         </>
                       ) : (
-                        <span className="text-amber-400">Unassigned</span>
+                        <span className="rounded-full bg-amber-400/15 px-2 py-0.5 font-medium text-amber-300">Unassigned</span>
                       )}
                     </div>
                   </Link>

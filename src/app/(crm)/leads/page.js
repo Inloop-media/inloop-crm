@@ -4,6 +4,7 @@ import Board from "@/components/Board";
 import Icon from "@/components/Icon";
 import LeadList from "@/components/LeadList";
 import LeadsToolbar from "@/components/LeadsToolbar";
+import { PageHeader } from "@/components/ui";
 import { requireMember } from "@/lib/auth";
 import { listLeads, listMembers } from "@/lib/leads";
 import { canCreateLead, canSeeAllLeads, canSeeLeads, statusOptions } from "@/lib/permissions";
@@ -22,22 +23,19 @@ export default async function LeadsPage({ searchParams }) {
   const all = canSeeAllLeads(me);
 
   return (
-    <div className="relative z-[1] px-4 py-6 md:px-8 md:py-9">
-      <div className="rise mb-6 flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <p className="eyebrow">Pipeline</p>
-          <h1 className="page-title mt-1.5">{all ? "Leads" : "My leads"}</h1>
-          <p className="mt-1 text-sm text-muted">
-            {leads.length} lead{leads.length === 1 ? "" : "s"}
-            {!all && " assigned to you"}
-          </p>
-        </div>
-        {canCreateLead(me) && (
-          <Link href="/leads/new" className="btn-primary">
-            <Icon name="plus" size={14} /> New lead
-          </Link>
-        )}
-      </div>
+    <div className="page">
+      <PageHeader
+        kicker="Pipeline"
+        title={all ? "Leads" : "My leads"}
+        sub={`${leads.length} lead${leads.length === 1 ? "" : "s"}${all ? "" : " assigned to you"}`}
+        actions={
+          canCreateLead(me) && (
+            <Link href="/leads/new" className="btn-primary">
+              <Icon name="plus" size={14} /> New lead
+            </Link>
+          )
+        }
+      />
       <div className="rise rise-1 mb-5">
         <Suspense>
           <LeadsToolbar members={members.filter((m) => m.active && m.groups.some((g) => g.kind === "sales"))} showOwner={all} />

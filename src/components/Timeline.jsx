@@ -42,15 +42,21 @@ export const describe = (e) => {
   }
 };
 
+const DOT = { status: "bg-brand", assigned: "bg-cyan-400", meeting: "bg-violet-400", created: "bg-emerald-400" };
+
 export default function Timeline({ events }) {
   if (!events.length) return <p className="text-sm text-muted">Nothing yet.</p>;
   return (
-    <ol className="relative flex flex-col gap-5 border-l border-line pl-5">
+    <ol className="relative flex flex-col gap-5 pl-6 before:absolute before:bottom-2 before:left-[5px] before:top-2 before:w-px before:bg-gradient-to-b before:from-line-strong before:to-transparent">
       {events.map((e) => (
         <li key={e.id} className="relative">
-          <span className="absolute -left-[25px] top-1.5 h-2 w-2 rounded-full bg-brand ring-4 ring-panel" />
-          <div className="text-sm text-muted">{describe(e)}</div>
-          <div className="mt-1 text-xs text-muted/70">
+          <span
+            className={`absolute -left-6 top-1 h-[11px] w-[11px] rounded-full ring-4 ring-panel ${
+              DOT[e.type] || (e.type.includes("failed") ? "bg-rose-400" : e.type.startsWith("proposal") ? "bg-fuchsia-400" : "bg-faint")
+            }`}
+          />
+          <div className="text-sm leading-snug text-muted">{describe(e)}</div>
+          <div className="mt-1 text-[11px] text-faint">
             {fmtDateTime(e.created_at)}
             {e.actor?.name ? ` · ${e.actor.name}` : ""}
           </div>

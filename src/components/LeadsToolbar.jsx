@@ -25,20 +25,20 @@ export default function LeadsToolbar({ members, showOwner }) {
   };
 
   return (
-    <div className="flex flex-wrap items-center gap-2">
+    <div className="flex flex-wrap items-center gap-2.5">
       <form
-        className="relative min-w-[200px] flex-1 sm:max-w-sm"
+        className="relative min-w-[220px] flex-1 sm:max-w-md"
         onSubmit={(e) => {
           e.preventDefault();
           go("q", new FormData(e.currentTarget).get("q"));
         }}
       >
-        <input name="q" defaultValue={params.get("q") || ""} placeholder="Search name, brand, phone, IM-…" className="field pl-10" />
-        <Icon name="search" size={16} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-faint" />
+        <Icon name="search" size={16} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-faint" />
+        <input name="q" defaultValue={params.get("q") || ""} placeholder="Search name, brand, phone, IM-…" className="field rounded-full bg-panel py-3 pl-11 shadow-[var(--card-shadow)]" />
       </form>
 
       {showOwner && (
-        <select value={params.get("owner") || ""} onChange={(e) => go("owner", e.target.value)} className="field w-auto">
+        <select value={params.get("owner") || ""} onChange={(e) => go("owner", e.target.value)} className="field w-auto rounded-full bg-panel py-3 shadow-[var(--card-shadow)]">
           <option value="">Everyone</option>
           <option value="unassigned">Unassigned</option>
           {members.map((m) => (
@@ -50,7 +50,7 @@ export default function LeadsToolbar({ members, showOwner }) {
       )}
 
       {view === "list" && (
-        <select value={params.get("status") || ""} onChange={(e) => go("status", e.target.value)} className="field w-auto">
+        <select value={params.get("status") || ""} onChange={(e) => go("status", e.target.value)} className="field w-auto rounded-full bg-panel py-3 shadow-[var(--card-shadow)]">
           <option value="">All statuses</option>
           {STATUS_NAMES.map((s) => (
             <option key={s}>{s}</option>
@@ -58,10 +58,10 @@ export default function LeadsToolbar({ members, showOwner }) {
         </select>
       )}
 
-      <div className="seg ml-auto">
+      <div className="seg ml-auto p-1.5">
         {["board", "list"].map((v) => (
           <Link key={v} href={viewHref(v)} data-on={view === v} className="seg-item flex items-center gap-1.5 capitalize">
-            <Icon name={v === "board" ? "leads" : "brief"} size={14} />
+            <Icon name={v === "board" ? "board" : "list"} size={14} />
             {v}
           </Link>
         ))}

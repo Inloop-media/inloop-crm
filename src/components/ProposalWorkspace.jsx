@@ -66,22 +66,22 @@ function DocSlot({ leadId, def, docs, editable }) {
   };
 
   return (
-    <div className={`rounded-xl border p-4 transition ${done ? "border-emerald-400/20 bg-emerald-400/[0.03]" : "border-line bg-ink/[0.015]"}`}>
+    <div className={`rounded-2xl p-4 transition ${done ? "tint-green" : "well"}`}>
       <div className="flex items-start gap-3">
-        <span className={`mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-full border ${done ? "border-emerald-400/40 bg-emerald-400/15 text-emerald-300" : "border-line text-faint"}`}>
-          <Icon name={done ? "check" : "file"} size={12} />
+        <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-xl ${done ? "bg-emerald-500 text-white" : "bg-panel text-muted shadow-[var(--card-shadow)]"}`}>
+          <Icon name={done ? "check" : "file"} size={15} />
         </span>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 text-sm font-medium">
             {def.label}
-            {def.pdf && <span className="rounded border border-line px-1 text-[10px] font-normal uppercase tracking-wide text-muted">PDF</span>}
+            {def.pdf && <span className="rounded-full bg-panel px-1.5 py-0.5 text-[10px] font-medium text-muted">PDF</span>}
           </div>
           <p className="mt-0.5 text-xs text-muted">{def.help}</p>
 
           {docs.length > 0 && (
             <ul className="mt-3 flex flex-col gap-1.5">
               {docs.map((d) => (
-                <li key={d.id} className="flex items-center gap-2 rounded-lg border border-line bg-bg/50 px-2.5 py-1.5 text-xs">
+                <li key={d.id} className="flex items-center gap-2 rounded-xl bg-panel px-3 py-2 text-xs shadow-[var(--card-shadow)]">
                   <Icon name={d.storage_path ? "file" : "link"} size={13} className="text-muted" />
                   <a href={d.href} target="_blank" rel="noreferrer" className="min-w-0 flex-1 truncate hover:text-brand">
                     {d.name}
@@ -92,7 +92,7 @@ function DocSlot({ leadId, def, docs, editable }) {
                       onClick={() => run(() => removeDocument(d.id))}
                       disabled={pending}
                       title="Remove"
-                      className="grid h-5 w-5 shrink-0 place-items-center rounded text-faint hover:bg-panel-3 hover:text-rose-300"
+                      className="grid h-6 w-6 shrink-0 place-items-center rounded-full text-faint hover:bg-panel-2 hover:text-rose-400"
                     >
                       <Icon name="x" size={12} />
                     </button>
@@ -112,7 +112,7 @@ function DocSlot({ leadId, def, docs, editable }) {
                 className="hidden"
                 onChange={(e) => e.target.files?.length && upload([...e.target.files])}
               />
-              <button onClick={() => fileRef.current?.click()} disabled={Boolean(progress) || pending} className="btn-ghost px-2.5 py-1.5 text-xs">
+              <button onClick={() => fileRef.current?.click()} disabled={Boolean(progress) || pending} className="btn-ghost btn-sm">
                 <Icon name="upload" size={13} /> {progress ? "Uploading…" : "Upload file"}
               </button>
               {!def.pdf && (
@@ -137,8 +137,8 @@ function DocSlot({ leadId, def, docs, editable }) {
                 });
               }}
             >
-              <input value={link} onChange={(e) => setLink(e.target.value)} placeholder="https://drive.google.com/…" className="field py-1.5 text-xs" />
-              <button disabled={!link || pending} className="btn-ghost shrink-0 px-2.5 py-1.5 text-xs">
+              <input value={link} onChange={(e) => setLink(e.target.value)} placeholder="https://drive.google.com/…" className="field bg-panel py-2 text-xs" />
+              <button disabled={!link || pending} className="btn-primary btn-sm shrink-0">
                 Add
               </button>
             </form>
@@ -160,15 +160,13 @@ function Deliverable({ label, href, note, icon = "external" }) {
       href={ready ? href : undefined}
       target="_blank"
       rel="noreferrer"
-      className={`flex items-center gap-3 rounded-xl border p-3.5 transition ${
-        ready ? "border-ink/[0.08] bg-gradient-to-br from-brand/[0.08] to-transparent hover:border-brand/40" : "pointer-events-none border-dashed border-line"
-      }`}
+      className={`flex items-center gap-3 rounded-2xl p-4 transition duration-200 ${ready ? "tint-lavender hover:-translate-y-0.5" : "well-empty pointer-events-none"}`}
     >
-      <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-lg ${ready ? "bg-brand/15 text-brand" : "bg-panel-2 text-faint"}`}>
+      <span className={ready ? "icon-tile" : "grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-panel-2 text-faint"}>
         <Icon name={ready ? icon : "clock"} size={15} />
       </span>
       <div className="min-w-0 flex-1">
-        <div className={`text-sm ${ready ? "" : "text-muted"}`}>{label}</div>
+        <div className={`text-sm font-medium ${ready ? "" : "text-muted"}`}>{label}</div>
         <div className="truncate text-xs text-faint">{ready ? href.replace(/^https?:\/\//, "").split("?")[0] : note}</div>
       </div>
       {ready && <Icon name="external" size={14} className="shrink-0 text-muted" />}
@@ -193,14 +191,14 @@ export default function ProposalWorkspace({ proposal: p, canPick, canWork, canCo
     <div className="flex flex-col gap-5">
       {/* Status line */}
       <div
-        className={`flex flex-wrap items-center gap-3 rounded-xl border px-4 py-3 text-sm ${
-          stage.error ? "border-rose-400/25 bg-rose-400/[0.05]" : p.stage === "awaiting_commercials" ? "border-amber-400/25 bg-amber-400/[0.05]" : "border-line bg-ink/[0.015]"
-        }`}
+        className={`flex flex-wrap items-center gap-3 rounded-2xl p-4 text-sm ${stage.error ? "tint-pink" : p.stage === "awaiting_commercials" ? "tint-amber" : "well"}`}
       >
-        {busy && <span className="h-2 w-2 animate-pulse rounded-full bg-brand" />}
+        <span className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl ${stage.error ? "bg-rose-500 text-white" : "icon-tile"}`}>
+          <Icon name={stage.error ? "alert" : p.stage === "awaiting_commercials" ? "rupee" : p.stage === "done" ? "check" : "sparkle"} size={16} className={busy ? "animate-pulse" : ""} />
+        </span>
         <div className="min-w-0 flex-1">
           <div className="font-medium">{stage.label}</div>
-          <div className="text-xs text-muted">
+          <div className="mt-0.5 text-xs text-ink/60">
             {p.stage === "brief_shared" && "Waiting for a creative strategist to pick this brief up."}
             {p.stage === "picked_up" && `${p.strategist?.name || "The strategist"} is collecting the 4 documents.`}
             {p.stage === "crl_queued" && "Waiting for the Mac worker to pick it up — it runs when the Mac is on."}
@@ -227,8 +225,8 @@ export default function ProposalWorkspace({ proposal: p, canPick, canWork, canCo
       {/* Documents */}
       <section>
         <div className="mb-3 flex items-center justify-between gap-3">
-          <h3 className="text-[13px] font-medium">
-            Documents <span className="text-muted">· {inputs.filter((x) => x.docs.length).length}/4</span>
+          <h3 className="flex items-center gap-2 text-sm font-medium">
+            Documents <span className="code">{inputs.filter((x) => x.docs.length).length}/4</span>
           </h3>
           {editable && (
             <button onClick={() => run(() => submitForCrl(p.lead_id))} disabled={!ready || pending} className="btn-primary">
@@ -238,7 +236,7 @@ export default function ProposalWorkspace({ proposal: p, canPick, canWork, canCo
           )}
         </div>
         {!canWork && p.docs.filter((d) => d.kind !== "output").length === 0 ? (
-          <p className="rounded-xl border border-dashed border-line px-4 py-6 text-center text-sm text-muted">No documents yet.</p>
+          <p className="well-empty px-4 py-6 text-center text-sm text-muted">No documents yet.</p>
         ) : (
           <div className="grid gap-2.5 md:grid-cols-2">
             {inputs.map(({ def, docs }) => (
@@ -251,9 +249,9 @@ export default function ProposalWorkspace({ proposal: p, canPick, canWork, canCo
 
       {/* Commercials */}
       {(p.commercials || (canCommercials && ["awaiting_commercials", "proposal_failed"].includes(p.stage))) && (
-        <section className="rounded-xl border border-line p-4">
-          <h3 className="flex items-center gap-2 text-[13px] font-medium">
-            <Icon name="rupee" size={14} className="text-amber-300" /> Commercials
+        <section className="tint-amber rounded-2xl p-5">
+          <h3 className="flex items-center gap-2.5 text-sm font-medium">
+            <span className="icon-tile h-8 w-8 rounded-lg"><Icon name="rupee" size={14} /></span> Commercials
           </h3>
           {canCommercials && ["awaiting_commercials", "proposal_failed"].includes(p.stage) ? (
             <form
@@ -268,13 +266,13 @@ export default function ProposalWorkspace({ proposal: p, canPick, canWork, canCo
                 value={commercials}
                 onChange={(e) => setCommercials(e.target.value)}
                 placeholder={"Retainer: ₹1,50,000 / month\nScope: 12 reels, 8 statics, 2 shoots…\nPayment terms: 50% advance"}
-                className="field resize-y"
+                className="field resize-y bg-panel"
               />
               <div className="mt-2 flex items-center gap-3">
                 <button disabled={!commercials.trim() || pending} className="btn-primary">
                   {pending ? "Starting…" : "Save & build proposal"}
                 </button>
-                <span className="text-xs text-muted">The proposal bot starts as soon as these are saved.</span>
+                <span className="text-xs text-ink/60">The proposal bot starts as soon as these are saved.</span>
               </div>
             </form>
           ) : (
@@ -285,7 +283,7 @@ export default function ProposalWorkspace({ proposal: p, canPick, canWork, canCo
 
       {/* Deliverables */}
       <section>
-        <h3 className="mb-3 text-[13px] font-medium">Deliverables</h3>
+        <h3 className="mb-3 text-sm font-medium">Deliverables</h3>
         <div className="grid gap-2.5 md:grid-cols-2">
           <Deliverable label="CRL" href={p.crl_url} note="Built from the reference links + identity" />
           <Deliverable label="Proposal deck" href={p.deck_url} note="After the CRL + commercials" icon="sparkle" />
@@ -294,7 +292,7 @@ export default function ProposalWorkspace({ proposal: p, canPick, canWork, canCo
           <ul className="mt-3 flex flex-col gap-1.5">
             {outputs.map((d) => (
               <li key={d.id}>
-                <a href={d.href} target="_blank" rel="noreferrer" className="flex items-center gap-2 rounded-lg border border-line px-3 py-2 text-xs hover:border-brand/40">
+                <a href={d.href} target="_blank" rel="noreferrer" className="well flex items-center gap-2 px-3.5 py-2.5 text-xs transition hover:bg-panel-3">
                   <Icon name="file" size={13} className="text-muted" />
                   <span className="min-w-0 flex-1 truncate">{d.name}</span>
                   {d.size > 0 && <span className="text-faint">{kb(d.size)}</span>}

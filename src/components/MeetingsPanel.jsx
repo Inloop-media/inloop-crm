@@ -29,12 +29,12 @@ function GuestPicker({ guests, value, onChange }) {
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className="field flex min-h-[38px] flex-wrap items-center gap-1.5 text-left"
+        className="field flex min-h-[44px] flex-wrap items-center gap-1.5 bg-panel text-left"
         aria-expanded={open}
       >
         {picked.length ? (
           picked.map((g) => (
-            <span key={g.id} className="chip">
+            <span key={g.id} className="chip bg-tint-lavender">
               {g.name}
               <span
                 role="button"
@@ -52,10 +52,10 @@ function GuestPicker({ guests, value, onChange }) {
         ) : (
           <span className="text-faint">No guests — only the client is invited</span>
         )}
-        <span className="ml-auto text-faint">▾</span>
+        <Icon name="chevron" size={15} className="ml-auto text-faint" />
       </button>
       {open && (
-        <ul className="absolute z-30 mt-1.5 max-h-64 w-full overflow-y-auto rounded-xl border border-line-strong bg-panel-2 p-1 shadow-2xl shadow-black/50">
+        <ul className="pop absolute z-30 mt-2 max-h-64 w-full overflow-y-auto p-1.5">
           {guests.map((g) => {
             const on = value.includes(g.id);
             return (
@@ -63,9 +63,9 @@ function GuestPicker({ guests, value, onChange }) {
                 <button
                   type="button"
                   onClick={() => toggle(g.id)}
-                  className={`flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm transition hover:bg-ink/[0.05] ${on ? "text-ink" : "text-ink/75"}`}
+                  className={`flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-sm transition hover:bg-panel-2 ${on ? "text-ink" : "text-ink/75"}`}
                 >
-                  <span className={`grid h-4 w-4 shrink-0 place-items-center rounded border ${on ? "border-brand bg-brand text-on-brand" : "border-line-strong"}`}>
+                  <span className={`grid h-[18px] w-[18px] shrink-0 place-items-center rounded-md border ${on ? "border-brand bg-brand text-on-brand" : "border-line-strong"}`}>
                     {on && <Icon name="check" size={11} />}
                   </span>
                   {g.name}
@@ -96,13 +96,18 @@ function Booker({ leadId, kind, ready, blockedReason, connected, domain, guests 
     });
 
   return (
-    <div className="rounded-xl border border-line bg-bg/40 p-4">
-      <div className="flex items-center gap-2 text-sm font-medium">
-        <span className="h-2 w-2 rounded-full" style={{ background: info.color }} />
-        Book {info.label.toLowerCase()}
+    <div className="well p-5">
+      <div className="flex items-center gap-3">
+        <span className="icon-tile h-9 w-9">
+          <Icon name="video" size={15} />
+        </span>
+        <div>
+          <div className="text-sm font-medium">Book {info.label.toLowerCase()}</div>
+          <div className="text-[11px] text-muted">30 min · Google Meet</div>
+        </div>
       </div>
       {!ready ? (
-        <p className="mt-2 text-xs text-muted">{blockedReason}</p>
+        <p className="mt-3 rounded-xl bg-panel px-3.5 py-2.5 text-xs text-muted">{blockedReason}</p>
       ) : !connected ? (
         <div className="mt-3">
           <p className="mb-3 text-xs text-muted">The invite goes out from your own Google Calendar, so connect it once.</p>
@@ -115,14 +120,14 @@ function Booker({ leadId, kind, ready, blockedReason, connected, domain, guests 
               <GuestPicker guests={guests} value={guestIds} onChange={setGuestIds} />
             </div>
           )}
-          <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+          <div className="mt-4 flex flex-col gap-2 sm:flex-row">
             <input
               type="datetime-local"
               value={when}
               min={nowIST()}
               suppressHydrationWarning
               onChange={(e) => setWhen(e.target.value)}
-              className="field [color-scheme:dark]"
+              className="field bg-panel"
               aria-label={`${info.label} date and time`}
             />
             <button onClick={book} disabled={!when || pending} className="btn-primary shrink-0">
@@ -130,8 +135,8 @@ function Booker({ leadId, kind, ready, blockedReason, connected, domain, guests 
               {pending ? "Booking…" : "Book Meet"}
             </button>
           </div>
-          <p className="mt-2 text-[11px] text-faint">
-            30 min · Google Meet link · {kind === "discovery" ? "invites the client and the guests above" : "invites only the client · brief goes to the strategists"}
+          <p className="mt-2.5 text-[11px] text-muted">
+            {kind === "discovery" ? "invites the client and the guests above" : "invites only the client · brief goes to the strategists"}
           </p>
         </>
       )}
@@ -153,13 +158,15 @@ function MeetingRow({ m, meId, canCancelProposal, isAdmin }) {
   const canCancel = !past && (m.organizer?.id === meId || isAdmin || (m.kind === "proposal" && canCancelProposal));
 
   return (
-    <li className="flex items-start gap-3 py-3">
-      <span className="mt-1 h-9 w-1 shrink-0 rounded-full" style={{ background: info.color, opacity: past ? 0.4 : 1 }} />
+    <li className={`flex items-center gap-3.5 rounded-2xl p-3.5 ${past ? "bg-panel-2/50" : "well"}`}>
+      <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl text-white" style={{ background: info.color, opacity: past ? 0.45 : 1 }}>
+        <Icon name="video" size={16} />
+      </span>
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-x-2 text-sm">
-          <span className={past ? "text-muted" : ""}>{fmtMeeting(m.starts_at)}</span>
+          <span className={`font-medium ${past ? "text-muted" : ""}`}>{fmtMeeting(m.starts_at)}</span>
           <span className="text-xs text-muted">· {info.label}</span>
-          {past && <span className="rounded bg-panel-3 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-muted">Done</span>}
+          {past && <span className="rounded-full bg-panel-3 px-2 py-0.5 text-[10px] font-medium text-muted">Done</span>}
         </div>
         <div className="mt-0.5 truncate text-xs text-muted">
           by {m.organizer?.name || "—"}
@@ -169,7 +176,7 @@ function MeetingRow({ m, meId, canCancelProposal, isAdmin }) {
       </div>
       <div className="flex shrink-0 items-center gap-1.5">
         {m.meet_link && !past && (
-          <a href={m.meet_link} target="_blank" rel="noreferrer" className="btn-ghost px-2.5 py-1.5 text-xs">
+          <a href={m.meet_link} target="_blank" rel="noreferrer" className="btn-primary btn-sm">
             <Icon name="video" size={13} /> Join
           </a>
         )}
@@ -183,7 +190,7 @@ function MeetingRow({ m, meId, canCancelProposal, isAdmin }) {
                 setError(res.ok ? "" : res.error);
               });
             }}
-            className="rounded-lg px-2 py-1.5 text-xs text-muted transition hover:bg-panel-2 hover:text-rose-400"
+            className="rounded-full px-3 py-1.5 text-xs text-muted transition hover:bg-panel hover:text-rose-400"
           >
             {pending ? "…" : "Cancel"}
           </button>
@@ -200,13 +207,13 @@ export default function MeetingsPanel({ lead, meetings, me, canDiscovery, canPro
   return (
     <div className="flex flex-col gap-4">
       {meetings.length > 0 ? (
-        <ul className="-my-3 divide-y divide-line">
+        <ul className="flex flex-col gap-2">
           {meetings.map((m) => (
             <MeetingRow key={m.id} m={m} meId={me.id} canCancelProposal={canProposal} isAdmin={isAdmin} />
           ))}
         </ul>
       ) : (
-        <p className="text-sm text-muted">No meetings yet.</p>
+        <p className="well-empty px-4 py-6 text-center text-sm text-muted">No meetings yet.</p>
       )}
 
       {canDiscovery && !live("discovery") && !lead.has_proposal && (

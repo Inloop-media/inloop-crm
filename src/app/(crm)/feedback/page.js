@@ -1,6 +1,6 @@
 import Link from "next/link";
 import FeedbackStatus from "@/components/FeedbackStatus";
-import { Avatar, Empty } from "@/components/ui";
+import { Avatar, Empty, PageHeader, Stat } from "@/components/ui";
 import { requireMember } from "@/lib/auth";
 import { db } from "@/lib/supabase/server";
 import { ago } from "@/lib/format";
@@ -33,24 +33,18 @@ export default async function FeedbackPage({ searchParams }) {
 
   return (
     <div className="page max-w-5xl">
-      <header className="rise flex flex-wrap items-end justify-between gap-x-10 gap-y-6">
-        <div>
-          <p className="text-sm text-muted">What the team says about the CRM</p>
-          <h1 className="page-title mt-1">Feedback</h1>
-        </div>
-        <div className="flex gap-8">
-          <div>
-            <div className="text-xs text-muted">Open problems</div>
-            <div className="mt-1 text-[30px] font-medium leading-none">{count("problem")}</div>
+      <PageHeader
+        kicker="What the team says about the CRM"
+        title="Feedback"
+        actions={
+          <div className="flex gap-8">
+            <Stat label="Open problems" value={count("problem")} />
+            <Stat label="Open ideas" value={count("idea")} />
           </div>
-          <div>
-            <div className="text-xs text-muted">Open ideas</div>
-            <div className="mt-1 text-[30px] font-medium leading-none">{count("idea")}</div>
-          </div>
-        </div>
-      </header>
+        }
+      />
 
-      <nav className="seg rise mt-6">
+      <nav className="seg rise rise-1 p-1.5">
         {TABS.map((t) => (
           <Link key={t.id} href={`/feedback?show=${t.id}`} data-on={show === t.id} className="seg-item">
             {t.label}
@@ -63,7 +57,7 @@ export default async function FeedbackPage({ searchParams }) {
           {items.map((f) => {
             const k = KIND[f.kind] || KIND.general;
             return (
-              <li key={f.id} className={`card flex flex-col p-5 ${f.status === "done" ? "opacity-60" : ""}`}>
+              <li key={f.id} className={`card card-hover flex flex-col p-6 ${f.status === "done" ? "opacity-60" : ""}`}>
                 <div className="flex items-center gap-3">
                   <Avatar name={f.member?.name || "?"} size={38} />
                   <div className="min-w-0 flex-1">
@@ -78,7 +72,7 @@ export default async function FeedbackPage({ searchParams }) {
                   </div>
                 </div>
                 <div className={`mt-4 flex-1 rounded-2xl p-4 ${k.tint}`}>
-                  <div className="mb-1.5 text-[11px] font-medium uppercase tracking-wider text-ink/60">{k.label}</div>
+                  <div className="mb-1.5 text-xs font-medium text-ink/60">{k.label}</div>
                   <p className="whitespace-pre-wrap text-sm leading-relaxed">{f.message}</p>
                 </div>
                 <FeedbackStatus id={f.id} status={f.status} />

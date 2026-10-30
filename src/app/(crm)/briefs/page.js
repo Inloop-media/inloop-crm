@@ -1,6 +1,6 @@
 import Link from "next/link";
 import Icon from "@/components/Icon";
-import { Avatar, Empty, StagePill, StepTrack } from "@/components/ui";
+import { Avatar, Empty, PageHeader, StagePill, StepTrack } from "@/components/ui";
 import { requireMember } from "@/lib/auth";
 import { listProposals } from "@/lib/leads";
 import { canSeeAllLeads, canSeeBriefs } from "@/lib/permissions";
@@ -10,25 +10,25 @@ export const metadata = { title: "Briefs" };
 
 function BriefCard({ p, href }) {
   return (
-    <Link href={href} className="card card-hover group flex flex-col gap-4 p-5">
+    <Link href={href} className="card card-hover group flex flex-col gap-4 p-6">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <span className="rounded-md bg-panel-2 px-1.5 py-0.5 text-[11px] font-medium tabular-nums text-muted">{p.lead.code}</span>
-          <div className="mt-2 truncate text-[17px] font-semibold tracking-[-0.01em]">{p.lead.brand || fullName(p.lead)}</div>
+          <span className="code">{p.lead.code}</span>
+          <div className="mt-2.5 truncate text-lg font-medium tracking-[-0.01em]">{p.lead.brand || fullName(p.lead)}</div>
           <div className="truncate text-xs text-muted">{[p.lead.service, p.lead.budget].filter(Boolean).join(" · ") || "—"}</div>
         </div>
         <StagePill stage={p.stage} />
       </div>
-      <p className="line-clamp-3 min-h-[3.75em] whitespace-pre-line text-sm leading-relaxed text-ink/70">{p.lead.brief || "No brief text."}</p>
+      <p className="well line-clamp-3 min-h-[5.5em] whitespace-pre-line p-3.5 text-sm leading-relaxed text-ink/75">{p.lead.brief || "No brief text."}</p>
       <StepTrack stage={p.stage} compact />
-      <div className="flex items-center justify-between border-t border-line pt-3.5 text-xs text-muted">
+      <div className="flex items-center justify-between pt-1 text-xs text-muted">
         <span className="flex items-center gap-2">
           {p.strategist ? (
             <>
               <Avatar name={p.strategist.name} size={22} /> {p.strategist.name}
             </>
           ) : (
-            <span className="text-brand">Open — pick it up</span>
+            <span className="rounded-full bg-brand px-2.5 py-1 font-medium text-on-brand">Open — pick it up</span>
           )}
         </span>
         <span>Shared {ago(p.shared_at)}</span>
@@ -51,17 +51,14 @@ export default async function BriefsPage({ searchParams }) {
   const hrefFor = (p) => (staff ? `/leads/${p.lead.id}#proposal` : `/briefs/${p.lead.id}`);
 
   return (
-    <div className="relative z-[1] mx-auto max-w-[1320px] px-4 py-6 md:px-8 md:py-9">
-      <header className="rise mb-7">
-        <p className="eyebrow">Creative strategy</p>
-        <h1 className="page-title mt-1.5">Briefs</h1>
-        <p className="mt-2 max-w-2xl text-sm text-muted">
-          A brief lands here when the proposal meeting is booked. Pick one up, upload the reference links, creatives, brand strategy and brand identity —
-          the CRL bot takes it from there.
-        </p>
-      </header>
+    <div className="page">
+      <PageHeader
+        kicker="Creative strategy"
+        title="Briefs"
+        sub="A brief lands here when the proposal meeting is booked. Pick one up, upload the reference links, creatives, brand strategy and brand identity — the CRL bot takes it from there."
+      />
 
-      <nav className="seg mb-5 flex w-full sm:w-fit">
+      <nav className="seg rise rise-1 mb-5 flex w-full p-1.5 sm:w-fit">
         {tabs.map((t) => (
           <Link
             key={t.id}
@@ -70,13 +67,13 @@ export default async function BriefsPage({ searchParams }) {
             className="seg-item flex flex-1 items-center justify-center gap-2 sm:flex-none"
           >
             {t.label}
-            <span className="text-xs tabular-nums text-faint">{t.items.length}</span>
+            <span className="rounded-full bg-panel-2 px-1.5 text-[11px] tabular-nums text-muted">{t.items.length}</span>
           </Link>
         ))}
       </nav>
 
       {current.items.length ? (
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+        <div className="rise rise-2 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {current.items.map((p) => (
             <BriefCard key={p.id} p={p} href={hrefFor(p)} />
           ))}

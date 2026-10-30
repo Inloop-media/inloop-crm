@@ -4,7 +4,7 @@ import Icon from "@/components/Icon";
 import { Notes, OwnerPicker, StatusPicker } from "@/components/LeadEditor";
 import MeetingsPanel from "@/components/MeetingsPanel";
 import ProposalWorkspace from "@/components/ProposalWorkspace";
-import { Avatar, StagePill, StepTrack } from "@/components/ui";
+import { Avatar, PageHeader, Panel, StagePill, StepTrack } from "@/components/ui";
 import StatusBadge from "@/components/StatusBadge";
 import Timeline from "@/components/Timeline";
 import { requireMember } from "@/lib/auth";
@@ -22,40 +22,32 @@ export async function generateMetadata({ params }) {
 
 function Detail({ label, icon, children }) {
   return (
-    <div className="flex min-w-0 gap-3">
-      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-line bg-panel-2 text-muted">
+    <div className="well flex min-w-0 items-start gap-3 p-4">
+      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-panel text-muted shadow-[var(--card-shadow)]">
         <Icon name={icon} size={15} />
       </span>
       <div className="min-w-0">
-        <dt className="text-[11px] font-medium uppercase tracking-[0.08em] text-faint">{label}</dt>
+        <dt className="text-xs text-muted">{label}</dt>
         <dd className="mt-0.5 break-words text-sm font-medium">{children || <span className="font-normal text-faint">—</span>}</dd>
       </div>
     </div>
   );
 }
 
-function QuickAction({ href, icon, label, external }) {
+function QuickAction({ href, icon, label, external, primary }) {
   return (
-    <a
-      href={href}
-      {...(external ? { target: "_blank", rel: "noreferrer" } : {})}
-      className="flex flex-1 flex-col items-center gap-1.5 rounded-2xl border border-line bg-panel-2/60 px-3 py-2.5 text-xs font-medium text-ink/85 transition hover:border-brand/40 hover:bg-brand/[0.06] hover:text-ink sm:flex-none sm:flex-row sm:rounded-xl sm:px-3.5 sm:py-2"
-    >
-      <Icon name={icon} size={16} className="text-brand" />
+    <a href={href} {...(external ? { target: "_blank", rel: "noreferrer" } : {})} className={`${primary ? "btn-primary" : "btn-ghost"} flex-1 sm:flex-none`}>
+      <Icon name={icon} size={15} />
       {label}
     </a>
   );
 }
 
-function Section({ title, children, action, id }) {
+function Section({ title, sub, children, action, id }) {
   return (
-    <section id={id} className="card scroll-mt-24 p-4 sm:p-6 md:scroll-mt-6">
-      <div className="mb-5 flex items-center justify-between gap-3">
-        <h2 className="text-[15px] font-semibold tracking-[-0.01em]">{title}</h2>
-        {action}
-      </div>
+    <Panel title={title} sub={sub} action={action} className={id ? "scroll-mt-24 md:scroll-mt-6" : ""} id={id}>
       {children}
-    </section>
+    </Panel>
   );
 }
 
@@ -78,46 +70,44 @@ export default async function LeadPage({ params }) {
   const whatsapp = phone.replace(/^\+/, "").replace(/^0?(\d{10})$/, "91$1");
 
   return (
-    <div className="relative z-[1] mx-auto max-w-6xl px-4 py-6 md:px-8 md:py-9">
-      <Link href="/leads" className="inline-flex items-center gap-1.5 text-sm text-muted transition hover:text-ink">
-        <Icon name="back" size={14} /> Leads
-      </Link>
+    <div className="page max-w-6xl">
+      <PageHeader back={{ href: "/leads", label: "Leads" }} />
 
       {/* Header + key facts, so nobody has to scroll for the phone number */}
-      <section className="rise card relative mt-4 overflow-hidden">
-        <span className="pointer-events-none absolute -right-24 -top-28 h-72 w-72 rounded-full blur-3xl" style={{ background: `color-mix(in srgb, ${statusColor(lead.status)} 18%, transparent)` }} />
-        <div className="relative flex flex-wrap items-start justify-between gap-5 p-5 sm:p-7">
+      <section className="rise card relative -mt-2 overflow-hidden">
+        <span className="pointer-events-none absolute -right-24 -top-28 h-72 w-72 rounded-full blur-3xl" style={{ background: `color-mix(in srgb, ${statusColor(lead.status)} 22%, transparent)` }} />
+        <div className="relative flex flex-wrap items-start justify-between gap-6 p-6 sm:p-8">
           <div className="flex min-w-0 items-start gap-4">
-            <Avatar name={lead.brand || fullName(lead)} size={56} />
+            <Avatar name={lead.brand || fullName(lead)} size={64} />
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2 text-xs text-muted">
-                <span className="rounded-md bg-panel-2 px-1.5 py-0.5 font-medium tabular-nums">{lead.code}</span>
+                <span className="code">{lead.code}</span>
                 <span>Registered {fmtDateTime(lead.created_at)}</span>
               </div>
-              <h1 className="mt-1.5 text-[26px] font-semibold leading-tight tracking-[-0.02em] md:text-[32px]">{lead.brand || fullName(lead)}</h1>
-              <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-muted">
+              <h1 className="mt-2 text-[30px] font-medium leading-tight tracking-[-0.02em] md:text-[40px]">{lead.brand || fullName(lead)}</h1>
+              <div className="mt-3 flex flex-wrap items-center gap-2.5 text-sm text-muted">
                 <StatusBadge status={lead.status} />
                 <span>{lead.brand ? fullName(lead) : lead.email}</span>
-                <span className="text-faint">·</span>
+                <span className="h-1 w-1 rounded-full bg-faint" />
                 {owner ? (
                   <span className="inline-flex items-center gap-1.5">
-                    <Avatar name={owner.name} size={18} />
+                    <Avatar name={owner.name} size={22} />
                     {owner.name}
                   </span>
                 ) : (
-                  <span className="text-amber-400">Unassigned</span>
+                  <span className="rounded-full bg-amber-400/15 px-2.5 py-1 text-xs font-medium text-amber-300">Unassigned</span>
                 )}
               </div>
             </div>
           </div>
           <div className="flex w-full gap-2 sm:w-auto">
-            {phone && <QuickAction href={`tel:${phone}`} icon="phone" label="Call" />}
+            {phone && <QuickAction href={`tel:${phone}`} icon="phone" label="Call" primary />}
             {phone && <QuickAction href={`https://wa.me/${whatsapp}`} icon="chat" label="WhatsApp" external />}
             {lead.email && <QuickAction href={`mailto:${lead.email}`} icon="mail" label="Email" />}
           </div>
         </div>
 
-        <dl className="relative grid grid-cols-1 gap-x-6 gap-y-5 border-t border-line p-5 sm:grid-cols-2 sm:p-7 md:grid-cols-3">
+        <dl className="relative grid grid-cols-1 gap-2.5 px-6 pb-6 sm:grid-cols-2 sm:px-8 sm:pb-8 md:grid-cols-3">
           <Detail label="Service" icon="sparkle">{lead.service}</Detail>
           <Detail label="Budget" icon="rupee">{lead.budget}</Detail>
           <Detail label="Location" icon="pin">{lead.location}</Detail>
@@ -129,16 +119,18 @@ export default async function LeadPage({ params }) {
           </Detail>
         </dl>
         {lead.details && (
-          <div className="relative border-t border-line p-5 sm:p-7">
-            <div className="eyebrow">Project details</div>
-            <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-ink/85">{lead.details}</p>
+          <div className="relative px-6 pb-6 sm:px-8 sm:pb-8">
+            <div className="tint-lavender rounded-2xl p-5">
+              <div className="text-xs font-medium text-ink/60">Project details</div>
+              <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed">{lead.details}</p>
+            </div>
           </div>
         )}
       </section>
 
-      <div className="rise rise-2 mt-4 grid gap-4 lg:grid-cols-[1fr_340px]">
-        <div className="flex min-w-0 flex-col gap-4">
-          <Section title="Status">
+      <div className="rise rise-2 mt-5 grid gap-5 lg:grid-cols-[1fr_360px]">
+        <div className="flex min-w-0 flex-col gap-5">
+          <Section title="Status" sub="Click a stage to move the lead">
             <StatusPicker lead={lead} statuses={statusOptions(me)} />
           </Section>
 
@@ -146,7 +138,7 @@ export default async function LeadPage({ params }) {
             <Notes lead={lead} />
           </Section>
 
-          <Section title="Meetings" action={<Icon name="calendar" className="text-muted" />}>
+          <Section title="Meetings" sub="Google Meet calls with the client">
             <MeetingsPanel
               lead={{ id: lead.id, status: lead.status, has_brief: Boolean(lead.brief.trim()), has_proposal: Boolean(lead.proposal) }}
               meetings={lead.meetings}
@@ -169,14 +161,13 @@ export default async function LeadPage({ params }) {
           )}
         </div>
 
-        <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-5">
           <Section title="Owner" action={lead.assigned_at ? <span className="text-[11px] text-faint">since {fmtDateTime(lead.assigned_at)}</span> : null}>
             <OwnerPicker lead={lead} members={members} assignees={assignees} canAssign={canAssign(me)} openCounts={openCounts} />
           </Section>
-          <aside className="card p-4 sm:p-6">
-            <h2 className="mb-5 text-[15px] font-semibold tracking-[-0.01em]">History</h2>
+          <Section title="History" sub="Everything that happened on this lead">
             <Timeline events={lead.events} />
-          </aside>
+          </Section>
         </div>
       </div>
     </div>

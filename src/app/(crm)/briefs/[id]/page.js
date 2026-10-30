@@ -1,8 +1,6 @@
-import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import Icon from "@/components/Icon";
 import ProposalWorkspace from "@/components/ProposalWorkspace";
-import { Panel, StagePill, StepTrack } from "@/components/ui";
+import { PageHeader, Panel, StagePill, StepTrack } from "@/components/ui";
 import { requireMember } from "@/lib/auth";
 import { getProposal } from "@/lib/leads";
 import { canEnterCommercials, canSeeAllLeads, canSeeBriefs, canWorkOnProposal, isStrategist } from "@/lib/permissions";
@@ -17,9 +15,9 @@ export async function generateMetadata({ params }) {
 
 function Fact({ label, children }) {
   return (
-    <div className="min-w-0">
-      <dt className="eyebrow">{label}</dt>
-      <dd className="mt-1 break-words text-sm">{children || <span className="text-faint">—</span>}</dd>
+    <div className="well min-w-0 p-3.5">
+      <dt className="text-xs text-muted">{label}</dt>
+      <dd className="mt-0.5 break-words text-sm font-medium">{children || <span className="text-faint">—</span>}</dd>
     </div>
   );
 }
@@ -34,42 +32,38 @@ export default async function BriefPage({ params }) {
   const lead = p.lead;
 
   return (
-    <div className="relative z-[1] mx-auto max-w-6xl px-4 py-6 md:px-8 md:py-9">
-      <Link href="/briefs" className="inline-flex items-center gap-1.5 text-sm text-muted hover:text-ink">
-        <Icon name="back" size={14} /> Briefs
-      </Link>
+    <div className="page max-w-6xl">
+      <PageHeader
+        back={{ href: "/briefs", label: "Briefs" }}
+        kicker={
+          <span className="flex items-center gap-2">
+            <span className="code">{lead.code}</span> Shared {fmtDateTime(p.shared_at)}
+          </span>
+        }
+        title={lead.brand || fullName(lead)}
+        sub={[lead.service, lead.location].filter(Boolean).join(" · ")}
+        actions={<StagePill stage={p.stage} />}
+      />
 
-      <header className="rise mt-5 flex flex-wrap items-start justify-between gap-4">
-        <div className="min-w-0">
-          <div className="flex items-center gap-2 text-sm text-muted">
-            <span className="rounded-md border border-line px-1.5 py-0.5 text-xs">{lead.code}</span>
-            <span>Shared {fmtDateTime(p.shared_at)}</span>
-          </div>
-          <h1 className="page-title mt-1.5">{lead.brand || fullName(lead)}</h1>
-          <p className="mt-1 text-sm text-muted">{[lead.service, lead.location].filter(Boolean).join(" · ")}</p>
-        </div>
-        <StagePill stage={p.stage} />
-      </header>
-
-      <div className="rise mt-6 [animation-delay:60ms]">
+      <div className="rise card p-5 [animation-delay:60ms]">
         <StepTrack stage={p.stage} />
       </div>
 
-      <div className="rise mt-6 grid gap-4 [animation-delay:120ms] lg:grid-cols-[380px_1fr]">
-        <div className="flex flex-col gap-4">
+      <div className="rise mt-5 grid gap-5 [animation-delay:120ms] lg:grid-cols-[380px_1fr]">
+        <div className="flex flex-col gap-5">
           <Panel title="Client brief">
-            <p className="whitespace-pre-wrap text-sm leading-relaxed text-ink/85">{lead.brief || "No brief text."}</p>
+            <p className="tint-lavender whitespace-pre-wrap rounded-2xl p-4 text-sm leading-relaxed">{lead.brief || "No brief text."}</p>
           </Panel>
           <Panel title="About the lead">
-            <dl className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
+            <dl className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-1">
               <Fact label="Client">{fullName(lead)}</Fact>
               <Fact label="Service interest">{lead.service}</Fact>
               <Fact label="Estimated budget">{lead.budget}</Fact>
               <Fact label="Location">{lead.location}</Fact>
             </dl>
             {lead.details && (
-              <div className="mt-4 border-t border-line pt-4">
-                <div className="eyebrow">Project details</div>
+              <div className="mt-4">
+                <div className="text-xs font-medium text-muted">Project details</div>
                 <p className="mt-1.5 whitespace-pre-wrap text-sm leading-relaxed text-ink/75">{lead.details}</p>
               </div>
             )}

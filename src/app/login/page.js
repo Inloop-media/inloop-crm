@@ -12,22 +12,24 @@ export default async function LoginPage({ searchParams }) {
   if (configured && (await getCurrentMember())) redirect("/");
 
   return (
-    <main className="relative flex min-h-svh items-center justify-center overflow-hidden px-4">
-      <div className="pointer-events-none absolute left-1/2 top-1/3 h-[420px] w-[620px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-brand/10 blur-[120px]" />
-      <div className="relative w-full max-w-sm rounded-2xl border border-line bg-panel/80 p-8 shadow-2xl shadow-black/40 backdrop-blur">
-        <Logo />
-        <h1 className="mt-8 text-xl font-semibold">Sign in to Inloop CRM</h1>
-        <p className="mt-2 text-sm text-muted">Use your Inloop Media Google account.</p>
-        <div className="mt-8">
-          {configured ? (
-            <GoogleButton domain={process.env.ALLOWED_DOMAIN} />
-          ) : (
-            <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-200">
-              Supabase isn&apos;t connected yet. Add the keys to <code>.env.local</code> — see SETUP.md.
-            </p>
-          )}
+    <main className="relative flex min-h-svh items-center justify-center px-4 py-10">
+      <div className="rise w-full max-w-[420px]">
+        <div className="card p-8 sm:p-10">
+          <Logo />
+          <h1 className="mt-10 text-[34px] font-medium leading-tight tracking-[-0.02em]">Welcome back</h1>
+          <p className="mt-2 text-sm text-muted">Sign in with your Inloop Media Google account.</p>
+          <div className="mt-8">
+            {configured ? (
+              <GoogleButton domain={process.env.ALLOWED_DOMAIN} />
+            ) : (
+              <p className="tint-amber rounded-2xl p-4 text-sm">
+                Supabase isn&apos;t connected yet. Add the keys to <code>.env.local</code> — see SETUP.md.
+              </p>
+            )}
+          </div>
+          {error && <p className="tint-pink mt-4 rounded-2xl p-3.5 text-sm">Sign-in didn&apos;t complete. Please try again.</p>}
         </div>
-        {error && <p className="mt-4 text-sm text-red-400">Sign-in didn&apos;t complete. Please try again.</p>}
+        <p className="mt-6 text-center text-xs text-muted">Inloop Media · internal workspace</p>
       </div>
     </main>
   );

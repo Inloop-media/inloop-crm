@@ -45,8 +45,8 @@ export function StatusPicker({ lead, statuses }) {
       <div className="flex flex-col gap-3">
         {rows.map((row) => (
           <div key={row.label}>
-            <div className="eyebrow mb-2">{row.label}</div>
-            <div className="flex flex-wrap gap-1.5">
+            <div className="mb-2.5 text-xs font-medium text-muted">{row.label}</div>
+            <div className="flex flex-wrap gap-2">
               {row.items.map((s) => {
                 const active = s.name === value;
                 const allowed = statuses.includes(s.name) && !locked;
@@ -57,16 +57,22 @@ export function StatusPicker({ lead, statuses }) {
                     disabled={pending || !allowed}
                     onClick={() => pick(s.name)}
                     title={!allowed && !active ? "Admin only" : s.help || s.name}
-                    className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs transition ${
-                      active
-                        ? "font-medium text-black"
-                        : allowed
-                          ? "border-line text-ink/80 hover:border-line-strong hover:bg-ink/[0.03]"
-                          : "cursor-not-allowed border-line/60 text-faint"
+                    className={`flex items-center gap-2 rounded-full px-3.5 py-2 text-xs transition duration-200 ${
+                      active ? "font-medium" : allowed ? "bg-panel-2 text-ink/80 hover:-translate-y-0.5 hover:text-ink" : "cursor-not-allowed bg-panel-2/50 text-faint"
                     }`}
-                    style={active ? { background: s.color, borderColor: s.color } : undefined}
+                    style={
+                      active
+                        ? { background: `color-mix(in srgb, ${s.color} 18%, var(--color-panel))`, color: "var(--color-ink)", boxShadow: `inset 0 0 0 1.5px ${s.color}` }
+                        : undefined
+                    }
                   >
-                    {!active && <span className="h-1.5 w-1.5 rounded-full" style={{ background: allowed ? s.color : "currentColor" }} />}
+                    {active ? (
+                      <span className="grid h-4 w-4 place-items-center rounded-full text-white" style={{ background: s.color }}>
+                        <Icon name="check" size={10} />
+                      </span>
+                    ) : (
+                      <span className="h-1.5 w-1.5 rounded-full" style={{ background: allowed ? s.color : "currentColor" }} />
+                    )}
                     {s.name}
                   </button>
                 );
@@ -97,11 +103,11 @@ export function OwnerPicker({ lead, members, assignees, canAssign, openCounts = 
 
   return (
     <div>
-      <div className={`flex items-center gap-3 rounded-xl border p-3 ${owner ? "border-ink/[0.08] bg-ink/[0.02]" : "border-dashed border-amber-400/30 bg-amber-400/[0.04]"}`}>
+      <div className={`flex items-center gap-3 rounded-2xl p-3.5 ${owner ? "well" : "tint-amber"}`}>
         {owner ? (
           <Avatar name={owner.name} size={36} />
         ) : (
-          <span className="grid h-9 w-9 place-items-center rounded-full border border-dashed border-amber-400/40 text-amber-300">
+          <span className="icon-tile h-9 w-9 rounded-full">
             <Icon name="team" size={15} />
           </span>
         )}
@@ -110,14 +116,15 @@ export function OwnerPicker({ lead, members, assignees, canAssign, openCounts = 
           <div className="truncate text-xs text-muted">{owner ? "Sales executive" : canAssign ? "Pick an executive below" : "Waiting for the admin"}</div>
         </div>
         {canAssign && owner && (
-          <button onClick={() => assign("")} disabled={pending} className="text-xs text-muted hover:text-rose-300">
+          <button onClick={() => assign("")} disabled={pending} className="rounded-full bg-panel px-3 py-1.5 text-xs text-muted shadow-[var(--card-shadow)] transition hover:text-rose-400">
             Unassign
           </button>
         )}
       </div>
 
       {canAssign && (
-        <div className="mt-3">
+        <div className="mt-4">
+          <div className="mb-2 text-xs font-medium text-muted">Sales executives</div>
           {people.length ? (
             <ul className="flex flex-col gap-1">
               {people
@@ -127,12 +134,12 @@ export function OwnerPicker({ lead, members, assignees, canAssign, openCounts = 
                     <button
                       onClick={() => assign(m.id)}
                       disabled={pending}
-                      className="group flex w-full items-center gap-2.5 rounded-lg px-2 py-1.5 text-left transition hover:bg-ink/[0.04] disabled:opacity-50"
+                      className="group flex w-full items-center gap-3 rounded-2xl px-2.5 py-2 text-left transition hover:bg-panel-2 disabled:opacity-50"
                     >
-                      <Avatar name={m.name} size={26} />
+                      <Avatar name={m.name} size={30} />
                       <span className="min-w-0 flex-1 truncate text-sm text-ink/85">{m.name}</span>
                       <span className="text-[11px] tabular-nums text-faint">{openCounts[m.id] || 0} open</span>
-                      <span className="text-xs text-brand opacity-0 transition group-hover:opacity-100">Assign</span>
+                      <span className="rounded-full bg-brand px-2.5 py-1 text-[11px] font-medium text-on-brand opacity-0 transition group-hover:opacity-100">Assign</span>
                     </button>
                   </li>
                 ))}
@@ -157,14 +164,14 @@ function Note({ id, field, label, initial, placeholder, rows = 4 }) {
       <label className="label" htmlFor={field}>
         {label}
       </label>
-      <textarea id={field} rows={rows} value={value} onChange={(e) => setValue(e.target.value)} placeholder={placeholder} className="field resize-y leading-relaxed" />
-      <div className="mt-2 flex h-8 items-center gap-3">
+      <textarea id={field} rows={rows} value={value} onChange={(e) => setValue(e.target.value)} placeholder={placeholder} className="field min-h-[132px] resize-y leading-relaxed" />
+      <div className="mt-2.5 flex h-8 items-center gap-3">
         {dirty && (
           <button type="button" onClick={() => {
               const before = saved;
               setSaved(value);
               save({ [field]: value }, label, () => setSaved(before));
-            }} disabled={pending} className="btn-primary px-3 py-1.5 text-xs">
+            }} disabled={pending} className="btn-primary btn-sm">
             {pending ? "Saving…" : `Save ${label.toLowerCase()}`}
           </button>
         )}

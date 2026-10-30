@@ -9,7 +9,8 @@ const SOURCES = ["manual", "call", "referral", "whatsapp", "instagram", "linkedi
 export default function NewLeadForm({ members }) {
   const [state, action, pending] = useActionState(createLead, {});
   return (
-    <form action={action} className="grid gap-4 sm:grid-cols-2">
+    <form action={action} className="grid gap-x-4 gap-y-5 sm:grid-cols-2">
+      <h2 className="text-lg font-medium sm:col-span-2">Contact</h2>
       <div>
         <label className="label" htmlFor="first_name">First name *</label>
         <input id="first_name" name="first_name" required className="field" />
@@ -34,6 +35,8 @@ export default function NewLeadForm({ members }) {
         <label className="label" htmlFor="location">Location</label>
         <input id="location" name="location" className="field" />
       </div>
+      <div className="h-px bg-line sm:col-span-2" />
+      <h2 className="text-lg font-medium sm:col-span-2">Project</h2>
       <div>
         <label className="label" htmlFor="service">Service interest</label>
         <select id="service" name="service" className="field" defaultValue="">
@@ -65,9 +68,9 @@ export default function NewLeadForm({ members }) {
         <label className="label" htmlFor="details">Project details</label>
         <textarea id="details" name="details" rows={4} className="field resize-y" />
       </div>
-      <div className="flex items-center gap-3 sm:col-span-2">
+      <div className="flex items-center gap-3 border-t border-line pt-5 sm:col-span-2">
         <button disabled={pending} className="btn-primary">{pending ? "Adding…" : "Add lead"}</button>
-        {state?.error && <span className="text-sm text-red-400">{state.error}</span>}
+        {state?.error && <span className="text-sm text-rose-400">{state.error}</span>}
       </div>
     </form>
   );
