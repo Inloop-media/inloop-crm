@@ -26,7 +26,7 @@ export default async function LeadsPage({ searchParams }) {
       <div className="rise mb-6 flex flex-wrap items-end justify-between gap-3">
         <div>
           <p className="eyebrow">Pipeline</p>
-          <h1 className="page-title mt-1.5">{all ? <>All <em>leads</em></> : <>My <em>leads</em></>}</h1>
+          <h1 className="page-title mt-1.5">{all ? "Leads" : "My leads"}</h1>
           <p className="mt-1 text-sm text-muted">
             {leads.length} lead{leads.length === 1 ? "" : "s"}
             {!all && " assigned to you"}

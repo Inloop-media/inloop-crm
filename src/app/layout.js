@@ -1,5 +1,4 @@
 import { Inter, Instrument_Serif } from "next/font/google";
-import Spotlight from "@/components/Spotlight";
 import "./globals.css";
 
 const inter = Inter({ variable: "--font-inter", subsets: ["latin"] });
@@ -13,15 +12,12 @@ export const metadata = {
   icons: { apple: "/icons/apple-touch-icon.png" },
 };
 
-export const viewport = { themeColor: "#050507", viewportFit: "cover" };
+export const viewport = { themeColor: "#070709", viewportFit: "cover" };
 
 export default function RootLayout({ children }) {
   return (
     <html lang="en" className={`${inter.variable} ${serif.variable} h-full antialiased`}>
-      <body className="min-h-full">
-        <Spotlight />
-        {children}
-      </body>
+      <body className="min-h-full">{children}</body>
     </html>
   );
 }

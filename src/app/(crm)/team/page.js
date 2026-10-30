@@ -11,7 +11,7 @@ export default async function TeamPage() {
     <div className="relative z-[1] mx-auto max-w-6xl px-4 py-6 md:px-8 md:py-9">
       <header className="rise mb-8">
         <p className="eyebrow">Workspace</p>
-        <h1 className="page-title mt-1.5">Team &amp; <em>groups</em></h1>
+        <h1 className="page-title mt-1.5">Team & groups</h1>
       </header>
       <TeamManager members={members} groups={groups} guests={guests} meId={me.id} />
     </div>

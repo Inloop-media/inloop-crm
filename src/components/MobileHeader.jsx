@@ -26,7 +26,7 @@ export default function MobileHeader({ name, initials, roleLabel, calendar, doma
 
   return (
     <>
-      <header className="sticky top-0 z-30 border-b border-white/[0.05] bg-[rgb(5_5_7/0.7)] pt-[env(safe-area-inset-top)] backdrop-blur-2xl backdrop-saturate-150 md:hidden">
+      <header className="sticky top-0 z-30 border-b border-ink/[0.06] bg-bg/85 pt-[env(safe-area-inset-top)] backdrop-blur-xl md:hidden">
         <div className="flex h-14 items-center gap-2 px-4">
           <div className="flex-1">
             <Logo />
@@ -35,7 +35,7 @@ export default function MobileHeader({ name, initials, roleLabel, calendar, doma
           <button
             onClick={() => setOpen(true)}
             aria-label="Profile"
-            className="grid h-9 w-9 place-items-center rounded-full bg-gradient-to-br from-brand-soft via-brand to-fuchsia-400 text-xs font-semibold text-on-brand ring-2 ring-white/10"
+            className="grid h-9 w-9 place-items-center rounded-full bg-gradient-to-br from-brand to-fuchsia-400 text-xs font-semibold text-on-brand"
           >
             {initials}
           </button>
@@ -45,10 +45,10 @@ export default function MobileHeader({ name, initials, roleLabel, calendar, doma
       {open && (
         <div className="fixed inset-0 z-50 md:hidden" role="dialog" aria-modal="true">
           <button aria-label="Close" onClick={() => setOpen(false)} className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
-          <div className="rise glass absolute inset-x-2 bottom-2 rounded-[30px] px-5 pb-[calc(env(safe-area-inset-bottom)+14px)] pt-3">
+          <div className="rise absolute inset-x-0 bottom-0 rounded-t-[28px] border-t border-line bg-panel px-5 pb-[calc(env(safe-area-inset-bottom)+20px)] pt-3">
             <div className="mx-auto mb-5 h-1 w-10 rounded-full bg-ink/15" />
             <div className="flex items-center gap-3">
-              <span className="grid h-12 w-12 place-items-center rounded-full bg-gradient-to-br from-brand-soft via-brand to-fuchsia-400 text-sm font-semibold text-on-brand">
+              <span className="grid h-12 w-12 place-items-center rounded-full bg-gradient-to-br from-brand to-fuchsia-400 text-sm font-semibold text-on-brand">
                 {initials}
               </span>
               <div className="min-w-0">
@@ -60,7 +60,7 @@ export default function MobileHeader({ name, initials, roleLabel, calendar, doma
             <div className="mt-5 flex flex-col gap-2">
               <PushSetup variant="row" />
               {calendar !== null && (
-                <div className="flex items-center gap-3 rounded-2xl border border-white/[0.06] bg-white/[0.03] px-4 py-3.5">
+                <div className="flex items-center gap-3 rounded-2xl border border-line px-4 py-3.5">
                   <Icon name="calendar" size={18} className={calendar ? "text-emerald-400" : "text-brand"} />
                   <span className="flex-1 text-sm">{calendar ? "Calendar connected" : "Connect your calendar"}</span>
                   {calendar ? (
@@ -73,7 +73,7 @@ export default function MobileHeader({ name, initials, roleLabel, calendar, doma
                 </div>
               )}
               <form action="/auth/signout" method="post">
-                <button className="flex w-full items-center gap-3 rounded-2xl border border-white/[0.06] bg-white/[0.03] px-4 py-3.5 text-left text-sm text-rose-300">
+                <button className="flex w-full items-center gap-3 rounded-2xl border border-line px-4 py-3.5 text-left text-sm text-rose-300">
                   <Icon name="logout" size={18} />
                   Sign out
                 </button>

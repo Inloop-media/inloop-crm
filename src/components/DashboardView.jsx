@@ -42,8 +42,8 @@ function ActionList({ items }) {
     <ul className="-mx-2 flex flex-col">
       {items.map((it) => (
         <li key={it.key}>
-          <Link href={it.href} className="group flex items-center gap-3.5 rounded-2xl px-2 py-2.5 transition hover:bg-white/[0.035]">
-            <span className={`grid h-10 w-10 shrink-0 place-items-center rounded-2xl border ${it.tone}`}>
+          <Link href={it.href} className="group flex items-center gap-3 rounded-xl px-2 py-2.5 transition hover:bg-ink/[0.03]">
+            <span className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl border ${it.tone}`}>
               <Icon name={it.icon} size={16} />
             </span>
             <div className="min-w-0 flex-1">
@@ -79,7 +79,7 @@ function MeetingAgenda({ meetings, now }) {
           <ul className="-mx-2">
             {g.items.map((m) => (
               <li key={m.id}>
-                <Link href={`/leads/${m.lead.id}`} className="flex items-center gap-3 rounded-xl px-2 py-2 transition hover:bg-white/[0.035]">
+                <Link href={`/leads/${m.lead.id}`} className="flex items-center gap-3 rounded-xl px-2 py-2 transition hover:bg-ink/[0.03]">
                   <span className="w-[62px] shrink-0 text-xs tabular-nums text-ink/80">{timeOnly.format(new Date(m.starts_at))}</span>
                   <span className="h-7 w-[3px] shrink-0 rounded-full" style={{ background: MEETING_KINDS[m.kind].color }} />
                   <div className="min-w-0 flex-1">
@@ -141,7 +141,7 @@ function PipelineBars({ leads }) {
           <Link
             href={`/leads?view=list&status=${encodeURIComponent(s.name)}`}
             title={`${s.name}: ${by[s.name]}`}
-            className="group grid grid-cols-[minmax(0,180px)_1fr_28px] items-center gap-3 rounded-lg px-1.5 py-1.5 transition hover:bg-white/[0.035]"
+            className="group grid grid-cols-[minmax(0,180px)_1fr_28px] items-center gap-3 rounded-lg px-1.5 py-1.5 transition hover:bg-ink/[0.03]"
           >
             <span className="flex min-w-0 items-center gap-2 text-xs text-ink/80">
               <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: s.color }} />
@@ -179,9 +179,9 @@ function ProposalBoard({ proposals, hrefFor }) {
           const n = proposals.filter((p) => s.stages.includes(p.stage)).length;
           const hot = s.label === "Commercials" && n > 0;
           return (
-            <div key={s.label} className={`relative overflow-hidden rounded-2xl border px-3.5 py-3 ${hot ? "border-amber-400/30 bg-gradient-to-b from-amber-400/[0.12] to-amber-400/[0.02]" : "border-white/[0.06] bg-gradient-to-b from-white/[0.04] to-transparent"}`}>
-              <div className={`num text-[32px] leading-none ${hot ? "text-amber-200" : n ? "" : "text-faint"}`}>{n}</div>
-              <div className="mt-1.5 truncate text-[11px] text-muted">{s.label}</div>
+            <div key={s.label} className={`rounded-xl border px-3 py-2.5 ${hot ? "border-amber-400/30 bg-amber-400/[0.06]" : "border-line bg-ink/[0.015]"}`}>
+              <div className={`text-xl font-semibold tabular-nums ${n ? "" : "text-faint"}`}>{n}</div>
+              <div className="mt-0.5 truncate text-[11px] text-muted">{s.label}</div>
             </div>
           );
         })}
@@ -190,7 +190,7 @@ function ProposalBoard({ proposals, hrefFor }) {
         <ul className="-mx-2 flex flex-col">
           {live.slice(0, 6).map((p) => (
             <li key={p.id}>
-              <Link href={hrefFor(p)} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-6 gap-y-2 rounded-xl px-2 py-2.5 transition hover:bg-white/[0.035] sm:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)_136px]">
+              <Link href={hrefFor(p)} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-6 gap-y-2 rounded-xl px-2 py-2.5 transition hover:bg-ink/[0.03] sm:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)_136px]">
                 <div className="min-w-0">
                   <div className="truncate text-sm">{brandOf(p.lead)}</div>
                   <div className="truncate text-xs text-muted">
@@ -288,23 +288,23 @@ export default function DashboardView({ me, data }) {
 
   return (
     <div className="page max-w-[1320px]">
-      {/* Header — open, editorial, no box */}
-      <header className="rise relative mb-8 flex flex-wrap items-end justify-between gap-6 pt-2 md:mb-10 md:pt-4">
+      {/* Header */}
+      <header className="rise card relative mb-4 overflow-hidden p-5 sm:p-8">
+        <span className="pointer-events-none absolute -right-24 -top-32 h-80 w-80 rounded-full bg-brand/20 blur-3xl" />
+        <span className="pointer-events-none absolute -bottom-32 right-40 h-64 w-64 rounded-full bg-fuchsia-400/10 blur-3xl" />
+        <div className="relative flex flex-wrap items-end justify-between gap-5">
         <div className="min-w-0">
-          <p className="eyebrow flex items-center gap-2">
-            <span className="h-px w-6 bg-gradient-to-r from-transparent to-brand" />
-            {weekday.format(new Date(now))}
-          </p>
-          <h1 className="mt-4 font-serif text-[44px] font-normal leading-[0.95] tracking-[-0.01em] md:text-[76px]">
-            {greeting()},<br className="sm:hidden" /> <em className="serif-accent pr-2">{firstName}</em>
+          <p className="eyebrow">{weekday.format(new Date(now))}</p>
+          <h1 className="mt-2 text-[30px] font-semibold leading-[1.1] tracking-[-0.02em] md:text-[44px]">
+            {greeting()}, <span className="font-serif text-[1.12em] font-normal italic text-brand">{firstName}</span>
           </h1>
-          <div className="mt-5 flex flex-wrap gap-2 text-xs">
-            <span className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 ${waiting ? "border-amber-400/25 bg-amber-400/[0.08] text-amber-200" : "border-emerald-400/25 bg-emerald-400/[0.08] text-emerald-200"}`}>
-              <span className={`live-dot h-1.5 w-1.5 rounded-full ${waiting ? "bg-amber-400 text-amber-400/60" : "bg-emerald-400 text-emerald-400/60"}`} />
+          <div className="mt-4 flex flex-wrap gap-2 text-xs">
+            <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 ${waiting ? "border-amber-400/30 bg-amber-400/10 text-amber-300" : "border-emerald-400/30 bg-emerald-400/10 text-emerald-300"}`}>
+              <span className="h-1.5 w-1.5 rounded-full bg-current" />
               {waiting ? `${waiting} thing${waiting === 1 ? "" : "s"} waiting on you` : "All caught up"}
             </span>
             {meetingsWeek.length > 0 && (
-              <span className="chip px-3 py-1.5 text-xs text-muted">
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-line bg-panel-2/70 px-2.5 py-1 text-muted">
                 <Icon name="calendar" size={12} />
                 {meetingsWeek.length} meeting{meetingsWeek.length === 1 ? "" : "s"} this week
               </span>
@@ -328,23 +328,24 @@ export default function DashboardView({ me, data }) {
             </Link>
           )}
         </div>
+        </div>
       </header>
 
       {/* KPIs */}
       <div className="rise grid grid-cols-2 gap-3 [animation-delay:60ms] xl:grid-cols-4">
         {staff || sales ? (
           <>
-            <Stat label={staff ? "New leads · 7 days" : "New to me · 7 days"} value={thisWeek} delta={pct(thisWeek, lastWeek)} sub="vs last week" spark={spark14} icon="sparkle" />
-            <Stat label={staff ? "Open pipeline" : "My open leads"} value={open.length} sub={`${leads.length} in total`} icon="leads" tone="cyan" />
-            <Stat label="Meetings · next 7 days" value={meetingsWeek.length} sub={`${upcoming.length} upcoming`} icon="calendar" tone="amber" />
-            <Stat label="Won" value={won.length} sub={winRate == null ? "No closed deals yet" : `${winRate}% win rate`} icon="check" tone="emerald" />
+            <Stat label={staff ? "New leads · 7 days" : "New to me · 7 days"} value={thisWeek} delta={pct(thisWeek, lastWeek)} sub="vs last week" spark={spark14} />
+            <Stat label={staff ? "Open pipeline" : "My open leads"} value={open.length} sub={`${leads.length} in total`} icon="leads" />
+            <Stat label="Meetings · next 7 days" value={meetingsWeek.length} sub={`${upcoming.length} upcoming`} icon="calendar" />
+            <Stat label="Won" value={won.length} sub={winRate == null ? "No closed deals yet" : `${winRate}% win rate`} icon="sparkle" />
           </>
         ) : (
           <>
             <Stat label="Open briefs" value={pool.length} sub="Waiting to be picked up" icon="brief" />
-            <Stat label="My briefs" value={myProposals.filter((p) => p.stage !== "done").length} sub="In progress" icon="upload" tone="cyan" />
-            <Stat label="With the bots" value={myProposals.filter((p) => /queued|running|awaiting/.test(p.stage)).length} sub="CRL / commercials / deck" icon="sparkle" tone="amber" />
-            <Stat label="Delivered" value={myProposals.filter((p) => p.stage === "done").length} sub="CRL & deck ready" icon="check" tone="emerald" />
+            <Stat label="My briefs" value={myProposals.filter((p) => p.stage !== "done").length} sub="In progress" icon="upload" />
+            <Stat label="With the bots" value={myProposals.filter((p) => /queued|running|awaiting/.test(p.stage)).length} sub="CRL / commercials / deck" icon="sparkle" />
+            <Stat label="Delivered" value={myProposals.filter((p) => p.stage === "done").length} sub="CRL & deck ready" icon="check" />
           </>
         )}
       </div>
@@ -400,7 +401,7 @@ export default function DashboardView({ me, data }) {
                 <ul className="flex flex-col gap-1">
                   {team.map((m, i) => (
                     <li key={m.id}>
-                      <Link href={`/leads?owner=${m.id}`} className="grid grid-cols-[16px_minmax(0,1fr)_44px_52px] items-center gap-2.5 rounded-xl px-2 py-2 transition hover:bg-white/[0.035] sm:grid-cols-[20px_minmax(0,1fr)_repeat(3,56px)] sm:gap-3">
+                      <Link href={`/leads?owner=${m.id}`} className="grid grid-cols-[16px_minmax(0,1fr)_44px_52px] items-center gap-2.5 rounded-xl px-2 py-2 transition hover:bg-ink/[0.03] sm:grid-cols-[20px_minmax(0,1fr)_repeat(3,56px)] sm:gap-3">
                         <span className="text-xs tabular-nums text-faint">{i + 1}</span>
                         <span className="flex min-w-0 items-center gap-2.5">
                           <Avatar name={m.name} />
@@ -441,7 +442,7 @@ export default function DashboardView({ me, data }) {
             <ul className="-mx-2">
               {leads.slice(0, 6).map((l) => (
                 <li key={l.id}>
-                  <Link href={`/leads/${l.id}`} className="flex items-center gap-3 rounded-xl px-2 py-2 transition hover:bg-white/[0.035]">
+                  <Link href={`/leads/${l.id}`} className="flex items-center gap-3 rounded-xl px-2 py-2 transition hover:bg-ink/[0.03]">
                     <span className="w-12 shrink-0 text-xs text-faint">{l.code}</span>
                     <span className="min-w-0 flex-1 truncate text-sm">{brandOf(l)}</span>
                     <StatusBadge status={l.status} />
