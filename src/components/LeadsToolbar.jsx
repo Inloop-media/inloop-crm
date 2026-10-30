@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Icon from "@/components/Icon";
 import { STATUS_NAMES } from "@/lib/constants";
 
-export default function LeadsToolbar({ members, showOwner }) {
+export default function LeadsToolbar({ members, showOwner, statuses = STATUS_NAMES }) {
   const router = useRouter();
   const params = useSearchParams();
   const view = params.get("view") === "list" ? "list" : "board";
@@ -52,7 +52,7 @@ export default function LeadsToolbar({ members, showOwner }) {
       {view === "list" && (
         <select value={params.get("status") || ""} onChange={(e) => go("status", e.target.value)} className="field w-auto rounded-full bg-panel py-3 shadow-[var(--card-shadow)]">
           <option value="">All statuses</option>
-          {STATUS_NAMES.map((s) => (
+          {statuses.map((s) => (
             <option key={s}>{s}</option>
           ))}
         </select>

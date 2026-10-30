@@ -22,6 +22,8 @@ export const DISCOVERY_STATUS = "Discovery Call";
 export const EXEC_STATUSES = STATUS_NAMES.slice(0, STATUS_NAMES.indexOf(DISCOVERY_STATUS) + 1);
 // Booking the proposal meeting moves the lead here and shares the brief with the strategists
 export const PROPOSAL_STATUS = "Proposal Meeting Scheduled";
+// The stages a sales executive sees in filters: up to the proposal meeting, after that the admin takes over
+export const EXEC_VISIBLE_STATUSES = STATUS_NAMES.slice(0, STATUS_NAMES.indexOf(PROPOSAL_STATUS) + 1);
 
 // Not counted as open pipeline on the dashboard
 export const CLOSED_STATUSES = ["Won", "Lost", "No Response", "On Hold"];

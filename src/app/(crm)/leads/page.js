@@ -7,6 +7,7 @@ import LeadsToolbar from "@/components/LeadsToolbar";
 import { PageHeader } from "@/components/ui";
 import { requireMember } from "@/lib/auth";
 import { listLeads, listMembers } from "@/lib/leads";
+import { EXEC_VISIBLE_STATUSES, STATUS_NAMES } from "@/lib/constants";
 import { canCreateLead, canSeeAllLeads, canSeeLeads, statusOptions } from "@/lib/permissions";
 
 export const metadata = { title: "Leads" };
@@ -38,7 +39,7 @@ export default async function LeadsPage({ searchParams }) {
       />
       <div className="rise rise-1 mb-5">
         <Suspense>
-          <LeadsToolbar members={members.filter((m) => m.active && m.groups.some((g) => g.kind === "sales"))} showOwner={all} />
+          <LeadsToolbar members={members.filter((m) => m.active && m.groups.some((g) => g.kind === "sales"))} showOwner={all} statuses={all ? STATUS_NAMES : EXEC_VISIBLE_STATUSES} />
         </Suspense>
       </div>
       {isList ? <LeadList leads={leads} owners={owners} /> : <Board leads={leads} owners={owners} allowed={statusOptions(me)} />}
