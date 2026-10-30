@@ -17,9 +17,9 @@ export default function DailyChart({ days }) {
       </div>
       <div className="relative min-h-52 flex-1" onMouseLeave={() => setHover(null)}>
         {/* recessive gridlines at 0, half and max */}
-        {[0, 0.5, 1].map((f) => (
-          <div key={f} className="absolute inset-x-0 border-t border-dashed border-line" style={{ bottom: `${f * 100}%` }}>
-            {f > 0 && <span className="absolute -top-2 right-0 bg-panel pl-1 text-[10px] tabular-nums text-faint">{Math.round(max * f)}</span>}
+        {(max > 1 ? [0, 0.5, 1] : [0, 1]).map((f) => (
+          <div key={f} className="absolute inset-x-0 border-t border-dashed border-white/[0.06]" style={{ bottom: `${f * 100}%` }}>
+            {f > 0 && <span className="absolute -top-2 right-0 pl-1 text-[10px] tabular-nums text-faint">{Math.round(max * f)}</span>}
           </div>
         ))}
         <div className="absolute inset-0 flex items-end gap-[2px] pr-6">
@@ -34,7 +34,10 @@ export default function DailyChart({ days }) {
                 className="w-full max-w-[14px] rounded-t-[4px] transition-colors"
                 style={{
                   height: d.count ? `${Math.max(4, (d.count / max) * 100)}%` : "2px",
-                  background: d.count ? (hover === i ? "var(--color-brand-soft)" : "var(--color-brand)") : "var(--color-line-strong)",
+                  background: d.count
+                    ? `linear-gradient(180deg, ${hover === i ? "#e0e7ff" : "var(--color-brand-soft)"}, color-mix(in srgb, var(--color-brand) 35%, transparent))`
+                    : "var(--color-line-strong)",
+                  boxShadow: d.count && hover === i ? "0 0 18px rgb(129 140 248 / 0.6)" : "none",
                   opacity: hover == null || hover === i ? 1 : 0.55,
                 }}
               />

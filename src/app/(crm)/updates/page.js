@@ -30,7 +30,7 @@ export default async function UpdatesPage({ searchParams }) {
     <div className="relative z-[1] mx-auto max-w-6xl px-4 py-6 md:px-8 md:py-9">
       <header className="rise mb-7">
         <p className="eyebrow">Workspace</p>
-        <h1 className="page-title mt-1.5">Updates</h1>
+        <h1 className="page-title mt-1.5"><em>Updates</em></h1>
         <p className="mt-2 text-sm text-muted">What the bots and the pipeline post to your groups — CRL links, proposals, new briefs.</p>
       </header>
 

@@ -54,7 +54,7 @@ export default async function BriefsPage({ searchParams }) {
     <div className="relative z-[1] mx-auto max-w-[1320px] px-4 py-6 md:px-8 md:py-9">
       <header className="rise mb-7">
         <p className="eyebrow">Creative strategy</p>
-        <h1 className="page-title mt-1.5">Briefs</h1>
+        <h1 className="page-title mt-1.5"><em>Briefs</em></h1>
         <p className="mt-2 max-w-2xl text-sm text-muted">
           A brief lands here when the proposal meeting is booked. Pick one up, upload the reference links, creatives, brand strategy and brand identity —
           the CRL bot takes it from there.

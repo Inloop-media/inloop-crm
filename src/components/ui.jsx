@@ -34,7 +34,7 @@ export function Panel({ title, sub, action, children, className = "", bodyClass 
         <header className="mb-4 flex items-start justify-between gap-3 sm:mb-5">
           <div className="min-w-0">
             <h2 className="text-[15px] font-semibold tracking-[-0.01em]">{title}</h2>
-            {sub && <p className="mt-0.5 text-xs text-muted">{sub}</p>}
+            {sub && <p className="mt-1 text-xs text-muted">{sub}</p>}
           </div>
           {action}
         </header>
@@ -45,7 +45,7 @@ export function Panel({ title, sub, action, children, className = "", bodyClass 
 }
 
 /** A single trend line, no axes — the number beside it is the headline. */
-export function Sparkline({ values, width = 96, height = 32 }) {
+export function Sparkline({ values, width = 104, height = 36 }) {
   if (!values?.length) return null;
   const max = Math.max(1, ...values);
   const step = width / Math.max(1, values.length - 1);
@@ -56,42 +56,51 @@ export function Sparkline({ values, width = 96, height = 32 }) {
     <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} className="overflow-visible" aria-hidden="true">
       <defs>
         <linearGradient id="spark-fill" x1="0" x2="0" y1="0" y2="1">
-          <stop offset="0" stopColor="var(--color-brand)" stopOpacity="0.28" />
+          <stop offset="0" stopColor="var(--color-brand)" stopOpacity="0.32" />
           <stop offset="1" stopColor="var(--color-brand)" stopOpacity="0" />
         </linearGradient>
       </defs>
       <path d={`${line} L${width},${height} L0,${height} Z`} fill="url(#spark-fill)" />
-      <path d={line} fill="none" stroke="var(--color-brand)" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
-      <circle cx={last[0]} cy={last[1]} r="3" fill="var(--color-brand)" stroke="var(--color-panel)" strokeWidth="2" />
+      <path d={line} fill="none" stroke="var(--color-brand-soft)" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
+      <circle cx={last[0]} cy={last[1]} r="6" fill="var(--color-brand)" opacity="0.25" />
+      <circle cx={last[0]} cy={last[1]} r="3" fill="var(--color-brand-soft)" stroke="var(--color-bg)" strokeWidth="1.5" />
     </svg>
   );
 }
 
-export function Stat({ label, value, sub, delta, spark, icon, className = "" }) {
+// Each KPI gets its own glow so a row of them doesn't read as four identical boxes
+const STAT_TONES = {
+  brand: { glow: "bg-brand/25", icon: "bg-brand/12 text-brand-soft ring-brand/25" },
+  cyan: { glow: "bg-cyan-400/20", icon: "bg-cyan-400/10 text-cyan-300 ring-cyan-400/25" },
+  amber: { glow: "bg-amber-400/20", icon: "bg-amber-400/10 text-amber-300 ring-amber-400/25" },
+  emerald: { glow: "bg-emerald-400/20", icon: "bg-emerald-400/10 text-emerald-300 ring-emerald-400/25" },
+  fuchsia: { glow: "bg-fuchsia-400/20", icon: "bg-fuchsia-400/10 text-fuchsia-300 ring-fuchsia-400/25" },
+};
+
+export function Stat({ label, value, sub, delta, spark, icon, tone = "brand", className = "" }) {
+  const t = STAT_TONES[tone] || STAT_TONES.brand;
   return (
     <div className={`card card-hover group relative overflow-hidden p-4 sm:p-5 ${className}`}>
-      {/* Accent hairline + soft glow in the corner */}
-      <span className="pointer-events-none absolute inset-x-5 top-0 h-px bg-gradient-to-r from-transparent via-brand/50 to-transparent opacity-0 transition group-hover:opacity-100" />
-      <span className="pointer-events-none absolute -right-10 -top-10 h-28 w-28 rounded-full bg-brand/10 blur-2xl" />
+      <span className={`pointer-events-none absolute -right-12 -top-14 h-36 w-36 rounded-full blur-3xl transition-opacity duration-500 group-hover:opacity-100 ${t.glow} opacity-60`} />
       <div className="relative flex items-center justify-between gap-2">
-        <span className="eyebrow truncate">{label}</span>
+        <span className="eyebrow truncate tracking-[0.08em] sm:tracking-[0.16em]">{label}</span>
         {icon && (
-          <span className="hidden h-7 w-7 shrink-0 place-items-center rounded-lg bg-brand/10 text-brand sm:grid">
-            <Icon name={icon} size={14} />
+          <span className={`hidden h-8 w-8 shrink-0 place-items-center rounded-xl ring-1 ring-inset sm:grid ${t.icon}`}>
+            <Icon name={icon} size={15} />
           </span>
         )}
       </div>
-      <div className="relative mt-3 flex items-end justify-between gap-3 sm:mt-4">
+      <div className="relative mt-4 flex items-end justify-between gap-3 sm:mt-6">
         <div className="min-w-0">
-          <div className="text-[30px] font-semibold leading-none tabular-nums tracking-[-0.03em] sm:text-[38px]">{value}</div>
-          <div className="mt-2.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted">
+          <div className="num text-[44px] leading-[0.9] sm:text-[56px]">{value}</div>
+          <div className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted">
             {delta != null && (
               <span
-                className={`rounded-full px-1.5 py-0.5 text-[11px] font-medium tabular-nums ${
-                  delta >= 0 ? "bg-emerald-400/10 text-emerald-300" : "bg-rose-400/10 text-rose-300"
+                className={`rounded-full px-1.5 py-0.5 text-[11px] font-medium tabular-nums ring-1 ring-inset ${
+                  delta >= 0 ? "bg-emerald-400/10 text-emerald-300 ring-emerald-400/20" : "bg-rose-400/10 text-rose-300 ring-rose-400/20"
                 }`}
               >
-                {delta >= 0 ? "▲" : "▼"} {Math.abs(delta)}%
+                {delta >= 0 ? "↑" : "↓"} {Math.abs(delta)}%
               </span>
             )}
             {sub}
@@ -109,9 +118,10 @@ export function Stat({ label, value, sub, delta, spark, icon, className = "" }) 
 
 export function Empty({ icon = "check", children }) {
   return (
-    <div className="flex flex-col items-center justify-center gap-2 py-8 text-center text-sm text-muted">
-      <span className="grid h-10 w-10 place-items-center rounded-2xl border border-line bg-panel-2 text-faint">
-        <Icon name={icon} size={16} />
+    <div className="flex flex-col items-center justify-center gap-3 py-10 text-center text-sm text-muted">
+      <span className="relative grid h-12 w-12 place-items-center rounded-2xl border border-white/[0.07] bg-gradient-to-b from-white/[0.06] to-transparent text-brand-soft shadow-[inset_0_1px_0_rgb(255_255_255/0.08)]">
+        <span className="absolute inset-0 rounded-2xl bg-brand/10 blur-xl" />
+        <Icon name={icon} size={18} className="relative" />
       </span>
       {children}
     </div>

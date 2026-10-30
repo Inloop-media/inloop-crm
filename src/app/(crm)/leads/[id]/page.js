@@ -94,7 +94,7 @@ export default async function LeadPage({ params }) {
                 <span className="rounded-md bg-panel-2 px-1.5 py-0.5 font-medium tabular-nums">{lead.code}</span>
                 <span>Registered {fmtDateTime(lead.created_at)}</span>
               </div>
-              <h1 className="mt-1.5 text-[26px] font-semibold leading-tight tracking-[-0.02em] md:text-[32px]">{lead.brand || fullName(lead)}</h1>
+              <h1 className="mt-2 font-serif text-[36px] font-normal leading-[1] md:text-[52px]">{lead.brand || fullName(lead)}</h1>
               <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-muted">
                 <StatusBadge status={lead.status} />
                 <span>{lead.brand ? fullName(lead) : lead.email}</span>

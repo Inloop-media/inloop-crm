@@ -1,86 +1,43 @@
 @import "tailwindcss";
 
-/* Inloop CRM — calm, premium, in dark and light. Every colour is a token so the theme switch is one attribute. */
+/* Inloop CRM — midnight studio. One dark theme: near-black canvas, glass cards with a lit top edge,
+   serif display type for the big moments, one indigo accent (the website's brand colour). */
 @theme {
-  --color-bg: #070709;
-  --color-panel: #0e0e12;
-  --color-panel-2: #15151b;
-  --color-panel-3: #1c1c24;
-  --color-line: #1f1f27;
-  --color-line-strong: #2d2d37;
-  --color-ink: #f5f5f7;
-  --color-muted: #8e8e9c;
-  --color-faint: #5c5c69;
-  --color-brand: #8b93ff;
-  --color-brand-soft: #b1b6ff;
-  --color-brand-strong: #6d74f5;
-  --color-on-brand: #07070b;
+  --color-bg: #050507;
+  --color-panel: #0b0b10;
+  --color-panel-2: #121219;
+  --color-panel-3: #1a1a23;
+  --color-line: #1c1c25;
+  --color-line-strong: #2b2b37;
+  --color-ink: #f4f4f7;
+  --color-muted: #8b8b9b;
+  --color-faint: #565667;
+  --color-brand: #818cf8;
+  --color-brand-soft: #a5b4fc;
+  --color-brand-strong: #6366f1;
+  --color-on-brand: #0a0a12;
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
   --font-serif: var(--font-instrument), ui-serif, Georgia, serif;
 }
 
 :root {
   color-scheme: dark;
-  --glow-a: rgb(139 147 255 / 0.10);
-  --glow-b: rgb(232 121 249 / 0.05);
-  --card-bg: rgb(14 14 18 / 0.78);
-  --card-border: rgb(255 255 255 / 0.06);
-  --card-border-hover: rgb(255 255 255 / 0.12);
-  --card-shadow: inset 0 1px 0 0 rgb(255 255 255 / 0.04), 0 1px 2px rgb(0 0 0 / 0.4), 0 24px 48px -28px rgb(0 0 0 / 0.7);
-  --pop-shadow: 0 24px 64px -16px rgb(0 0 0 / 0.7), 0 0 0 1px rgb(255 255 255 / 0.06);
-  --btn-highlight: rgb(255 255 255 / 0.35);
-  --grain-opacity: 0.035;
+  --surface: rgb(12 12 17 / 0.72);
+  --edge-top: rgb(255 255 255 / 0.11);
+  --edge-bottom: rgb(255 255 255 / 0.03);
+  --card-shadow: 0 1px 0 0 rgb(255 255 255 / 0.03) inset, 0 2px 4px rgb(0 0 0 / 0.35), 0 30px 60px -30px rgb(0 0 0 / 0.9);
+  --pop-shadow: 0 30px 80px -20px rgb(0 0 0 / 0.85), 0 0 0 1px rgb(255 255 255 / 0.07);
 }
 
-/* Light theme: same structure, inverted surfaces, deeper accents so text keeps its contrast on white */
-:root[data-theme="light"] {
-  color-scheme: light;
-  --color-bg: #f5f5f8;
-  --color-panel: #ffffff;
-  --color-panel-2: #f2f2f6;
-  --color-panel-3: #e9e9ef;
-  --color-line: #e5e5ec;
-  --color-line-strong: #d3d3dc;
-  --color-ink: #111118;
-  --color-muted: #696977;
-  --color-faint: #9d9daa;
-  --color-brand: #5a62ef;
-  --color-brand-soft: #7d84f7;
-  --color-brand-strong: #474fdc;
-  --color-on-brand: #ffffff;
-
-  --color-emerald-300: #047857;
-  --color-emerald-400: #059669;
-  --color-rose-300: #be123c;
-  --color-rose-400: #e11d48;
-  --color-red-400: #dc2626;
-  --color-amber-200: #92400e;
-  --color-amber-300: #b45309;
-  --color-amber-400: #d97706;
-  --color-amber-500: #d97706;
-  --color-fuchsia-200: #a21caf;
-  --color-fuchsia-300: #a21caf;
-  --color-fuchsia-400: #c026d3;
-  --color-cyan-200: #0e7490;
-  --color-cyan-400: #0891b2;
-  --color-violet-300: #6d28d9;
-  --color-violet-400: #7c3aed;
-
-  --glow-a: rgb(90 98 239 / 0.08);
-  --glow-b: rgb(217 70 239 / 0.05);
-  --card-bg: rgb(255 255 255 / 0.92);
-  --card-border: rgb(17 17 24 / 0.07);
-  --card-border-hover: rgb(17 17 24 / 0.14);
-  --card-shadow: 0 1px 2px rgb(17 17 24 / 0.04), 0 12px 32px -18px rgb(17 17 24 / 0.14);
-  --pop-shadow: 0 24px 64px -16px rgb(17 17 24 / 0.22), 0 0 0 1px rgb(17 17 24 / 0.06);
-  --btn-highlight: rgb(255 255 255 / 0.25);
-  --grain-opacity: 0;
+html {
+  background: var(--color-bg);
 }
 
 body {
   background:
-    radial-gradient(1200px 520px at 75% -200px, var(--glow-a), transparent 70%),
-    radial-gradient(800px 420px at -10% -140px, var(--glow-b), transparent 70%),
+    radial-gradient(900px 480px at 82% -160px, rgb(129 140 248 / 0.13), transparent 70%),
+    radial-gradient(700px 420px at 8% -200px, rgb(192 132 252 / 0.07), transparent 70%),
+    radial-gradient(600px 300px at 50% 115%, rgb(129 140 248 / 0.05), transparent 70%),
     var(--color-bg);
   background-attachment: fixed;
   color: var(--color-ink);
@@ -88,19 +45,27 @@ body {
   -webkit-tap-highlight-color: transparent;
 }
 
-/* A whisper of film grain on dark surfaces — keeps big flat areas from looking digital */
-body::before {
+/* A faint dot grid that fades out down the page, plus a whisper of film grain */
+body::before,
+body::after {
   content: "";
   position: fixed;
   inset: 0;
   z-index: 0;
   pointer-events: none;
-  opacity: var(--grain-opacity);
+}
+body::before {
+  background-image: radial-gradient(rgb(255 255 255 / 0.07) 1px, transparent 1px);
+  background-size: 22px 22px;
+  mask-image: radial-gradient(ellipse 90% 55% at 60% 0%, #000 0%, transparent 75%);
+}
+body::after {
+  opacity: 0.04;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
 }
 
 ::selection {
-  background: color-mix(in srgb, var(--color-brand) 30%, transparent);
+  background: rgb(129 140 248 / 0.32);
 }
 
 * {
@@ -108,95 +73,123 @@ body::before {
   scrollbar-color: var(--color-line-strong) transparent;
 }
 
-/* Smooth colour change when the theme flips (not on first paint) */
-html.theme-switching * {
-  transition:
-    background-color 0.25s ease,
-    border-color 0.25s ease,
-    color 0.25s ease !important;
-}
-
 @layer components {
-  /* Glassy panel with a hairline highlight on top */
+  /* Glass card: a gradient hairline that's brightest on top, and a soft spotlight that follows the
+     pointer (the Spotlight component sets --mx / --my). All backgrounds, no pseudo-elements, so any
+     element can be a card. */
   .card {
-    @apply rounded-2xl border backdrop-blur-sm;
-    background: var(--card-bg);
-    border-color: var(--card-border);
+    @apply rounded-[20px] border border-transparent backdrop-blur-md;
+    background:
+      radial-gradient(420px circle at var(--mx, -999px) var(--my, -999px), rgb(129 140 248 / 0.07), transparent 45%) padding-box,
+      linear-gradient(var(--surface), var(--surface)) padding-box,
+      radial-gradient(260px circle at var(--mx, -999px) var(--my, -999px), rgb(165 180 252 / 0.45), transparent 50%) border-box,
+      linear-gradient(180deg, var(--edge-top), var(--edge-bottom) 45%, rgb(255 255 255 / 0.05)) border-box;
     box-shadow: var(--card-shadow);
   }
   .card-hover {
-    @apply transition duration-200;
+    @apply transition duration-300;
   }
   .card-hover:hover {
-    border-color: var(--card-border-hover);
-    transform: translateY(-1px);
+    transform: translateY(-2px);
+    box-shadow: var(--card-shadow), 0 20px 40px -24px rgb(129 140 248 / 0.35);
   }
   .pop {
     @apply rounded-2xl border border-line bg-panel;
     box-shadow: var(--pop-shadow);
   }
-  .field {
-    @apply w-full rounded-xl border border-line bg-panel px-3.5 py-2.5 text-sm text-ink outline-none transition placeholder:text-faint hover:border-line-strong focus:border-brand/70 focus:ring-4 focus:ring-brand/15 disabled:opacity-60;
+  .glass {
+    @apply border border-white/[0.07] bg-[rgb(14_14_20/0.72)] backdrop-blur-2xl backdrop-saturate-150;
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.06), 0 20px 50px -20px rgb(0 0 0 / 0.9);
   }
+  .field {
+    @apply w-full rounded-xl border border-line bg-black/30 px-3.5 py-2.5 text-sm text-ink outline-none transition placeholder:text-faint hover:border-line-strong focus:border-brand/60 focus:bg-black/40 focus:ring-4 focus:ring-brand/15 disabled:opacity-60;
+  }
+  /* Primary action: a bright pill — the one light object on the screen */
   .btn-primary {
-    @apply inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-b from-brand-soft to-brand px-4 py-2 text-sm font-medium text-on-brand transition duration-200 hover:brightness-110 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50;
+    @apply inline-flex items-center justify-center gap-2 rounded-full bg-ink px-4 py-2 text-sm font-medium text-[#0a0a10] transition duration-200 hover:bg-white active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50;
     box-shadow:
-      inset 0 1px 0 var(--btn-highlight),
-      0 8px 24px -10px color-mix(in srgb, var(--color-brand) 70%, transparent);
+      inset 0 -2px 0 rgb(0 0 0 / 0.12),
+      0 0 0 1px rgb(255 255 255 / 0.2),
+      0 10px 30px -10px rgb(165 180 252 / 0.55);
   }
   .btn-ghost {
-    @apply inline-flex items-center justify-center gap-2 rounded-xl border border-line bg-panel/60 px-4 py-2 text-sm font-medium text-ink transition duration-200 hover:border-line-strong hover:bg-panel-2 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50;
+    @apply inline-flex items-center justify-center gap-2 rounded-full border border-white/[0.08] bg-white/[0.03] px-4 py-2 text-sm font-medium text-ink transition duration-200 hover:border-white/[0.16] hover:bg-white/[0.06] active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50;
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.05);
   }
   .label {
-    @apply mb-1.5 block text-[11px] font-medium uppercase tracking-[0.08em] text-muted;
+    @apply mb-1.5 block text-[11px] font-medium uppercase tracking-[0.1em] text-muted;
   }
   .eyebrow {
-    @apply text-[11px] font-medium uppercase tracking-[0.12em] text-muted;
+    @apply text-[10.5px] font-medium uppercase tracking-[0.16em] text-muted;
   }
   .chip {
-    @apply inline-flex items-center gap-1.5 rounded-full border border-line bg-panel-2 px-2 py-0.5 text-[11px] text-ink/80;
+    @apply inline-flex items-center gap-1.5 rounded-full border border-white/[0.07] bg-white/[0.03] px-2.5 py-0.5 text-[11px] text-ink/80;
   }
   .page {
-    @apply relative z-[1] mx-auto w-full max-w-7xl px-4 py-6 md:px-8 md:py-9;
+    @apply relative z-[1] mx-auto w-full max-w-7xl px-4 py-6 md:px-10 md:py-10;
   }
   .page-title {
-    @apply text-[28px] font-semibold leading-tight tracking-[-0.02em] md:text-[34px];
+    @apply font-serif text-[40px] font-normal leading-[1] tracking-[-0.01em] md:text-[56px];
+  }
+  .page-title em,
+  .serif-accent {
+    @apply font-serif italic;
+    background: linear-gradient(100deg, var(--color-brand-soft), #e9d5ff 60%, var(--color-brand));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .num {
+    @apply font-serif font-normal tabular-nums tracking-[-0.01em];
   }
   .seg {
-    @apply inline-flex rounded-xl border border-line bg-panel-2/70 p-1 text-sm;
+    @apply inline-flex rounded-full border border-white/[0.07] bg-black/30 p-1 text-sm;
   }
   .seg-item {
-    @apply rounded-lg px-3 py-1.5 text-muted transition hover:text-ink;
+    @apply rounded-full px-3.5 py-1.5 text-muted transition hover:text-ink;
   }
   .seg-item[data-on="true"] {
-    @apply bg-panel text-ink shadow-sm;
+    @apply bg-white/[0.09] text-ink;
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.08);
+  }
+  /* Thin gradient divider */
+  .rule {
+    @apply h-px w-full;
+    background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.08) 20%, rgb(255 255 255 / 0.08) 80%, transparent);
   }
 }
 
 @keyframes rise {
   from {
     opacity: 0;
-    transform: translateY(8px);
+    transform: translateY(10px);
+    filter: blur(4px);
   }
   to {
     opacity: 1;
     transform: none;
+    filter: none;
   }
 }
 .rise {
-  animation: rise 0.5s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  animation: rise 0.6s cubic-bezier(0.2, 0.7, 0.2, 1) both;
 }
 .rise-1 { animation-delay: 0.04s; }
 .rise-2 { animation-delay: 0.08s; }
 .rise-3 { animation-delay: 0.12s; }
 .rise-4 { animation-delay: 0.16s; }
-@media (prefers-reduced-motion: reduce) {
-  .rise {
-    animation: none;
-  }
+
+@keyframes pulse-ring {
+  0% { box-shadow: 0 0 0 0 currentColor; }
+  100% { box-shadow: 0 0 0 6px transparent; }
+}
+.live-dot {
+  animation: pulse-ring 1.6s ease-out infinite;
 }
 
-/* The logo artwork is silver for dark backgrounds — darken it on light */
-:root[data-theme="light"] .logo-mark {
-  filter: brightness(0.25) contrast(1.4);
+@media (prefers-reduced-motion: reduce) {
+  .rise,
+  .live-dot {
+    animation: none;
+  }
 }
