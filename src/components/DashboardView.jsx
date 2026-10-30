@@ -4,7 +4,7 @@ import Icon from "@/components/Icon";
 import StatusBadge from "@/components/StatusBadge";
 import { describe } from "@/components/Timeline";
 import { Avatar, Empty, Panel, StagePill, Stat, StepTrack } from "@/components/ui";
-import { canCreateLead, canSeeAllLeads, canSeeLeads, isStrategist } from "@/lib/permissions";
+import { canCreateLead, canSeeAllLeads, canSeeLeads, isAdmin, isStrategist } from "@/lib/permissions";
 import { CLOSED_STATUSES, MEETING_KINDS, PROPOSAL_STAGES, STATUSES } from "@/lib/constants";
 import { ago, dayKey, fullName } from "@/lib/format";
 
@@ -382,12 +382,12 @@ export default function DashboardView({ me, data }) {
         </div>
       )}
 
-      {(staff || sales) && (
+      {isAdmin(me) && (
         <div className="rise mt-3 grid gap-3 [animation-delay:240ms] lg:grid-cols-[1.45fr_1fr]">
           <Panel title="Leads per day" sub="Last 30 days" bodyClass="flex flex-col">
             <DailyChart days={days30} />
           </Panel>
-          <Panel title={staff ? "Pipeline by stage" : "My pipeline"} sub={`${leads.length} leads`}>
+          <Panel title="Pipeline by stage" sub={`${leads.length} leads`}>
             <PipelineBars leads={leads} />
           </Panel>
         </div>
