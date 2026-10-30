@@ -7,8 +7,14 @@ import { Avatar } from "@/components/ui";
 import { fmtDay, fullName } from "@/lib/format";
 import { updateLead } from "@/app/(crm)/actions";
 
-/** Pipeline board: one column per status, drag a card to change its status. */
-export default function Board({ leads: initial, owners, allowed }) {
+/**
+ * Pipeline board: one column per status, drag a card to change its status.
+ * `columns` limits the stages shown (sales executives stop at the proposal meeting); leads further
+ * along sit in the last column.
+ */
+export default function Board({ leads: initial, owners, allowed, columns }) {
+  const stages = columns ? STATUSES.filter((s) => columns.includes(s.name)) : STATUSES;
+  const last = stages.at(-1)?.name;
   const [leads, setLeads] = useState(initial);
   const [over, setOver] = useState(null);
   const [error, setError] = useState("");
@@ -44,8 +50,8 @@ export default function Board({ leads: initial, owners, allowed }) {
     <div>
       {error && <p className="mb-3 text-sm text-rose-400">{error}</p>}
       <div className="-mx-4 flex snap-x snap-mandatory scroll-px-4 gap-3 overflow-x-auto px-4 pb-4 md:-mx-8 md:snap-none md:gap-2.5 md:px-8">
-        {STATUSES.map((s) => {
-          const items = leads.filter((l) => l.status === s.name);
+        {stages.map((s) => {
+          const items = leads.filter((l) => l.status === s.name || (columns && s.name === last && !columns.includes(l.status)));
           const drop = {
             onDragOver: (e) => {
               e.preventDefault();

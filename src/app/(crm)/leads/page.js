@@ -42,7 +42,7 @@ export default async function LeadsPage({ searchParams }) {
           <LeadsToolbar members={members.filter((m) => m.active && m.groups.some((g) => g.kind === "sales"))} showOwner={all} statuses={all ? STATUS_NAMES : EXEC_VISIBLE_STATUSES} />
         </Suspense>
       </div>
-      {isList ? <LeadList leads={leads} owners={owners} /> : <Board leads={leads} owners={owners} allowed={statusOptions(me)} />}
+      {isList ? <LeadList leads={leads} owners={owners} /> : <Board leads={leads} owners={owners} allowed={statusOptions(me)} columns={all ? undefined : EXEC_VISIBLE_STATUSES} />}
     </div>
   );
 }
