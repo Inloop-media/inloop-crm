@@ -1,61 +1,128 @@
 @import "tailwindcss";
 
-/* Inloop CRM — calm, premium, dark. Every colour is a token. */
+/* Inloop CRM — soft lavender studio, in light (default) and dark. The whole app sits in one rounded
+   frame over a lavender → pink wash; cards are white, pills are round, the active thing is solid ink.
+   Every colour is a token, so the theme switch is one attribute on <html>. */
 @theme {
-  --color-bg: #070709;
-  --color-panel: #0e0e12;
-  --color-panel-2: #15151b;
-  --color-panel-3: #1c1c24;
-  --color-line: #1f1f27;
-  --color-line-strong: #2d2d37;
-  --color-ink: #f5f5f7;
-  --color-muted: #8e8e9c;
-  --color-faint: #5c5c69;
-  --color-brand: #8b93ff;
-  --color-brand-soft: #b1b6ff;
-  --color-brand-strong: #6d74f5;
-  --color-on-brand: #07070b;
-  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
-  --font-serif: var(--font-instrument), ui-serif, Georgia, serif;
+  --color-bg: #ecebf6;
+  --color-panel: #ffffff;
+  --color-panel-2: #f4f3f9;
+  --color-panel-3: #eae9f2;
+  --color-line: #ebeaf2;
+  --color-line-strong: #dddbe7;
+  --color-ink: #17161d;
+  --color-muted: #77758a;
+  --color-faint: #aaa8b8;
+  --color-brand: #7a68ee;
+  --color-brand-soft: #a597f6;
+  --color-brand-strong: #5f4ddb;
+  --color-on-brand: #ffffff;
+  /* The "selected" colour: active pills, primary buttons, icon tiles */
+  --color-solid: #17161d;
+  --color-on-solid: #ffffff;
+  /* Pastel card fills */
+  --color-tint-lavender: #ddd5fc;
+  --color-tint-blue: #d4e3fb;
+  --color-tint-green: #d7f1d1;
+  --color-tint-pink: #f9dce8;
+  --color-tint-amber: #fbe8c8;
+  --font-sans: var(--font-outfit), ui-sans-serif, system-ui, sans-serif;
+
+  /* Status hues used as text — deeper so they read on white */
+  --color-emerald-300: #047857;
+  --color-emerald-400: #059669;
+  --color-rose-300: #be123c;
+  --color-rose-400: #e11d48;
+  --color-red-400: #dc2626;
+  --color-amber-200: #92400e;
+  --color-amber-300: #b45309;
+  --color-amber-400: #d97706;
+  --color-amber-500: #d97706;
+  --color-fuchsia-200: #a21caf;
+  --color-fuchsia-300: #a21caf;
+  --color-fuchsia-400: #c026d3;
+  --color-cyan-200: #0e7490;
+  --color-cyan-400: #0891b2;
+  --color-violet-300: #6d28d9;
+  --color-violet-400: #7c3aed;
 }
 
 :root {
+  color-scheme: light;
+  --wash:
+    radial-gradient(900px 640px at 100% 0%, #c9d4fb 0%, transparent 60%),
+    radial-gradient(800px 600px at 0% 100%, #f6d0e2 0%, transparent 60%),
+    radial-gradient(700px 500px at 30% 20%, #e4defb 0%, transparent 65%), #ecebf6;
+  --frame-bg: rgb(255 255 255 / 0.55);
+  --frame-border: rgb(255 255 255 / 0.75);
+  --frame-shadow: 0 30px 80px -30px rgb(90 70 170 / 0.25);
+  --card-border: transparent;
+  --card-shadow: 0 1px 2px rgb(23 22 29 / 0.03), 0 12px 32px -16px rgb(90 70 170 / 0.16);
+  --card-shadow-hover: 0 1px 2px rgb(23 22 29 / 0.04), 0 24px 44px -18px rgb(90 70 170 / 0.28);
+  --pop-shadow: 0 24px 64px -16px rgb(60 50 120 / 0.28), 0 0 0 1px rgb(23 22 29 / 0.05);
+}
+
+:root[data-theme="dark"] {
   color-scheme: dark;
-  --glow-a: rgb(139 147 255 / 0.10);
-  --glow-b: rgb(232 121 249 / 0.05);
-  --card-bg: rgb(14 14 18 / 0.78);
-  --card-border: rgb(255 255 255 / 0.06);
-  --card-border-hover: rgb(255 255 255 / 0.12);
-  --card-shadow: inset 0 1px 0 0 rgb(255 255 255 / 0.04), 0 1px 2px rgb(0 0 0 / 0.4), 0 24px 48px -28px rgb(0 0 0 / 0.7);
+  --color-bg: #0c0b12;
+  --color-panel: #17161f;
+  --color-panel-2: #201f2a;
+  --color-panel-3: #2a2935;
+  --color-line: #262531;
+  --color-line-strong: #353442;
+  --color-ink: #f3f2f8;
+  --color-muted: #9b99ad;
+  --color-faint: #64627a;
+  --color-brand: #a597f6;
+  --color-brand-soft: #c3b9ff;
+  --color-brand-strong: #8b7cf2;
+  --color-on-brand: #130f26;
+  --color-solid: #b4a8fa;
+  --color-on-solid: #130f26;
+  --color-tint-lavender: #2b2648;
+  --color-tint-blue: #1e2a42;
+  --color-tint-green: #1d3227;
+  --color-tint-pink: #3a2232;
+  --color-tint-amber: #382d1b;
+
+  --color-emerald-300: #6ee7b7;
+  --color-emerald-400: #34d399;
+  --color-rose-300: #fda4af;
+  --color-rose-400: #fb7185;
+  --color-red-400: #f87171;
+  --color-amber-200: #fde68a;
+  --color-amber-300: #fcd34d;
+  --color-amber-400: #fbbf24;
+  --color-amber-500: #f59e0b;
+  --color-fuchsia-200: #f5d0fe;
+  --color-fuchsia-300: #f0abfc;
+  --color-fuchsia-400: #e879f9;
+  --color-cyan-200: #a5f3fc;
+  --color-cyan-400: #22d3ee;
+  --color-violet-300: #c4b5fd;
+  --color-violet-400: #a78bfa;
+
+  --wash:
+    radial-gradient(900px 640px at 100% 0%, rgb(110 100 230 / 0.22) 0%, transparent 60%),
+    radial-gradient(800px 600px at 0% 100%, rgb(220 90 160 / 0.13) 0%, transparent 60%), #0c0b12;
+  --frame-bg: rgb(20 19 28 / 0.6);
+  --frame-border: rgb(255 255 255 / 0.06);
+  --frame-shadow: 0 30px 80px -30px rgb(0 0 0 / 0.8);
+  --card-border: rgb(255 255 255 / 0.05);
+  --card-shadow: inset 0 1px 0 rgb(255 255 255 / 0.03), 0 18px 40px -24px rgb(0 0 0 / 0.7);
+  --card-shadow-hover: inset 0 1px 0 rgb(255 255 255 / 0.05), 0 26px 50px -24px rgb(0 0 0 / 0.85);
   --pop-shadow: 0 24px 64px -16px rgb(0 0 0 / 0.7), 0 0 0 1px rgb(255 255 255 / 0.06);
-  --btn-highlight: rgb(255 255 255 / 0.35);
-  --grain-opacity: 0.035;
 }
 
 body {
-  background:
-    radial-gradient(1200px 520px at 75% -200px, var(--glow-a), transparent 70%),
-    radial-gradient(800px 420px at -10% -140px, var(--glow-b), transparent 70%),
-    var(--color-bg);
+  background: var(--wash);
   background-attachment: fixed;
   color: var(--color-ink);
-  font-feature-settings: "cv11", "ss01", "ss03";
   -webkit-tap-highlight-color: transparent;
 }
 
-/* A whisper of film grain on dark surfaces — keeps big flat areas from looking digital */
-body::before {
-  content: "";
-  position: fixed;
-  inset: 0;
-  z-index: 0;
-  pointer-events: none;
-  opacity: var(--grain-opacity);
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-}
-
 ::selection {
-  background: color-mix(in srgb, var(--color-brand) 30%, transparent);
+  background: color-mix(in srgb, var(--color-brand) 28%, transparent);
 }
 
 * {
@@ -63,67 +130,103 @@ body::before {
   scrollbar-color: var(--color-line-strong) transparent;
 }
 
+/* Smooth colour change when the theme flips (not on first paint) */
+html.theme-switching * {
+  transition:
+    background-color 0.3s ease,
+    border-color 0.3s ease,
+    color 0.3s ease !important;
+}
+
+/* The rounded glass frame the whole app sits in (a utility so it can be md:frame) */
+@utility frame {
+  border-radius: 36px;
+  border: 1px solid var(--frame-border);
+  background: var(--frame-bg);
+  box-shadow: var(--frame-shadow);
+}
+
 @layer components {
-  /* Glassy panel with a hairline highlight on top */
   .card {
-    @apply rounded-2xl border backdrop-blur-sm;
-    background: var(--card-bg);
+    @apply rounded-[28px] border bg-panel;
     border-color: var(--card-border);
     box-shadow: var(--card-shadow);
   }
   .card-hover {
-    @apply transition duration-200;
+    @apply transition duration-300 ease-out;
   }
   .card-hover:hover {
-    border-color: var(--card-border-hover);
-    transform: translateY(-1px);
+    transform: translateY(-4px);
+    box-shadow: var(--card-shadow-hover);
   }
   .pop {
-    @apply rounded-2xl border border-line bg-panel;
+    @apply rounded-3xl border border-line bg-panel;
     box-shadow: var(--pop-shadow);
   }
+  /* Pastel feature cards */
+  .tint-lavender { background: var(--color-tint-lavender); }
+  .tint-blue { background: var(--color-tint-blue); }
+  .tint-green { background: var(--color-tint-green); }
+  .tint-pink { background: var(--color-tint-pink); }
+  .tint-amber { background: var(--color-tint-amber); }
+
+  /* Round icon button with a hairline, like the expand / filter buttons on each card */
+  .icon-btn {
+    @apply grid h-10 w-10 shrink-0 place-items-center rounded-full border border-line bg-panel text-muted transition hover:border-line-strong hover:text-ink active:scale-95;
+  }
+  .icon-tile {
+    @apply grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-solid text-on-solid;
+  }
+  .pill-group {
+    @apply inline-flex items-center gap-1 rounded-full bg-panel p-1.5;
+    box-shadow: var(--card-shadow);
+  }
+  .pill {
+    @apply relative inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm text-muted transition hover:text-ink;
+  }
+  .pill[data-on="true"] {
+    @apply bg-solid text-on-solid;
+  }
   .field {
-    @apply w-full rounded-xl border border-line bg-panel px-3.5 py-2.5 text-sm text-ink outline-none transition placeholder:text-faint hover:border-line-strong focus:border-brand/70 focus:ring-4 focus:ring-brand/15 disabled:opacity-60;
+    @apply w-full rounded-2xl border border-transparent bg-panel-2 px-4 py-2.5 text-sm text-ink outline-none transition placeholder:text-faint hover:border-line-strong focus:border-brand/50 focus:bg-panel focus:ring-4 focus:ring-brand/15 disabled:opacity-60;
   }
   .btn-primary {
-    @apply inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-b from-brand-soft to-brand px-4 py-2 text-sm font-medium text-on-brand transition duration-200 hover:brightness-110 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50;
-    box-shadow:
-      inset 0 1px 0 var(--btn-highlight),
-      0 8px 24px -10px color-mix(in srgb, var(--color-brand) 70%, transparent);
+    @apply inline-flex items-center justify-center gap-2 rounded-full bg-solid px-5 py-2.5 text-sm font-medium text-on-solid transition duration-200 hover:opacity-90 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50;
   }
   .btn-ghost {
-    @apply inline-flex items-center justify-center gap-2 rounded-xl border border-line bg-panel/60 px-4 py-2 text-sm font-medium text-ink transition duration-200 hover:border-line-strong hover:bg-panel-2 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50;
+    @apply inline-flex items-center justify-center gap-2 rounded-full border border-line bg-panel px-5 py-2.5 text-sm font-medium text-ink transition duration-200 hover:border-line-strong active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50;
   }
   .label {
-    @apply mb-1.5 block text-[11px] font-medium uppercase tracking-[0.08em] text-muted;
+    @apply mb-1.5 block text-xs font-medium text-muted;
   }
   .eyebrow {
-    @apply text-[11px] font-medium uppercase tracking-[0.12em] text-muted;
+    @apply text-xs font-medium text-muted;
   }
   .chip {
-    @apply inline-flex items-center gap-1.5 rounded-full border border-line bg-panel-2 px-2 py-0.5 text-[11px] text-ink/80;
+    @apply inline-flex items-center gap-1.5 rounded-full border border-line bg-panel px-2.5 py-0.5 text-xs text-ink/80;
   }
   .page {
-    @apply relative z-[1] mx-auto w-full max-w-7xl px-4 py-6 md:px-8 md:py-9;
+    @apply relative z-[1] mx-auto w-full max-w-[1400px] px-4 py-5 md:px-6 md:py-6;
   }
   .page-title {
-    @apply text-[28px] font-semibold leading-tight tracking-[-0.02em] md:text-[34px];
+    @apply text-[34px] font-medium leading-tight tracking-[-0.02em] md:text-[46px];
   }
   .seg {
-    @apply inline-flex rounded-xl border border-line bg-panel-2/70 p-1 text-sm;
+    @apply inline-flex rounded-full bg-panel p-1 text-sm;
+    box-shadow: var(--card-shadow);
   }
   .seg-item {
-    @apply rounded-lg px-3 py-1.5 text-muted transition hover:text-ink;
+    @apply rounded-full px-3.5 py-1.5 text-muted transition hover:text-ink;
   }
   .seg-item[data-on="true"] {
-    @apply bg-panel text-ink shadow-sm;
+    @apply bg-solid text-on-solid;
   }
 }
 
 @keyframes rise {
   from {
     opacity: 0;
-    transform: translateY(8px);
+    transform: translateY(10px);
   }
   to {
     opacity: 1;

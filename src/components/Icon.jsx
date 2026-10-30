@@ -29,6 +29,11 @@ const PATHS = {
   rupee: "M6 4h12M6 9h12M9 4c6 0 6 9 0 9H6l8 7",
   trash: "M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3",
   x: "M6 6l12 12M18 6 6 18",
+  expand: "M14 4h6v6M10 20H4v-6M20 4l-6 6M4 20l6-6",
+  chevron: "M6 9l6 6 6-6",
+  board: "M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z",
+  list: "M9 6h11M9 12h11M9 18h11M4.5 6h.01M4.5 12h.01M4.5 18h.01",
+  chart: "M4 20h16M7 16v-5M12 16V6M17 16v-8",
   slack: "M14 3a2 2 0 0 0 0 4h2V5a2 2 0 0 0-2-2M3 10a2 2 0 0 0 2 2h5V10a2 2 0 0 0-4 0zM10 21a2 2 0 0 0 0-4H8v2a2 2 0 0 0 2 2M21 14a2 2 0 0 0-2-2h-5v2a2 2 0 0 0 4 0z",
 };
 

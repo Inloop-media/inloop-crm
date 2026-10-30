@@ -1,9 +1,10 @@
+import { Fragment } from "react";
 import Link from "next/link";
-import DailyChart from "@/components/DailyChart";
+import LeadsTrend from "@/components/LeadsTrend";
 import Icon from "@/components/Icon";
 import StatusBadge from "@/components/StatusBadge";
 import { describe } from "@/components/Timeline";
-import { Avatar, Empty, Panel, StagePill, Stat, StepTrack } from "@/components/ui";
+import { Avatar, CornerLink, Empty, Panel, Stat } from "@/components/ui";
 import { canCreateLead, canSeeAllLeads, canSeeLeads, isAdmin, isStrategist } from "@/lib/permissions";
 import { CLOSED_STATUSES, MEETING_KINDS, PROPOSAL_STAGES, STATUSES } from "@/lib/constants";
 import { ago, dayKey, fullName } from "@/lib/format";
@@ -36,22 +37,85 @@ const pct = (a, b) => (b ? Math.round(((a - b) / b) * 100) : null);
 
 /* ------------------------------------------------------------------ */
 
-function ActionList({ items }) {
+/** Pastel cards for the things that need someone to act — the most urgent first. */
+function AttentionCards({ items }) {
   if (!items.length) return <Empty>You&apos;re all caught up.</Empty>;
   return (
-    <ul className="-mx-2 flex flex-col">
+    <ul className="flex flex-col gap-3">
       {items.map((it) => (
         <li key={it.key}>
-          <Link href={it.href} className="group flex items-center gap-3 rounded-xl px-2 py-2.5 transition hover:bg-ink/[0.03]">
-            <span className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl border ${it.tone}`}>
-              <Icon name={it.icon} size={16} />
-            </span>
-            <div className="min-w-0 flex-1">
-              <div className="truncate text-sm font-medium">{it.title}</div>
-              <div className="truncate text-xs text-muted">{it.sub}</div>
+          <Link href={it.href} className={`card-hover block rounded-[24px] p-5 tint-${it.tint}`}>
+            <div className="text-[17px] font-medium leading-snug">{it.title}</div>
+            <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-ink/60">{it.sub}</p>
+            <div className="mt-5 flex items-center gap-2.5">
+              <span className="icon-tile h-8 w-8 rounded-lg">
+                <Icon name={it.icon} size={14} />
+              </span>
+              <span className="text-xs font-medium text-ink/70">{it.code}</span>
+              {it.person && (
+                <span className="ml-auto">
+                  <Avatar name={it.person} size={30} />
+                </span>
+              )}
             </div>
-            <span className="hidden shrink-0 rounded-md bg-panel-2 px-1.5 py-0.5 text-[11px] tabular-nums text-muted sm:block">{it.code}</span>
-            <Icon name="arrow" size={14} className="shrink-0 text-faint transition group-hover:translate-x-0.5 group-hover:text-ink" />
+          </Link>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/** Each live proposal as a progress row: dark tile, name + stage, bar, big percentage. */
+function ProposalProgress({ proposals, hrefFor }) {
+  const live = proposals.filter((p) => p.stage !== "done");
+  if (!live.length) return <Empty icon="sparkle">No proposals in progress.</Empty>;
+  return (
+    <ul className="flex flex-col gap-1">
+      {live.slice(0, 5).map((p) => {
+        const info = PROPOSAL_STAGES[p.stage] || PROPOSAL_STAGES.brief_shared;
+        const pctDone = Math.round((info.step / 5) * 100);
+        return (
+          <li key={p.id}>
+            <Link href={hrefFor(p)} className="-mx-2 flex items-center gap-3.5 rounded-2xl px-2 py-2.5 transition hover:bg-panel-2">
+              <span className={`icon-tile ${info.error ? "!bg-rose-500 !text-white" : ""}`}>
+                <Icon name={info.error ? "alert" : p.stage === "awaiting_commercials" ? "rupee" : info.step >= 2 ? "sparkle" : "brief"} size={16} />
+              </span>
+              <div className="min-w-0 flex-1">
+                <div className="truncate text-sm font-medium">{brandOf(p.lead)}</div>
+                <div className="mt-0.5 truncate text-[11px] text-muted">{info.label}</div>
+                <span className="mt-2 block h-1 overflow-hidden rounded-full bg-panel-3">
+                  <span className={`block h-full rounded-full ${info.error ? "bg-rose-400" : "bg-brand"}`} style={{ width: `${Math.max(6, pctDone)}%` }} />
+                </span>
+              </div>
+              <span className="w-14 text-right text-2xl font-medium tabular-nums tracking-[-0.02em]">{pctDone}%</span>
+            </Link>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+/** Sales team: avatar, name, the small numbers, and leads owned as the big number. */
+function TeamScores({ team }) {
+  if (!team.length) return <Empty icon="team">Add people to the Sales Executives group under Team.</Empty>;
+  return (
+    <ul className="flex flex-col gap-1">
+      {team.slice(0, 6).map((m) => (
+        <li key={m.id}>
+          <Link href={`/leads?owner=${m.id}`} className="-mx-2 flex items-center gap-3 rounded-2xl px-2 py-2 transition hover:bg-panel-2">
+            <Avatar name={m.name} size={42} />
+            <div className="min-w-0 flex-1">
+              <div className="truncate text-sm font-medium">{m.name}</div>
+              <div className="mt-0.5 flex gap-2.5 text-[11px] text-muted">
+                <span>{m.open} open</span>
+                <span>{m.calls} calls</span>
+                <span className="text-emerald-400">{m.won} won</span>
+              </div>
+            </div>
+            <span className="text-2xl font-medium tabular-nums tracking-[-0.02em]" title="Leads assigned">
+              {m.assigned}
+            </span>
           </Link>
         </li>
       ))}
@@ -63,39 +127,36 @@ function MeetingAgenda({ meetings, now }) {
   if (!meetings.length) return <Empty icon="calendar">No meetings booked.</Empty>;
   const today = dayKey(now);
   const tomorrow = dayKey(now + DAY);
-  const groups = [];
-  for (const m of meetings.slice(0, 8)) {
-    const k = dayKey(m.starts_at);
-    const label = k === today ? "Today" : k === tomorrow ? "Tomorrow" : shortDay.format(new Date(m.starts_at));
-    const g = groups.at(-1);
-    if (g && g.label === label) g.items.push(m);
-    else groups.push({ label, items: [m] });
-  }
   return (
-    <div className="flex flex-col gap-4">
-      {groups.map((g) => (
-        <div key={g.label}>
-          <div className="eyebrow mb-1.5">{g.label}</div>
-          <ul className="-mx-2">
-            {g.items.map((m) => (
-              <li key={m.id}>
-                <Link href={`/leads/${m.lead.id}`} className="flex items-center gap-3 rounded-xl px-2 py-2 transition hover:bg-ink/[0.03]">
-                  <span className="w-[62px] shrink-0 text-xs tabular-nums text-ink/80">{timeOnly.format(new Date(m.starts_at))}</span>
-                  <span className="h-7 w-[3px] shrink-0 rounded-full" style={{ background: MEETING_KINDS[m.kind].color }} />
-                  <div className="min-w-0 flex-1">
-                    <div className="truncate text-sm">{brandOf(m.lead)}</div>
-                    <div className="truncate text-xs text-muted">
-                      {MEETING_KINDS[m.kind].label} · {m.organizer?.name || "—"}
-                    </div>
-                  </div>
-                  {m.meet_link && <Icon name="video" size={14} className="shrink-0 text-faint" />}
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </div>
-      ))}
-    </div>
+    <ul className="flex flex-col gap-2">
+      {meetings.slice(0, 6).map((m) => {
+        const k = dayKey(m.starts_at);
+        const day = k === today ? "Today" : k === tomorrow ? "Tomorrow" : shortDay.format(new Date(m.starts_at));
+        const kind = MEETING_KINDS[m.kind];
+        return (
+          <li key={m.id}>
+            <Link href={`/leads/${m.lead.id}`} className="flex items-center gap-3 rounded-2xl bg-panel-2 px-3 py-2.5 transition hover:bg-panel-3">
+              <span className="w-[76px] shrink-0 rounded-xl bg-panel px-2 py-1.5 text-center leading-tight">
+                <span className="block text-[10px] text-muted">{day}</span>
+                <span className="block whitespace-nowrap text-xs font-medium tabular-nums">{timeOnly.format(new Date(m.starts_at))}</span>
+              </span>
+              <div className="min-w-0 flex-1">
+                <div className="truncate text-sm font-medium">{brandOf(m.lead)}</div>
+                <div className="mt-0.5 flex items-center gap-1.5 truncate text-[11px] text-muted">
+                  <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: kind.color }} />
+                  {kind.label} · {m.organizer?.name || "—"}
+                </div>
+              </div>
+              {m.meet_link && (
+                <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-solid text-on-solid">
+                  <Icon name="video" size={13} />
+                </span>
+              )}
+            </Link>
+          </li>
+        );
+      })}
+    </ul>
   );
 }
 
@@ -103,18 +164,18 @@ function Activity({ events }) {
   if (!events.length) return <Empty icon="clock">No activity yet.</Empty>;
   return (
     <ol className="flex flex-col gap-4">
-      {events.slice(0, 9).map((e) => (
+      {events.slice(0, 7).map((e) => (
         <li key={e.id} className="flex gap-3">
           {e.actor?.name ? (
-            <Avatar name={e.actor.name} size={26} />
+            <Avatar name={e.actor.name} size={32} />
           ) : (
-            <span className="grid h-[26px] w-[26px] shrink-0 place-items-center rounded-full bg-brand/15 text-brand ring-2 ring-bg">
-              <Icon name="sparkle" size={12} />
+            <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-tint-lavender text-brand">
+              <Icon name="sparkle" size={13} />
             </span>
           )}
           <div className="min-w-0 flex-1 text-xs">
             <div className="text-muted">
-              <Link href={`/leads/${e.lead.id}`} className="font-medium text-ink hover:text-brand">
+              <Link href={`/leads/${e.lead.id}`} className="text-sm font-medium text-ink hover:text-brand">
                 {brandOf(e.lead)}
               </Link>{" "}
               <span className="text-faint">{e.lead.code}</span>
@@ -135,82 +196,25 @@ function PipelineBars({ leads }) {
   for (const l of leads) if (l.status in by) by[l.status]++;
   const max = Math.max(1, ...Object.values(by));
   return (
-    <ul className="flex flex-col gap-0.5">
+    <ul className="flex flex-col gap-1">
       {STATUSES.map((s) => (
         <li key={s.name}>
           <Link
             href={`/leads?view=list&status=${encodeURIComponent(s.name)}`}
-            title={`${s.name}: ${by[s.name]}`}
-            className="group grid grid-cols-[minmax(0,180px)_1fr_28px] items-center gap-3 rounded-lg px-1.5 py-1.5 transition hover:bg-ink/[0.03]"
+            className="-mx-2 grid grid-cols-[minmax(0,150px)_1fr_28px] items-center gap-3 rounded-xl px-2 py-1.5 transition hover:bg-panel-2"
           >
-            <span className="flex min-w-0 items-center gap-2 text-xs text-ink/80">
-              <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: s.color }} />
+            <span className="flex min-w-0 items-center gap-2 text-xs">
+              <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: s.color }} />
               <span className="truncate">{s.name}</span>
             </span>
-            <span className="h-1.5 overflow-hidden rounded-full bg-ink/[0.04]">
-              <span
-                className="block h-full rounded-full bg-gradient-to-r from-brand/50 to-brand transition group-hover:brightness-125"
-                style={{ width: by[s.name] ? `${Math.max(3, (by[s.name] / max) * 100)}%` : 0 }}
-              />
+            <span className="h-2 overflow-hidden rounded-full bg-panel-2">
+              <span className="block h-full rounded-full" style={{ width: by[s.name] ? `${Math.max(4, (by[s.name] / max) * 100)}%` : 0, background: s.color }} />
             </span>
-            <span className="text-right text-xs tabular-nums text-muted">{by[s.name]}</span>
+            <span className="text-right text-sm font-medium tabular-nums">{by[s.name]}</span>
           </Link>
         </li>
       ))}
     </ul>
-  );
-}
-
-/** Proposal pipeline: how many briefs sit at each step + the live ones with their progress. */
-function ProposalBoard({ proposals, hrefFor }) {
-  const live = proposals.filter((p) => p.stage !== "done");
-  const steps = [
-    { label: "Brief", stages: ["brief_shared"] },
-    { label: "Docs", stages: ["picked_up"] },
-    { label: "CRL", stages: ["crl_queued", "crl_running", "crl_failed"] },
-    { label: "Commercials", stages: ["awaiting_commercials"] },
-    { label: "Building", stages: ["proposal_queued", "proposal_running", "proposal_failed"] },
-    { label: "Ready", stages: ["done"] },
-  ];
-  return (
-    <div className="flex flex-col gap-5">
-      <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
-        {steps.map((s) => {
-          const n = proposals.filter((p) => s.stages.includes(p.stage)).length;
-          const hot = s.label === "Commercials" && n > 0;
-          return (
-            <div key={s.label} className={`rounded-xl border px-3 py-2.5 ${hot ? "border-amber-400/30 bg-amber-400/[0.06]" : "border-line bg-ink/[0.015]"}`}>
-              <div className={`text-xl font-semibold tabular-nums ${n ? "" : "text-faint"}`}>{n}</div>
-              <div className="mt-0.5 truncate text-[11px] text-muted">{s.label}</div>
-            </div>
-          );
-        })}
-      </div>
-      {live.length ? (
-        <ul className="-mx-2 flex flex-col">
-          {live.slice(0, 6).map((p) => (
-            <li key={p.id}>
-              <Link href={hrefFor(p)} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-6 gap-y-2 rounded-xl px-2 py-2.5 transition hover:bg-ink/[0.03] sm:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)_136px]">
-                <div className="min-w-0">
-                  <div className="truncate text-sm">{brandOf(p.lead)}</div>
-                  <div className="truncate text-xs text-muted">
-                    {p.lead.code} · {p.strategist?.name || "Not picked up"}
-                  </div>
-                </div>
-                <div className="order-last col-span-2 sm:order-none sm:col-span-1">
-                  <StepTrack stage={p.stage} compact />
-                </div>
-                <span className="flex justify-end">
-                  <StagePill stage={p.stage} />
-                </span>
-              </Link>
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <Empty icon="sparkle">No proposals in progress.</Empty>
-      )}
-    </div>
   );
 }
 
@@ -221,6 +225,7 @@ export default function DashboardView({ me, data }) {
   const staff = canSeeAllLeads(me);
   const sales = !staff && canSeeLeads(me);
   const strategist = !staff && isStrategist(me);
+  const admin = isAdmin(me);
   const { leads, upcoming, meetings, members, proposals, activity, now } = data;
 
   // Lead numbers
@@ -236,17 +241,17 @@ export default function DashboardView({ me, data }) {
   const winRate = won.length + lost.length ? Math.round((won.length / (won.length + lost.length)) * 100) : null;
   const meetingsWeek = upcoming.filter((m) => new Date(m.starts_at).getTime() < now + 7 * DAY);
   const days30 = perDay(leads, now, 30);
-  const spark14 = perDay(leads, now, 14).map((d) => d.count);
+  const ownerName = Object.fromEntries(members.map((m) => [m.id, m.name]));
 
-  // Things that need someone to act
+  // Things that need someone to act, as pastel cards
   const actions = [];
   if (staff) {
     for (const p of proposals.filter((p) => p.stage === "awaiting_commercials"))
-      actions.push({ key: `c${p.id}`, href: `/leads/${p.lead.id}#proposal`, icon: "rupee", tone: "border-amber-400/30 bg-amber-400/10 text-amber-300", title: `Enter commercials — ${brandOf(p.lead)}`, sub: "CRL is ready. The proposal bot waits for the commercials.", code: p.lead.code });
+      actions.push({ key: `c${p.id}`, href: `/leads/${p.lead.id}#proposal`, icon: "rupee", tint: "lavender", title: `Enter commercials — ${brandOf(p.lead)}`, sub: "The CRL is ready. The proposal bot waits for the commercials.", code: p.lead.code, person: p.strategist?.name });
     for (const p of proposals.filter((p) => PROPOSAL_STAGES[p.stage]?.error))
-      actions.push({ key: `f${p.id}`, href: `/leads/${p.lead.id}#proposal`, icon: "alert", tone: "border-rose-400/30 bg-rose-400/10 text-rose-300", title: `${PROPOSAL_STAGES[p.stage].label} — ${brandOf(p.lead)}`, sub: p.error || "Open to retry", code: p.lead.code });
+      actions.push({ key: `f${p.id}`, href: `/leads/${p.lead.id}#proposal`, icon: "alert", tint: "pink", title: `${PROPOSAL_STAGES[p.stage].label} — ${brandOf(p.lead)}`, sub: p.error || "Open the lead to retry.", code: p.lead.code, person: p.strategist?.name });
     for (const l of leads.filter((l) => !l.assigned_to).slice(0, 5))
-      actions.push({ key: `u${l.id}`, href: `/leads/${l.id}`, icon: "team", tone: "border-brand/30 bg-brand/10 text-brand", title: `Assign ${brandOf(l)}`, sub: `New lead · came in ${ago(l.created_at)}`, code: l.code });
+      actions.push({ key: `u${l.id}`, href: `/leads/${l.id}`, icon: "team", tint: "blue", title: `Assign ${brandOf(l)}`, sub: `New lead${l.service ? ` for ${l.service}` : ""} · came in ${ago(l.created_at)}`, code: l.code });
   }
   if (staff || sales) {
     const stale = open
@@ -254,16 +259,16 @@ export default function DashboardView({ me, data }) {
       .sort((a, b) => new Date(a.updated_at) - new Date(b.updated_at))
       .slice(0, 5);
     for (const l of stale)
-      actions.push({ key: `s${l.id}`, href: `/leads/${l.id}`, icon: "clock", tone: "border-line bg-panel-2 text-muted", title: `Follow up with ${brandOf(l)}`, sub: `${l.status} · no update for ${ago(l.updated_at).replace(" ago", "")}`, code: l.code });
+      actions.push({ key: `s${l.id}`, href: `/leads/${l.id}`, icon: "clock", tint: "green", title: `Follow up with ${brandOf(l)}`, sub: `${l.status} · no update for ${ago(l.updated_at).replace(" ago", "")}`, code: l.code, person: staff ? ownerName[l.assigned_to] : null });
   }
   if (strategist) {
     for (const p of proposals.filter((p) => !p.strategist_id))
-      actions.push({ key: `b${p.id}`, href: `/briefs/${p.lead.id}`, icon: "brief", tone: "border-brand/30 bg-brand/10 text-brand", title: `New brief — ${brandOf(p.lead)}`, sub: `${p.lead.service || "Service not set"} · shared ${ago(p.shared_at)}`, code: p.lead.code });
+      actions.push({ key: `b${p.id}`, href: `/briefs/${p.lead.id}`, icon: "brief", tint: "lavender", title: `New brief — ${brandOf(p.lead)}`, sub: `${p.lead.service || "Service not set"} · shared ${ago(p.shared_at)}`, code: p.lead.code });
     for (const p of proposals.filter((p) => p.strategist_id === me.id && ["picked_up", "crl_failed"].includes(p.stage)))
-      actions.push({ key: `d${p.id}`, href: `/briefs/${p.lead.id}`, icon: "upload", tone: "border-amber-400/30 bg-amber-400/10 text-amber-300", title: `Upload documents — ${brandOf(p.lead)}`, sub: p.stage === "crl_failed" ? "CRL bot failed — check the documents" : "Reference links, creatives, strategy, identity", code: p.lead.code });
+      actions.push({ key: `d${p.id}`, href: `/briefs/${p.lead.id}`, icon: "upload", tint: p.stage === "crl_failed" ? "pink" : "amber", title: `Upload documents — ${brandOf(p.lead)}`, sub: p.stage === "crl_failed" ? "The CRL bot failed — check the documents." : "Reference links, creatives, strategy and identity.", code: p.lead.code });
   }
 
-  // Team leaderboard (admin / ops)
+  // Sales team (admin / ops)
   const team = staff
     ? members
         .filter((m) => m.groups.some((g) => g.kind === "sales") || leads.some((l) => l.assigned_to === m.id))
@@ -279,179 +284,149 @@ export default function DashboardView({ me, data }) {
         })
         .sort((a, b) => b.won - a.won || b.assigned - a.assigned)
     : [];
-  const teamMax = Math.max(1, ...team.map((m) => m.assigned));
 
   const myProposals = proposals.filter((p) => p.strategist_id === me.id);
   const pool = proposals.filter((p) => !p.strategist_id);
   const firstName = me.name.split(" ")[0];
   const waiting = actions.length;
+  const proposalHref = (p) => (staff ? `/leads/${p.lead.id}#proposal` : `/briefs/${p.lead.id}`);
+
+  const agenda = (
+    <Panel title="Agenda" sub="Upcoming meetings" action={<CornerLink href="/leads?view=list" icon="calendar" label="Leads" />}>
+      <MeetingAgenda meetings={upcoming} now={now} />
+    </Panel>
+  );
+  const activityPanel = (
+    <Panel title="Recent activity" sub="Across your leads">
+      <Activity events={activity} />
+    </Panel>
+  );
+  const proposalPanel = (
+    <Panel title="Proposals" sub="Brief → documents → CRL → commercials → deck" action={<CornerLink href="/briefs" label="All briefs" />}>
+      <ProposalProgress proposals={staff ? proposals : [...myProposals, ...pool]} hrefFor={proposalHref} />
+    </Panel>
+  );
+
+  // What goes where, per role
+  let topRight;
+  let bottomRight = [];
+  let lowerRow = [];
+  if (staff) {
+    topRight = admin ? (
+      <Panel title="Leads per day" sub="New leads over the last 30 days" action={<CornerLink href="/leads?view=list" label="All leads" />}>
+        <LeadsTrend days={days30} />
+      </Panel>
+    ) : (
+      agenda
+    );
+    bottomRight = [
+      proposalPanel,
+      <Panel key="team" title="Sales team" sub="Leads owned, calls (90 days) and wins" action={<CornerLink href="/team" icon="team" label="Team" />}>
+        <TeamScores team={team} />
+      </Panel>,
+    ];
+    lowerRow = admin
+      ? [
+          agenda,
+          activityPanel,
+          <Panel key="stages" title="Pipeline by stage" sub={`${leads.length} leads`} action={<CornerLink href="/leads" icon="board" label="Board" />}>
+            <PipelineBars leads={leads} />
+          </Panel>,
+        ]
+      : [activityPanel];
+  } else if (sales) {
+    topRight = agenda;
+    bottomRight = [
+      <Panel key="latest" title="Latest leads" sub="Assigned to you" action={<CornerLink href="/leads?view=list" label="All leads" />}>
+        {leads.length ? (
+          <ul className="flex flex-col gap-1">
+            {leads.slice(0, 6).map((l) => (
+              <li key={l.id}>
+                <Link href={`/leads/${l.id}`} className="-mx-2 flex items-center gap-3 rounded-2xl px-2 py-2 transition hover:bg-panel-2">
+                  <Avatar name={brandOf(l)} size={36} />
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-medium">{brandOf(l)}</span>
+                    <span className="block text-[11px] text-muted">{l.code}</span>
+                  </span>
+                  <StatusBadge status={l.status} />
+                </Link>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <Empty icon="leads">No leads yet.</Empty>
+        )}
+      </Panel>,
+      activityPanel,
+    ];
+  } else {
+    topRight = proposalPanel;
+    bottomRight = [activityPanel];
+  }
 
   return (
-    <div className="page max-w-[1320px]">
-      {/* Header */}
-      <header className="rise card relative mb-4 overflow-hidden p-5 sm:p-8">
-        <span className="pointer-events-none absolute -right-24 -top-32 h-80 w-80 rounded-full bg-brand/20 blur-3xl" />
-        <span className="pointer-events-none absolute -bottom-32 right-40 h-64 w-64 rounded-full bg-fuchsia-400/10 blur-3xl" />
-        <div className="relative flex flex-wrap items-end justify-between gap-5">
+    <div className="page">
+      {/* Title + headline numbers */}
+      <header className="rise flex flex-wrap items-end justify-between gap-x-10 gap-y-6">
         <div className="min-w-0">
-          <p className="eyebrow">{weekday.format(new Date(now))}</p>
-          <h1 className="mt-2 text-[30px] font-semibold leading-[1.1] tracking-[-0.02em] md:text-[44px]">
-            {greeting()}, <span className="font-serif text-[1.12em] font-normal italic text-brand">{firstName}</span>
-          </h1>
-          <div className="mt-4 flex flex-wrap gap-2 text-xs">
-            <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 ${waiting ? "border-amber-400/30 bg-amber-400/10 text-amber-300" : "border-emerald-400/30 bg-emerald-400/10 text-emerald-300"}`}>
-              <span className="h-1.5 w-1.5 rounded-full bg-current" />
-              {waiting ? `${waiting} thing${waiting === 1 ? "" : "s"} waiting on you` : "All caught up"}
-            </span>
-            {meetingsWeek.length > 0 && (
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-line bg-panel-2/70 px-2.5 py-1 text-muted">
-                <Icon name="calendar" size={12} />
-                {meetingsWeek.length} meeting{meetingsWeek.length === 1 ? "" : "s"} this week
-              </span>
-            )}
-          </div>
+          <p className="text-sm text-muted">
+            {greeting()}, {firstName} · {weekday.format(new Date(now))}
+          </p>
+          <h1 className="page-title mt-1">Dashboard</h1>
         </div>
-        <div className="flex flex-wrap gap-2">
-          {canSeeLeads(me) && (
-            <Link href="/leads" className="btn-ghost">
-              Pipeline <Icon name="arrow" size={14} />
-            </Link>
+        <div className="grid grid-cols-2 gap-x-8 gap-y-5 sm:flex sm:gap-10">
+          {staff || sales ? (
+            <>
+              <Stat label={staff ? "New leads · 7 days" : "New to me · 7 days"} value={thisWeek} delta={pct(thisWeek, lastWeek)} />
+              <Stat label={staff ? "Open pipeline" : "My open leads"} value={open.length} />
+              <Stat label="Meetings · 7 days" value={meetingsWeek.length} />
+              <Stat label="Won" value={won.length} sub={winRate == null ? null : `${winRate}% win rate`} />
+            </>
+          ) : (
+            <>
+              <Stat label="Open briefs" value={pool.length} />
+              <Stat label="My briefs" value={myProposals.filter((p) => p.stage !== "done").length} />
+              <Stat label="With the bots" value={myProposals.filter((p) => /queued|running|awaiting/.test(p.stage)).length} />
+              <Stat label="Delivered" value={myProposals.filter((p) => p.stage === "done").length} />
+            </>
           )}
-          {strategist && (
-            <Link href="/briefs" className="btn-ghost">
-              Briefs <Icon name="arrow" size={14} />
-            </Link>
-          )}
-          {canCreateLead(me) && (
-            <Link href="/leads/new" className="btn-primary">
-              <Icon name="plus" size={14} /> New lead
-            </Link>
-          )}
-        </div>
         </div>
       </header>
 
-      {/* KPIs */}
-      <div className="rise grid grid-cols-2 gap-3 [animation-delay:60ms] xl:grid-cols-4">
-        {staff || sales ? (
-          <>
-            <Stat label={staff ? "New leads · 7 days" : "New to me · 7 days"} value={thisWeek} delta={pct(thisWeek, lastWeek)} sub="vs last week" spark={spark14} />
-            <Stat label={staff ? "Open pipeline" : "My open leads"} value={open.length} sub={`${leads.length} in total`} icon="leads" />
-            <Stat label="Meetings · next 7 days" value={meetingsWeek.length} sub={`${upcoming.length} upcoming`} icon="calendar" />
-            <Stat label="Won" value={won.length} sub={winRate == null ? "No closed deals yet" : `${winRate}% win rate`} icon="sparkle" />
-          </>
-        ) : (
-          <>
-            <Stat label="Open briefs" value={pool.length} sub="Waiting to be picked up" icon="brief" />
-            <Stat label="My briefs" value={myProposals.filter((p) => p.stage !== "done").length} sub="In progress" icon="upload" />
-            <Stat label="With the bots" value={myProposals.filter((p) => /queued|running|awaiting/.test(p.stage)).length} sub="CRL / commercials / deck" icon="sparkle" />
-            <Stat label="Delivered" value={myProposals.filter((p) => p.stage === "done").length} sub="CRL & deck ready" icon="check" />
-          </>
-        )}
-      </div>
-
-      {/* Actions + agenda */}
-      <div className="rise mt-3 grid gap-3 [animation-delay:120ms] lg:grid-cols-[1.45fr_1fr]">
-        <Panel title="Needs your attention" sub="Most urgent first" action={waiting ? <span className="chip tabular-nums">{waiting}</span> : null}>
-          <ActionList items={actions.slice(0, 8)} />
-        </Panel>
-        {staff || sales ? (
-          <Panel title="Agenda" sub="Upcoming meetings" action={<Icon name="calendar" className="text-faint" />}>
-            <MeetingAgenda meetings={upcoming} now={now} />
-          </Panel>
-        ) : (
-          <Panel title="Recent activity">
-            <Activity events={activity} />
-          </Panel>
-        )}
-      </div>
-
-      {(staff || strategist) && (
-        <div className="rise mt-3 [animation-delay:180ms]">
-          <Panel
-            title="Proposal pipeline"
-            sub="Brief → documents → CRL → commercials → proposal deck"
-            action={
-              <Link href="/briefs" className="text-xs text-muted hover:text-ink">
-                All briefs →
-              </Link>
-            }
-          >
-            <ProposalBoard proposals={staff ? proposals : [...myProposals, ...pool]} hrefFor={(p) => (staff ? `/leads/${p.lead.id}#proposal` : `/briefs/${p.lead.id}`)} />
-          </Panel>
-        </div>
-      )}
-
-      {isAdmin(me) && (
-        <div className="rise mt-3 grid gap-3 [animation-delay:240ms] lg:grid-cols-[1.45fr_1fr]">
-          <Panel title="Leads per day" sub="Last 30 days" bodyClass="flex flex-col">
-            <DailyChart days={days30} />
-          </Panel>
-          <Panel title="Pipeline by stage" sub={`${leads.length} leads`}>
-            <PipelineBars leads={leads} />
-          </Panel>
-        </div>
-      )}
-
-      {(staff || sales) && (
-        <div className={`rise mt-3 grid gap-3 [animation-delay:300ms] ${staff ? "lg:grid-cols-[1.45fr_1fr]" : ""}`}>
-          {staff && (
-            <Panel title="Team" sub="Leads, discovery calls (90 days) and wins">
-              {team.length ? (
-                <ul className="flex flex-col gap-1">
-                  {team.map((m, i) => (
-                    <li key={m.id}>
-                      <Link href={`/leads?owner=${m.id}`} className="grid grid-cols-[16px_minmax(0,1fr)_44px_52px] items-center gap-2.5 rounded-xl px-2 py-2 transition hover:bg-ink/[0.03] sm:grid-cols-[20px_minmax(0,1fr)_repeat(3,56px)] sm:gap-3">
-                        <span className="text-xs tabular-nums text-faint">{i + 1}</span>
-                        <span className="flex min-w-0 items-center gap-2.5">
-                          <Avatar name={m.name} />
-                          <span className="min-w-0 flex-1">
-                            <span className="block truncate text-sm">{m.name}</span>
-                            <span className="mt-1 block h-1 overflow-hidden rounded-full bg-ink/[0.04]">
-                              <span className="block h-full rounded-full bg-brand/70" style={{ width: `${(m.assigned / teamMax) * 100}%` }} />
-                            </span>
-                          </span>
-                        </span>
-                        <span className="text-right text-xs tabular-nums text-muted" title="Open / assigned">
-                          {m.open}/{m.assigned}
-                        </span>
-                        <span className="hidden text-right text-xs tabular-nums text-muted sm:block" title="Discovery calls">
-                          {m.calls} calls
-                        </span>
-                        <span className="text-right text-xs font-medium tabular-nums text-emerald-300" title="Won">
-                          {m.won} won
-                        </span>
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <Empty icon="team">Add people to the Sales Executives group under Team.</Empty>
-              )}
-            </Panel>
+      <div className="rise mt-6 grid gap-5 [animation-delay:80ms] lg:grid-cols-[minmax(300px,1fr)_2.3fr]">
+        {/* Left: what needs doing */}
+        <Panel
+          title="Needs your attention"
+          sub={waiting ? `${waiting} thing${waiting === 1 ? "" : "s"}, most urgent first` : "Nothing waiting"}
+          action={
+            canCreateLead(me) ? (
+              <CornerLink href="/leads/new" icon="plus" label="New lead" />
+            ) : strategist ? (
+              <CornerLink href="/briefs" label="Briefs" />
+            ) : null
+          }
+        >
+          {canSeeLeads(me) && (
+            <form action="/leads" className="relative mb-4">
+              <input type="hidden" name="view" value="list" />
+              <input name="q" placeholder="Search leads" className="field rounded-full py-3 pr-14" />
+              <button aria-label="Search" className="absolute right-1.5 top-1/2 grid h-9 w-9 -translate-y-1/2 place-items-center rounded-full bg-solid text-on-solid">
+                <Icon name="search" size={15} />
+              </button>
+            </form>
           )}
-          <Panel title="Recent activity">
-            <Activity events={activity} />
-          </Panel>
-        </div>
-      )}
+          <AttentionCards items={actions.slice(0, 5)} />
+        </Panel>
 
-      {sales && leads.length > 0 && (
-        <div className="rise mt-3 [animation-delay:360ms]">
-          <Panel title="Latest leads" action={<Link href="/leads?view=list" className="text-xs text-muted hover:text-ink">See all →</Link>}>
-            <ul className="-mx-2">
-              {leads.slice(0, 6).map((l) => (
-                <li key={l.id}>
-                  <Link href={`/leads/${l.id}`} className="flex items-center gap-3 rounded-xl px-2 py-2 transition hover:bg-ink/[0.03]">
-                    <span className="w-12 shrink-0 text-xs text-faint">{l.code}</span>
-                    <span className="min-w-0 flex-1 truncate text-sm">{brandOf(l)}</span>
-                    <StatusBadge status={l.status} />
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </Panel>
+        {/* Right: the big picture */}
+        <div className="flex min-w-0 flex-col gap-5">
+          {topRight}
+          {bottomRight.length > 0 && <div className={`grid gap-5 ${bottomRight.length > 1 ? "xl:grid-cols-2" : ""}`}>{bottomRight.map((el, i) => <Fragment key={i}>{el}</Fragment>)}</div>}
         </div>
+      </div>
+
+      {lowerRow.length > 0 && (
+        <div className={`rise mt-5 grid gap-5 [animation-delay:160ms] ${lowerRow.length === 3 ? "lg:grid-cols-3" : ""}`}>{lowerRow.map((el, i) => <Fragment key={i}>{el}</Fragment>)}</div>
       )}
     </div>
   );

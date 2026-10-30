@@ -1,4 +1,5 @@
 // Small building blocks shared by the dashboard and the brief pages (server-safe, no hooks).
+import Link from "next/link";
 import Icon from "@/components/Icon";
 import { PROPOSAL_STAGES, PROPOSAL_STEPS } from "@/lib/constants";
 
@@ -19,7 +20,7 @@ export function Avatar({ name, size = 28 }) {
   return (
     <span
       title={name}
-      className="grid shrink-0 place-items-center rounded-full font-semibold ring-2 ring-bg"
+      className="grid shrink-0 place-items-center rounded-full font-semibold ring-2 ring-panel"
       style={{ width: size, height: size, fontSize: size * 0.38, background: `${c}26`, color: `color-mix(in oklab, ${c} 70%, var(--color-ink))` }}
     >
       {initials(name)}
@@ -29,11 +30,11 @@ export function Avatar({ name, size = 28 }) {
 
 export function Panel({ title, sub, action, children, className = "", bodyClass = "" }) {
   return (
-    <section className={`card flex min-w-0 flex-col p-4 sm:p-6 ${className}`}>
+    <section className={`card flex min-w-0 flex-col p-5 sm:p-6 ${className}`}>
       {(title || action) && (
-        <header className="mb-4 flex items-start justify-between gap-3 sm:mb-5">
+        <header className="mb-5 flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <h2 className="text-[15px] font-semibold tracking-[-0.01em]">{title}</h2>
+            <h2 className="text-lg font-medium tracking-[-0.01em] sm:text-xl">{title}</h2>
             {sub && <p className="mt-0.5 text-xs text-muted">{sub}</p>}
           </div>
           {action}
@@ -44,74 +45,39 @@ export function Panel({ title, sub, action, children, className = "", bodyClass 
   );
 }
 
-/** A single trend line, no axes — the number beside it is the headline. */
-export function Sparkline({ values, width = 96, height = 32 }) {
-  if (!values?.length) return null;
-  const max = Math.max(1, ...values);
-  const step = width / Math.max(1, values.length - 1);
-  const pts = values.map((v, i) => [i * step, height - 3 - (v / max) * (height - 6)]);
-  const line = pts.map(([x, y], i) => `${i ? "L" : "M"}${x.toFixed(1)},${y.toFixed(1)}`).join(" ");
-  const last = pts.at(-1);
+/** Round hairline button in a card's corner (expand, filter, add). */
+export function CornerLink({ href, icon = "expand", label }) {
   return (
-    <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} className="overflow-visible" aria-hidden="true">
-      <defs>
-        <linearGradient id="spark-fill" x1="0" x2="0" y1="0" y2="1">
-          <stop offset="0" stopColor="var(--color-brand)" stopOpacity="0.28" />
-          <stop offset="1" stopColor="var(--color-brand)" stopOpacity="0" />
-        </linearGradient>
-      </defs>
-      <path d={`${line} L${width},${height} L0,${height} Z`} fill="url(#spark-fill)" />
-      <path d={line} fill="none" stroke="var(--color-brand)" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
-      <circle cx={last[0]} cy={last[1]} r="3" fill="var(--color-brand)" stroke="var(--color-panel)" strokeWidth="2" />
-    </svg>
+    <Link href={href} title={label} aria-label={label} className="icon-btn">
+      <Icon name={icon} size={15} />
+    </Link>
   );
 }
 
-export function Stat({ label, value, sub, delta, spark, icon, className = "" }) {
+/** A small headline number for the top of a page: label, value, coloured change badge. */
+export function Stat({ label, value, sub, delta, className = "" }) {
   return (
-    <div className={`card card-hover group relative overflow-hidden p-4 sm:p-5 ${className}`}>
-      {/* Accent hairline + soft glow in the corner */}
-      <span className="pointer-events-none absolute inset-x-5 top-0 h-px bg-gradient-to-r from-transparent via-brand/50 to-transparent opacity-0 transition group-hover:opacity-100" />
-      <span className="pointer-events-none absolute -right-10 -top-10 h-28 w-28 rounded-full bg-brand/10 blur-2xl" />
-      <div className="relative flex items-center justify-between gap-2">
-        <span className="eyebrow truncate">{label}</span>
-        {icon && (
-          <span className="hidden h-7 w-7 shrink-0 place-items-center rounded-lg bg-brand/10 text-brand sm:grid">
-            <Icon name={icon} size={14} />
+    <div className={`min-w-0 ${className}`}>
+      <div className="truncate text-xs text-muted">{label}</div>
+      <div className="mt-1 flex items-center gap-2">
+        <span className="text-[30px] font-medium leading-none tabular-nums tracking-[-0.02em] sm:text-[36px]">{value}</span>
+        {delta != null && (
+          <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-white ${delta >= 0 ? "bg-emerald-500" : "bg-rose-500"}`}>
+            {delta >= 0 ? "+" : "−"}
+            {Math.abs(delta)}%
           </span>
         )}
       </div>
-      <div className="relative mt-3 flex items-end justify-between gap-3 sm:mt-4">
-        <div className="min-w-0">
-          <div className="text-[30px] font-semibold leading-none tabular-nums tracking-[-0.03em] sm:text-[38px]">{value}</div>
-          <div className="mt-2.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted">
-            {delta != null && (
-              <span
-                className={`rounded-full px-1.5 py-0.5 text-[11px] font-medium tabular-nums ${
-                  delta >= 0 ? "bg-emerald-400/10 text-emerald-300" : "bg-rose-400/10 text-rose-300"
-                }`}
-              >
-                {delta >= 0 ? "▲" : "▼"} {Math.abs(delta)}%
-              </span>
-            )}
-            {sub}
-          </div>
-        </div>
-        {spark && (
-          <span className="hidden sm:block">
-            <Sparkline values={spark} />
-          </span>
-        )}
-      </div>
+      {sub && <div className="mt-1 truncate text-[11px] text-faint">{sub}</div>}
     </div>
   );
 }
 
 export function Empty({ icon = "check", children }) {
   return (
-    <div className="flex flex-col items-center justify-center gap-2 py-8 text-center text-sm text-muted">
-      <span className="grid h-10 w-10 place-items-center rounded-2xl border border-line bg-panel-2 text-faint">
-        <Icon name={icon} size={16} />
+    <div className="flex flex-col items-center justify-center gap-3 py-8 text-center text-sm text-muted">
+      <span className="grid h-11 w-11 place-items-center rounded-2xl bg-panel-2 text-faint">
+        <Icon name={icon} size={17} />
       </span>
       {children}
     </div>
@@ -127,7 +93,7 @@ export function StepTrack({ stage, compact = false }) {
       {PROPOSAL_STEPS.map((label, i) => {
         const done = i < current || stage === "done";
         const here = i === current && stage !== "done";
-        const color = here && info.error ? "bg-rose-400" : done ? "bg-brand" : here ? "bg-brand/70 animate-pulse" : "bg-panel-3";
+        const color = here && info.error ? "bg-rose-400" : done ? "bg-solid" : here ? "bg-brand animate-pulse" : "bg-panel-3";
         return (
           <li key={label} className="flex min-w-0 flex-1 flex-col gap-1.5" title={label}>
             <span className={`h-1 rounded-full ${color}`} />
