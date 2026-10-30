@@ -55,7 +55,7 @@ export default function ThemeToggle({ initial = "light", variant = "rail" }) {
           aria-checked={theme === t.id}
           title={`${t.label} theme`}
           onClick={() => apply(t.id)}
-          className={`grid h-9 w-9 place-items-center rounded-full transition ${theme === t.id ? "bg-solid text-on-solid" : "text-muted hover:text-ink"}`}
+          className={`grid h-9 w-9 place-items-center rounded-full transition ${theme === t.id ? "solid" : "text-muted hover:text-ink"}`}
         >
           <Icon name={t.icon} size={16} />
         </button>

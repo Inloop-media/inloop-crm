@@ -4,6 +4,7 @@ import { Suspense } from "react";
 import Nav, { Rail, TabBar } from "@/components/Nav";
 import MobileHeader, { ProfileMenu } from "@/components/MobileHeader";
 import ThemeToggle from "@/components/ThemeToggle";
+import FeedbackNote from "@/components/FeedbackNote";
 import { getTheme } from "@/lib/theme";
 import { requireMember } from "@/lib/auth";
 import { db } from "@/lib/supabase/server";
@@ -22,6 +23,12 @@ async function briefsBadge(me) {
   return count || 0;
 }
 
+/** Feedback notes no admin has looked at yet (0 until migration 007 has run). */
+async function newFeedback() {
+  const { count, error } = await db().from("feedback").select("id", { count: "exact", head: true }).eq("status", "new");
+  return error ? 0 : count || 0;
+}
+
 const initials = (name) =>
   String(name || "?")
     .split(/\s+/)
@@ -38,6 +45,7 @@ export default async function CrmLayout({ children }) {
   const feeds = await listFeeds(me);
   if (feeds.length) items.push({ href: "/updates", label: "Updates", icon: "slack", badge: feeds.reduce((n, g) => n + g.unread, 0) });
   if (canManageTeam(me)) items.push({ href: "/team", label: "Team", icon: "team" });
+  if (me.role === "admin") items.push({ href: "/feedback", label: "Feedback", icon: "chat", badge: await newFeedback() });
   const theme = await getTheme();
   const roleLabel = me.role === "member" ? me.groups.map((g) => g.name).join(" · ") || "Member" : ROLES.find((r) => r.id === me.role)?.label;
 
@@ -90,6 +98,7 @@ export default async function CrmLayout({ children }) {
         </div>
       </div>
       <TabBar items={items} />
+      {me.role !== "admin" && <FeedbackNote />}
     </div>
   );
 }

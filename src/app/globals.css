@@ -1,5 +1,8 @@
 @import "tailwindcss";
 
+/* dark: follows the theme switch, not the OS setting */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
 /* Inloop CRM — soft lavender studio, in light (default) and dark. The whole app sits in one rounded
    frame over a lavender → pink wash; cards are white, pills are round, the active thing is solid ink.
    Every colour is a token, so the theme switch is one attribute on <html>. */
@@ -53,13 +56,17 @@
     radial-gradient(900px 640px at 100% 0%, #c9d4fb 0%, transparent 60%),
     radial-gradient(800px 600px at 0% 100%, #f6d0e2 0%, transparent 60%),
     radial-gradient(700px 500px at 30% 20%, #e4defb 0%, transparent 65%), #ecebf6;
-  --frame-bg: rgb(255 255 255 / 0.55);
-  --frame-border: rgb(255 255 255 / 0.75);
-  --frame-shadow: 0 30px 80px -30px rgb(90 70 170 / 0.25);
-  --card-border: transparent;
-  --card-shadow: 0 1px 2px rgb(23 22 29 / 0.03), 0 12px 32px -16px rgb(90 70 170 / 0.16);
-  --card-shadow-hover: 0 1px 2px rgb(23 22 29 / 0.04), 0 24px 44px -18px rgb(90 70 170 / 0.28);
-  --pop-shadow: 0 24px 64px -16px rgb(60 50 120 / 0.28), 0 0 0 1px rgb(23 22 29 / 0.05);
+  --frame-bg: rgb(255 255 255 / 0.5);
+  --frame-border: rgb(255 255 255 / 0.85);
+  --frame-shadow: inset 0 1px 0 rgb(255 255 255 / 0.9), 0 2px 6px rgb(90 70 170 / 0.04), 0 40px 100px -40px rgb(90 70 170 / 0.35);
+  --card-sheen: linear-gradient(180deg, #ffffff 0%, #fcfbff 100%);
+  --card-border: rgb(255 255 255 / 0.9);
+  --card-shadow: 0 0 0 1px rgb(90 70 170 / 0.04), 0 1px 2px rgb(23 22 29 / 0.04), 0 8px 20px -10px rgb(90 70 170 / 0.12), 0 30px 60px -32px rgb(90 70 170 / 0.2);
+  --card-shadow-hover: 0 0 0 1px rgb(90 70 170 / 0.06), 0 2px 4px rgb(23 22 29 / 0.05), 0 14px 28px -12px rgb(90 70 170 / 0.2), 0 40px 70px -32px rgb(90 70 170 / 0.32);
+  --pop-shadow: 0 0 0 1px rgb(90 70 170 / 0.06), 0 24px 64px -16px rgb(60 50 120 / 0.3);
+  --solid-grad: linear-gradient(150deg, #3a3846 0%, #17161d 55%);
+  --solid-shadow: inset 0 1px 0 rgb(255 255 255 / 0.16), 0 6px 14px -6px rgb(23 22 29 / 0.5);
+  --brand-grad: linear-gradient(90deg, #b3a7fa, #7a68ee);
 }
 
 :root[data-theme="dark"] {
@@ -106,12 +113,16 @@
     radial-gradient(900px 640px at 100% 0%, rgb(110 100 230 / 0.22) 0%, transparent 60%),
     radial-gradient(800px 600px at 0% 100%, rgb(220 90 160 / 0.13) 0%, transparent 60%), #0c0b12;
   --frame-bg: rgb(20 19 28 / 0.6);
-  --frame-border: rgb(255 255 255 / 0.06);
-  --frame-shadow: 0 30px 80px -30px rgb(0 0 0 / 0.8);
-  --card-border: rgb(255 255 255 / 0.05);
-  --card-shadow: inset 0 1px 0 rgb(255 255 255 / 0.03), 0 18px 40px -24px rgb(0 0 0 / 0.7);
-  --card-shadow-hover: inset 0 1px 0 rgb(255 255 255 / 0.05), 0 26px 50px -24px rgb(0 0 0 / 0.85);
-  --pop-shadow: 0 24px 64px -16px rgb(0 0 0 / 0.7), 0 0 0 1px rgb(255 255 255 / 0.06);
+  --frame-border: rgb(255 255 255 / 0.07);
+  --frame-shadow: inset 0 1px 0 rgb(255 255 255 / 0.05), 0 40px 100px -40px rgb(0 0 0 / 0.9);
+  --card-sheen: linear-gradient(180deg, #1c1b26 0%, #16151e 100%);
+  --card-border: rgb(255 255 255 / 0.06);
+  --card-shadow: inset 0 1px 0 rgb(255 255 255 / 0.05), 0 1px 2px rgb(0 0 0 / 0.4), 0 24px 48px -28px rgb(0 0 0 / 0.8);
+  --card-shadow-hover: inset 0 1px 0 rgb(255 255 255 / 0.07), 0 2px 4px rgb(0 0 0 / 0.4), 0 32px 60px -28px rgb(0 0 0 / 0.95), 0 0 0 1px rgb(165 151 246 / 0.12);
+  --pop-shadow: 0 24px 64px -16px rgb(0 0 0 / 0.7), 0 0 0 1px rgb(255 255 255 / 0.07);
+  --solid-grad: linear-gradient(150deg, #cdc4ff 0%, #a597f6 60%);
+  --solid-shadow: inset 0 1px 0 rgb(255 255 255 / 0.4), 0 6px 18px -6px rgb(165 151 246 / 0.45);
+  --brand-grad: linear-gradient(90deg, #7a68ee, #c3b9ff);
 }
 
 body {
@@ -148,7 +159,8 @@ html.theme-switching * {
 
 @layer components {
   .card {
-    @apply rounded-[28px] border bg-panel;
+    @apply rounded-[28px] border;
+    background: var(--card-sheen);
     border-color: var(--card-border);
     box-shadow: var(--card-shadow);
   }
@@ -164,34 +176,54 @@ html.theme-switching * {
     box-shadow: var(--pop-shadow);
   }
   /* Pastel feature cards */
-  .tint-lavender { background: var(--color-tint-lavender); }
-  .tint-blue { background: var(--color-tint-blue); }
-  .tint-green { background: var(--color-tint-green); }
-  .tint-pink { background: var(--color-tint-pink); }
-  .tint-amber { background: var(--color-tint-amber); }
+  /* Pastel feature cards: the tint, a soft light pool in the corner, and a hairline highlight */
+  .tint-lavender { --tint: var(--color-tint-lavender); }
+  .tint-blue { --tint: var(--color-tint-blue); }
+  .tint-green { --tint: var(--color-tint-green); }
+  .tint-pink { --tint: var(--color-tint-pink); }
+  .tint-amber { --tint: var(--color-tint-amber); }
+  .tint-lavender, .tint-blue, .tint-green, .tint-pink, .tint-amber {
+    background:
+      radial-gradient(120% 90% at 100% 0%, rgb(255 255 255 / 0.55), transparent 55%),
+      var(--tint);
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.6), inset 0 0 0 1px rgb(255 255 255 / 0.25);
+  }
+  :root[data-theme="dark"] :is(.tint-lavender, .tint-blue, .tint-green, .tint-pink, .tint-amber) {
+    background:
+      radial-gradient(120% 90% at 100% 0%, rgb(255 255 255 / 0.07), transparent 55%),
+      var(--tint);
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.07), inset 0 0 0 1px rgb(255 255 255 / 0.04);
+  }
 
   /* Round icon button with a hairline, like the expand / filter buttons on each card */
   .icon-btn {
-    @apply grid h-10 w-10 shrink-0 place-items-center rounded-full border border-line bg-panel text-muted transition hover:border-line-strong hover:text-ink active:scale-95;
+    @apply grid h-10 w-10 shrink-0 place-items-center rounded-full border border-line bg-panel text-muted transition duration-200 hover:-translate-y-0.5 hover:border-line-strong hover:text-ink active:scale-95;
+    box-shadow: 0 1px 2px rgb(23 22 29 / 0.05);
   }
   .icon-tile {
-    @apply grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-solid text-on-solid;
+    @apply grid h-10 w-10 shrink-0 place-items-center rounded-xl text-on-solid;
+    background: var(--solid-grad);
+    box-shadow: var(--solid-shadow);
   }
   .pill-group {
     @apply inline-flex items-center gap-1 rounded-full bg-panel p-1.5;
     box-shadow: var(--card-shadow);
   }
   .pill {
-    @apply relative inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm text-muted transition hover:text-ink;
+    @apply relative inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm text-muted transition duration-200 hover:bg-panel-2 hover:text-ink;
   }
   .pill[data-on="true"] {
-    @apply bg-solid text-on-solid;
+    @apply text-on-solid;
+    background: var(--solid-grad);
+    box-shadow: var(--solid-shadow);
   }
   .field {
     @apply w-full rounded-2xl border border-transparent bg-panel-2 px-4 py-2.5 text-sm text-ink outline-none transition placeholder:text-faint hover:border-line-strong focus:border-brand/50 focus:bg-panel focus:ring-4 focus:ring-brand/15 disabled:opacity-60;
   }
   .btn-primary {
-    @apply inline-flex items-center justify-center gap-2 rounded-full bg-solid px-5 py-2.5 text-sm font-medium text-on-solid transition duration-200 hover:opacity-90 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50;
+    @apply inline-flex items-center justify-center gap-2 rounded-full px-5 py-2.5 text-sm font-medium text-on-solid transition duration-200 hover:-translate-y-0.5 hover:brightness-110 active:translate-y-0 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50;
+    background: var(--solid-grad);
+    box-shadow: var(--solid-shadow);
   }
   .btn-ghost {
     @apply inline-flex items-center justify-center gap-2 rounded-full border border-line bg-panel px-5 py-2.5 text-sm font-medium text-ink transition duration-200 hover:border-line-strong active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50;
@@ -219,7 +251,40 @@ html.theme-switching * {
     @apply rounded-full px-3.5 py-1.5 text-muted transition hover:text-ink;
   }
   .seg-item[data-on="true"] {
-    @apply bg-solid text-on-solid;
+    @apply text-on-solid;
+    background: var(--solid-grad);
+    box-shadow: var(--solid-shadow);
+  }
+  /* Solid surfaces that should match the pills (round icon buttons, chips) */
+  .solid {
+    @apply text-on-solid;
+    background: var(--solid-grad);
+    box-shadow: var(--solid-shadow);
+  }
+  /* Sticky note (the feedback card): warm paper with a lifted, slightly curled shadow */
+  .note {
+    color: var(--color-ink);
+    background:
+      radial-gradient(120% 80% at 0% 0%, rgb(255 255 255 / 0.55), transparent 60%),
+      linear-gradient(160deg, #fff6c9 0%, #ffe9a3 100%);
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 0.7),
+      0 2px 4px rgb(120 90 20 / 0.08),
+      0 18px 36px -14px rgb(150 110 20 / 0.35),
+      0 40px 60px -40px rgb(90 70 170 / 0.3);
+  }
+  :root[data-theme="dark"] .note {
+    background:
+      radial-gradient(120% 80% at 0% 0%, rgb(255 255 255 / 0.06), transparent 60%),
+      linear-gradient(160deg, #3b3320 0%, #2e2818 100%);
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 0.08),
+      0 18px 40px -14px rgb(0 0 0 / 0.8);
+  }
+  /* Progress fill */
+  .bar-fill {
+    @apply block h-full rounded-full;
+    background: var(--brand-grad);
   }
 }
 

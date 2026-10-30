@@ -47,7 +47,7 @@ export function Rail({ actions }) {
             href={a.href}
             title={a.label}
             aria-label={a.label}
-            className={`group relative grid h-9 w-9 place-items-center rounded-full transition ${active ? "bg-solid text-on-solid" : "text-muted hover:bg-panel-2 hover:text-ink"}`}
+            className={`group relative grid h-9 w-9 place-items-center rounded-full transition ${active ? "solid" : "text-muted hover:bg-panel-2 hover:text-ink"}`}
           >
             <Icon name={a.icon} size={16} />
             <span className="pointer-events-none absolute left-12 z-40 whitespace-nowrap rounded-full bg-solid px-2.5 py-1 text-xs text-on-solid opacity-0 transition group-hover:opacity-100">
@@ -72,7 +72,7 @@ export function TabBar({ items }) {
             <Link
               key={it.href}
               href={it.href}
-              className={`relative flex flex-1 flex-col items-center gap-0.5 rounded-full py-2 transition ${active ? "bg-solid text-on-solid" : "text-muted active:bg-panel-2"}`}
+              className={`relative flex flex-1 flex-col items-center gap-0.5 rounded-full py-2 transition ${active ? "solid" : "text-muted active:bg-panel-2"}`}
             >
               <span className="relative">
                 <Icon name={it.icon} size={19} />

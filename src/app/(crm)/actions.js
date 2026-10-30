@@ -131,6 +131,44 @@ export async function sendTestPush() {
   return { ok: true };
 }
 
+const FEEDBACK_KINDS = ["problem", "idea", "general"];
+const FEEDBACK_STATUSES = ["new", "seen", "done"];
+
+/** A note about the CRM from anyone except an admin. Admins get a phone notification. */
+export async function submitFeedback({ mood, kind, message, page } = {}) {
+  const me = await requireMember();
+  if (me.role === "admin") return { ok: false, error: "Admins read feedback rather than send it." };
+  const text = str(message, 4000);
+  if (text.length < 3) return { ok: false, error: "Write a few words first." };
+  const row = {
+    member_id: me.id,
+    mood: [1, 2, 3, 4, 5].includes(Number(mood)) ? Number(mood) : null,
+    kind: FEEDBACK_KINDS.includes(kind) ? kind : "general",
+    message: text,
+    page: str(page, 200),
+  };
+  const { error } = await db().from("feedback").insert(row);
+  if (error) return { ok: false, error: error.message };
+  after(async () => {
+    const { data: admins } = await db().from("members").select("id").eq("role", "admin").eq("active", true);
+    const label = { problem: "A problem", idea: "An idea", general: "Feedback" }[row.kind];
+    await pushTo((admins || []).map((a) => a.id), { title: `${label} from ${me.name}`, body: text.slice(0, 140), url: "/feedback", tag: "feedback" });
+  });
+  revalidatePath("/feedback");
+  return { ok: true };
+}
+
+/** Admin: mark a note as seen / done (or back to new). */
+export async function setFeedbackStatus(id, status) {
+  await requireMember(["admin"]);
+  if (!isUuid(id) || !FEEDBACK_STATUSES.includes(status)) return { ok: false, error: "Invalid request." };
+  const { error } = await db().from("feedback").update({ status }).eq("id", id);
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/feedback");
+  revalidatePath("/", "layout");
+  return { ok: true };
+}
+
 /** Add a lead by hand (calls, referrals, events…). */
 export async function createLead(_prev, formData) {
   const me = await requireMember();

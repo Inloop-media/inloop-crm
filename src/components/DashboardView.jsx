@@ -44,8 +44,11 @@ function AttentionCards({ items }) {
     <ul className="flex flex-col gap-3">
       {items.map((it) => (
         <li key={it.key}>
-          <Link href={it.href} className={`card-hover block rounded-[24px] p-5 tint-${it.tint}`}>
-            <div className="text-[17px] font-medium leading-snug">{it.title}</div>
+          <Link href={it.href} className={`card-hover group relative block overflow-hidden rounded-[24px] p-5 tint-${it.tint}`}>
+            <span className="absolute right-4 top-4 grid h-8 w-8 place-items-center rounded-full bg-white/60 text-ink/60 backdrop-blur transition duration-300 group-hover:rotate-[-45deg] group-hover:bg-white group-hover:text-ink dark:bg-white/10">
+              <Icon name="arrow" size={14} />
+            </span>
+            <div className="pr-10 text-[17px] font-medium leading-snug">{it.title}</div>
             <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-ink/60">{it.sub}</p>
             <div className="mt-5 flex items-center gap-2.5">
               <span className="icon-tile h-8 w-8 rounded-lg">
@@ -53,8 +56,8 @@ function AttentionCards({ items }) {
               </span>
               <span className="text-xs font-medium text-ink/70">{it.code}</span>
               {it.person && (
-                <span className="ml-auto">
-                  <Avatar name={it.person} size={30} />
+                <span className="ml-auto rounded-full p-0.5 ring-1 ring-white/70">
+                  <Avatar name={it.person} size={28} />
                 </span>
               )}
             </div>
@@ -83,8 +86,8 @@ function ProposalProgress({ proposals, hrefFor }) {
               <div className="min-w-0 flex-1">
                 <div className="truncate text-sm font-medium">{brandOf(p.lead)}</div>
                 <div className="mt-0.5 truncate text-[11px] text-muted">{info.label}</div>
-                <span className="mt-2 block h-1 overflow-hidden rounded-full bg-panel-3">
-                  <span className={`block h-full rounded-full ${info.error ? "bg-rose-400" : "bg-brand"}`} style={{ width: `${Math.max(6, pctDone)}%` }} />
+                <span className="mt-2 block h-1.5 overflow-hidden rounded-full bg-panel-2 shadow-[inset_0_1px_1px_rgb(23_22_29/0.06)]">
+                  <span className={info.error ? "block h-full rounded-full bg-rose-400" : "bar-fill"} style={{ width: `${Math.max(6, pctDone)}%` }} />
                 </span>
               </div>
               <span className="w-14 text-right text-2xl font-medium tracking-[-0.02em]">{pctDone}%</span>
@@ -135,8 +138,8 @@ function MeetingAgenda({ meetings, now }) {
         const kind = MEETING_KINDS[m.kind];
         return (
           <li key={m.id}>
-            <Link href={`/leads/${m.lead.id}`} className="flex items-center gap-3 rounded-2xl bg-panel-2 px-3 py-2.5 transition hover:bg-panel-3">
-              <span className="w-[76px] shrink-0 rounded-xl bg-panel px-2 py-1.5 text-center leading-tight">
+            <Link href={`/leads/${m.lead.id}`} className="flex items-center gap-3 rounded-2xl bg-panel-2 px-3 py-2.5 transition duration-200 hover:-translate-y-0.5 hover:bg-panel-3">
+              <span className="w-[76px] shrink-0 rounded-xl bg-panel px-2 py-1.5 text-center leading-tight shadow-[0_1px_2px_rgb(23_22_29/0.06),0_4px_10px_-6px_rgb(90_70_170/0.25)]">
                 <span className="block text-[10px] text-muted">{day}</span>
                 <span className="block whitespace-nowrap text-xs font-medium tabular-nums">{timeOnly.format(new Date(m.starts_at))}</span>
               </span>
@@ -148,7 +151,7 @@ function MeetingAgenda({ meetings, now }) {
                 </div>
               </div>
               {m.meet_link && (
-                <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-solid text-on-solid">
+                <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full solid">
                   <Icon name="video" size={13} />
                 </span>
               )}
@@ -204,11 +207,14 @@ function PipelineBars({ leads }) {
             className="-mx-2 grid grid-cols-[minmax(0,150px)_1fr_28px] items-center gap-3 rounded-xl px-2 py-1.5 transition hover:bg-panel-2"
           >
             <span className="flex min-w-0 items-center gap-2 text-xs">
-              <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: s.color }} />
+              <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: s.color, boxShadow: `0 0 0 3px color-mix(in srgb, ${s.color} 20%, transparent)` }} />
               <span className="truncate">{s.name}</span>
             </span>
-            <span className="h-2 overflow-hidden rounded-full bg-panel-2">
-              <span className="block h-full rounded-full" style={{ width: by[s.name] ? `${Math.max(4, (by[s.name] / max) * 100)}%` : 0, background: s.color }} />
+            <span className="h-2 overflow-hidden rounded-full bg-panel-2 shadow-[inset_0_1px_1px_rgb(23_22_29/0.06)]">
+              <span
+                className="block h-full rounded-full"
+                style={{ width: by[s.name] ? `${Math.max(4, (by[s.name] / max) * 100)}%` : 0, background: `linear-gradient(90deg, color-mix(in srgb, ${s.color} 55%, transparent), ${s.color})` }}
+              />
             </span>
             <span className="text-right text-sm font-medium tabular-nums">{by[s.name]}</span>
           </Link>
@@ -374,7 +380,7 @@ export default function DashboardView({ me, data }) {
           </p>
           <h1 className="page-title mt-1">Dashboard</h1>
         </div>
-        <div className="grid grid-cols-2 gap-x-8 gap-y-5 sm:flex sm:gap-10">
+        <div className="grid grid-cols-2 gap-x-8 gap-y-5 sm:flex sm:gap-0 sm:divide-x sm:divide-ink/[0.08] sm:[&>*]:px-8 sm:[&>*:first-child]:pl-0 sm:[&>*:last-child]:pr-0">
           {staff || sales ? (
             <>
               <Stat label={staff ? "New leads · 7 days" : "New to me · 7 days"} value={thisWeek} delta={pct(thisWeek, lastWeek)} />
@@ -409,8 +415,8 @@ export default function DashboardView({ me, data }) {
           {canSeeLeads(me) && (
             <form action="/leads" className="relative mb-4">
               <input type="hidden" name="view" value="list" />
-              <input name="q" placeholder="Search leads" className="field rounded-full py-3 pr-14" />
-              <button aria-label="Search" className="absolute right-1.5 top-1/2 grid h-9 w-9 -translate-y-1/2 place-items-center rounded-full bg-solid text-on-solid">
+              <input name="q" placeholder="Search leads" className="field rounded-full py-3 pr-14 shadow-[inset_0_1px_2px_rgb(23_22_29/0.05)]" />
+              <button aria-label="Search" className="absolute right-1.5 top-1/2 grid h-9 w-9 -translate-y-1/2 place-items-center rounded-full solid">
                 <Icon name="search" size={15} />
               </button>
             </form>

@@ -20,7 +20,7 @@ export function Avatar({ name, size = 28 }) {
   return (
     <span
       title={name}
-      className="grid shrink-0 place-items-center rounded-full font-semibold ring-2 ring-panel"
+      className="grid shrink-0 place-items-center rounded-full font-semibold shadow-[inset_0_1px_0_rgb(255_255_255/0.35),0_2px_6px_-2px_rgb(23_22_29/0.15)] ring-2 ring-panel"
       style={{ width: size, height: size, fontSize: size * 0.38, background: `${c}26`, color: `color-mix(in oklab, ${c} 70%, var(--color-ink))` }}
     >
       {initials(name)}
@@ -34,7 +34,7 @@ export function Panel({ title, sub, action, children, className = "", bodyClass 
       {(title || action) && (
         <header className="mb-5 flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <h2 className="text-lg font-medium tracking-[-0.01em] sm:text-xl">{title}</h2>
+            <h2 className="text-lg font-medium tracking-[-0.015em] sm:text-[21px]">{title}</h2>
             {sub && <p className="mt-0.5 text-xs text-muted">{sub}</p>}
           </div>
           {action}
@@ -62,7 +62,7 @@ export function Stat({ label, value, sub, delta, className = "" }) {
       <div className="mt-1 flex items-center gap-2">
         <span className="text-[30px] font-medium leading-none tracking-[-0.02em] sm:text-[36px]">{value}</span>
         {delta != null && (
-          <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-white ${delta >= 0 ? "bg-emerald-500" : "bg-rose-500"}`}>
+          <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-white shadow-[inset_0_1px_0_rgb(255_255_255/0.3)] ${delta >= 0 ? "bg-emerald-500 shadow-emerald-500/40" : "bg-rose-500 shadow-rose-500/40"}`}>
             {delta >= 0 ? "+" : "−"}
             {Math.abs(delta)}%
           </span>
