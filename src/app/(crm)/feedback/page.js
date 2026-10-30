@@ -7,7 +7,6 @@ import { ago } from "@/lib/format";
 
 export const metadata = { title: "Feedback" };
 
-const MOOD = { 1: "😣", 2: "😕", 3: "😐", 4: "🙂", 5: "😍" };
 const KIND = {
   problem: { label: "Problem", tint: "tint-pink" },
   idea: { label: "Idea", tint: "tint-blue" },
@@ -24,14 +23,12 @@ export default async function FeedbackPage({ searchParams }) {
   const { show = "open" } = await searchParams;
   const { data } = await db()
     .from("feedback")
-    .select("id, mood, kind, message, page, status, created_at, member:members(name)")
+    .select("id, kind, message, page, status, created_at, member:members(name)")
     .order("created_at", { ascending: false })
     .limit(300);
   const all = data || [];
   const items = show === "all" ? all : show === "done" ? all.filter((f) => f.status === "done") : all.filter((f) => f.status !== "done");
 
-  const moods = all.filter((f) => f.mood).map((f) => f.mood);
-  const avgMood = moods.length ? moods.reduce((a, b) => a + b, 0) / moods.length : null;
   const count = (k) => all.filter((f) => f.kind === k && f.status !== "done").length;
 
   return (
@@ -42,18 +39,6 @@ export default async function FeedbackPage({ searchParams }) {
           <h1 className="page-title mt-1">Feedback</h1>
         </div>
         <div className="flex gap-8">
-          <div>
-            <div className="text-xs text-muted">Mood</div>
-            <div className="mt-1 text-[30px] font-medium leading-none">
-              {avgMood ? (
-                <>
-                  {MOOD[Math.round(avgMood)]} <span className="text-xl text-muted">{avgMood.toFixed(1)}</span>
-                </>
-              ) : (
-                "—"
-              )}
-            </div>
-          </div>
           <div>
             <div className="text-xs text-muted">Open problems</div>
             <div className="mt-1 text-[30px] font-medium leading-none">{count("problem")}</div>
@@ -91,11 +76,6 @@ export default async function FeedbackPage({ searchParams }) {
                       {f.page ? ` · on ${f.page}` : ""}
                     </div>
                   </div>
-                  {f.mood && (
-                    <span className="text-2xl" title={`Mood ${f.mood}/5`}>
-                      {MOOD[f.mood]}
-                    </span>
-                  )}
                 </div>
                 <div className={`mt-4 flex-1 rounded-2xl p-4 ${k.tint}`}>
                   <div className="mb-1.5 text-[11px] font-medium uppercase tracking-wider text-ink/60">{k.label}</div>

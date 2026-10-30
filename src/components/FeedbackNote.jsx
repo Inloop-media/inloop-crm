@@ -5,13 +5,6 @@ import { usePathname } from "next/navigation";
 import Icon from "@/components/Icon";
 import { submitFeedback } from "@/app/(crm)/actions";
 
-const MOODS = [
-  { v: 1, e: "😣", label: "Frustrated" },
-  { v: 2, e: "😕", label: "Not great" },
-  { v: 3, e: "😐", label: "Okay" },
-  { v: 4, e: "🙂", label: "Good" },
-  { v: 5, e: "😍", label: "Love it" },
-];
 const KINDS = [
   { id: "problem", label: "Problem" },
   { id: "idea", label: "Idea" },
@@ -22,7 +15,6 @@ const KINDS = [
 export default function FeedbackNote() {
   const path = usePathname();
   const [open, setOpen] = useState(false);
-  const [mood, setMood] = useState(null);
   const [kind, setKind] = useState("problem");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
@@ -32,11 +24,10 @@ export default function FeedbackNote() {
   const send = () =>
     start(async () => {
       setError("");
-      const res = await submitFeedback({ mood, kind, message, page: path });
+      const res = await submitFeedback({ kind, message, page: path });
       if (!res.ok) return setError(res.error || "Couldn't send that.");
       setSent(true);
       setMessage("");
-      setMood(null);
       setTimeout(() => {
         setOpen(false);
         setSent(false);
@@ -70,23 +61,6 @@ export default function FeedbackNote() {
               </div>
             ) : (
               <>
-                <div className="mt-4 flex justify-between" role="radiogroup" aria-label="How do you feel">
-                  {MOODS.map((m) => (
-                    <button
-                      key={m.v}
-                      role="radio"
-                      aria-checked={mood === m.v}
-                      title={m.label}
-                      onClick={() => setMood(mood === m.v ? null : m.v)}
-                      className={`grid h-11 w-11 place-items-center rounded-2xl text-[22px] transition duration-200 ${
-                        mood === m.v ? "scale-110 bg-white shadow-md dark:bg-white/20" : mood ? "opacity-40 grayscale hover:opacity-80" : "hover:scale-110 hover:bg-white/50 dark:hover:bg-white/10"
-                      }`}
-                    >
-                      {m.e}
-                    </button>
-                  ))}
-                </div>
-
                 <div className="mt-4 flex gap-1.5">
                   {KINDS.map((k) => (
                     <button
