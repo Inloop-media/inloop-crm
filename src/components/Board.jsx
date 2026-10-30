@@ -15,6 +15,8 @@ import { updateLead } from "@/app/(crm)/actions";
 export default function Board({ leads: initial, owners, allowed, columns }) {
   const stages = columns ? STATUSES.filter((s) => columns.includes(s.name)) : STATUSES;
   const last = stages.at(-1)?.name;
+  // A short board (a sales executive's) fits the width; the full board scrolls sideways
+  const fit = stages.length <= 6;
   const [leads, setLeads] = useState(initial);
   const [over, setOver] = useState(null);
   const [error, setError] = useState("");
@@ -49,7 +51,7 @@ export default function Board({ leads: initial, owners, allowed, columns }) {
   return (
     <div>
       {error && <p className="mb-3 text-sm text-rose-400">{error}</p>}
-      <div className="-mx-4 flex snap-x snap-mandatory scroll-px-4 gap-3 overflow-x-auto px-4 pb-4 md:-mx-8 md:snap-none md:gap-2.5 md:px-8">
+      <div className="-mx-4 flex snap-x snap-mandatory scroll-px-4 items-start gap-4 overflow-x-auto px-4 pb-4 md:-mx-6 md:px-6">
         {stages.map((s) => {
           const items = leads.filter((l) => l.status === s.name || (columns && s.name === last && !columns.includes(l.status)));
           const drop = {
@@ -65,29 +67,11 @@ export default function Board({ leads: initial, owners, allowed, columns }) {
             },
           };
 
-          // Empty stages fold into a slim rail so the board fits without scrolling sideways
-          if (!items.length) {
-            return (
-              <section
-                key={s.name}
-                {...drop}
-                title={`${s.name} — drop a lead here`}
-                className={`hidden h-[calc(100svh-290px)] min-h-[260px] w-11 shrink-0 flex-col items-center gap-3 rounded-[22px] py-4 transition md:flex ${
-                  over === s.name ? "w-[200px] bg-brand/10 ring-2 ring-brand/40" : "bg-panel/40 ring-1 ring-inset ring-line"
-                }`}
-              >
-                <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: s.color }} />
-                <span className="text-[11px] tabular-nums text-faint">0</span>
-                <span className="whitespace-nowrap text-xs text-muted [writing-mode:vertical-rl]">{s.name}</span>
-              </section>
-            );
-          }
-
           return (
             <section
               key={s.name}
               {...drop}
-              className={`flex max-h-[calc(100svh-330px)] w-[84vw] shrink-0 snap-start flex-col rounded-[24px] transition md:max-h-[calc(100svh-290px)] md:w-auto md:min-w-[220px] md:max-w-[300px] md:flex-1 md:shrink md:basis-[260px] ${over === s.name ? "bg-brand/10 ring-2 ring-brand/40" : "bg-panel/50 ring-1 ring-inset ring-line/70"}`}
+              className={`flex max-h-[calc(100svh-300px)] w-[82vw] shrink-0 snap-start flex-col rounded-[24px] transition ${fit ? "md:w-auto md:min-w-0 md:flex-1 md:shrink" : "sm:w-[290px]"} ${over === s.name ? "bg-brand/10 ring-2 ring-brand/40" : "bg-panel/50 ring-1 ring-inset ring-line/70"}`}
             >
               <header className="flex items-center gap-2 px-4 pb-3 pt-4">
                 <span className="h-2 w-2 rounded-full" style={{ background: s.color, boxShadow: `0 0 0 3px color-mix(in srgb, ${s.color} 22%, transparent)` }} />
@@ -95,6 +79,11 @@ export default function Board({ leads: initial, owners, allowed, columns }) {
                 <span className="ml-auto rounded-full bg-panel px-2 py-0.5 text-[11px] font-medium tabular-nums text-muted shadow-[var(--card-shadow)]">{items.length}</span>
               </header>
               <div className="flex flex-col gap-2.5 overflow-y-auto p-2.5 pt-0">
+                {!items.length && (
+                  <div className={`grid place-items-center rounded-[18px] border border-dashed px-4 py-7 text-center text-xs transition ${over === s.name ? "border-brand/60 text-brand" : "border-line-strong text-faint"}`}>
+                    {over === s.name ? "Drop to move here" : "No leads"}
+                  </div>
+                )}
                 {items.map((l) => (
                   <Link
                     key={l.id}
