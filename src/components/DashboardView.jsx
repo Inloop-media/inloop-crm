@@ -87,7 +87,7 @@ function ProposalProgress({ proposals, hrefFor }) {
                   <span className={`block h-full rounded-full ${info.error ? "bg-rose-400" : "bg-brand"}`} style={{ width: `${Math.max(6, pctDone)}%` }} />
                 </span>
               </div>
-              <span className="w-14 text-right text-2xl font-medium tabular-nums tracking-[-0.02em]">{pctDone}%</span>
+              <span className="w-14 text-right text-2xl font-medium tracking-[-0.02em]">{pctDone}%</span>
             </Link>
           </li>
         );
@@ -97,7 +97,7 @@ function ProposalProgress({ proposals, hrefFor }) {
 }
 
 /** Sales team: avatar, name, the small numbers, and leads owned as the big number. */
-function TeamScores({ team }) {
+function TeamScores({ team, showWon }) {
   if (!team.length) return <Empty icon="team">Add people to the Sales Executives group under Team.</Empty>;
   return (
     <ul className="flex flex-col gap-1">
@@ -110,10 +110,10 @@ function TeamScores({ team }) {
               <div className="mt-0.5 flex gap-2.5 text-[11px] text-muted">
                 <span>{m.open} open</span>
                 <span>{m.calls} calls</span>
-                <span className="text-emerald-400">{m.won} won</span>
+                {showWon && <span className="text-emerald-400">{m.won} won</span>}
               </div>
             </div>
-            <span className="text-2xl font-medium tabular-nums tracking-[-0.02em]" title="Leads assigned">
+            <span className="text-2xl font-medium tracking-[-0.02em]" title="Leads assigned">
               {m.assigned}
             </span>
           </Link>
@@ -282,7 +282,7 @@ export default function DashboardView({ me, data }) {
             won: mine.filter((l) => l.status === "Won").length,
           };
         })
-        .sort((a, b) => b.won - a.won || b.assigned - a.assigned)
+        .sort((a, b) => (admin ? b.won - a.won : 0) || b.assigned - a.assigned)
     : [];
 
   const myProposals = proposals.filter((p) => p.strategist_id === me.id);
@@ -321,8 +321,8 @@ export default function DashboardView({ me, data }) {
     );
     bottomRight = [
       proposalPanel,
-      <Panel key="team" title="Sales team" sub="Leads owned, calls (90 days) and wins" action={<CornerLink href="/team" icon="team" label="Team" />}>
-        <TeamScores team={team} />
+      <Panel key="team" title="Sales team" sub={admin ? "Leads owned, calls (90 days) and wins" : "Leads owned and calls (90 days)"} action={<CornerLink href="/team" icon="team" label="Team" />}>
+        <TeamScores team={team} showWon={admin} />
       </Panel>,
     ];
     lowerRow = admin
@@ -380,7 +380,7 @@ export default function DashboardView({ me, data }) {
               <Stat label={staff ? "New leads · 7 days" : "New to me · 7 days"} value={thisWeek} delta={pct(thisWeek, lastWeek)} />
               <Stat label={staff ? "Open pipeline" : "My open leads"} value={open.length} />
               <Stat label="Meetings · 7 days" value={meetingsWeek.length} />
-              <Stat label="Won" value={won.length} sub={winRate == null ? null : `${winRate}% win rate`} />
+              {admin && <Stat label="Won" value={won.length} sub={winRate == null ? null : `${winRate}% win rate`} />}
             </>
           ) : (
             <>

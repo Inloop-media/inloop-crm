@@ -60,7 +60,7 @@ export function Stat({ label, value, sub, delta, className = "" }) {
     <div className={`min-w-0 ${className}`}>
       <div className="truncate text-xs text-muted">{label}</div>
       <div className="mt-1 flex items-center gap-2">
-        <span className="text-[30px] font-medium leading-none tabular-nums tracking-[-0.02em] sm:text-[36px]">{value}</span>
+        <span className="text-[30px] font-medium leading-none tracking-[-0.02em] sm:text-[36px]">{value}</span>
         {delta != null && (
           <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-white ${delta >= 0 ? "bg-emerald-500" : "bg-rose-500"}`}>
             {delta >= 0 ? "+" : "−"}
