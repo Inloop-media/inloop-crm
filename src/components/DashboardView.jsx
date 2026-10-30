@@ -4,7 +4,7 @@ import LeadsTrend from "@/components/LeadsTrend";
 import Icon from "@/components/Icon";
 import StatusBadge from "@/components/StatusBadge";
 import { describe } from "@/components/Timeline";
-import { Avatar, CornerLink, Empty, Panel, Stat } from "@/components/ui";
+import { Avatar, CornerLink, Empty, Panel, StatStrip } from "@/components/ui";
 import { canCreateLead, canSeeAllLeads, canSeeLeads, isAdmin, isStrategist } from "@/lib/permissions";
 import { CLOSED_STATUSES, MEETING_KINDS, PROPOSAL_STAGES, STATUSES } from "@/lib/constants";
 import { ago, dayKey, fullName } from "@/lib/format";
@@ -372,33 +372,35 @@ export default function DashboardView({ me, data }) {
 
   return (
     <div className="page">
-      {/* Title, then the headline numbers as a row of cards */}
-      <header className="rise">
-        <p className="text-sm text-muted">
-          {greeting()}, {firstName} · {weekday.format(new Date(now))}
-        </p>
-        <h1 className="page-title mt-1">Dashboard</h1>
+      {/* Title + headline numbers in one card */}
+      <header className="rise flex flex-wrap items-end justify-between gap-x-10 gap-y-5">
+        <div className="min-w-0">
+          <p className="text-sm text-muted">
+            {greeting()}, {firstName} · {weekday.format(new Date(now))}
+          </p>
+          <h1 className="page-title mt-1">Dashboard</h1>
+        </div>
+        <StatStrip
+          className="w-full sm:w-auto"
+          items={
+            staff || sales
+              ? [
+                  { label: staff ? "New leads · 7 days" : "New to me · 7 days", value: thisWeek, delta: pct(thisWeek, lastWeek), icon: "sparkle", tint: "lavender" },
+                  { label: staff ? "Open pipeline" : "My open leads", value: open.length, icon: "leads", tint: "blue" },
+                  { label: "Meetings · 7 days", value: meetingsWeek.length, icon: "calendar", tint: "amber" },
+                  ...(admin ? [{ label: winRate == null ? "Won" : `Won · ${winRate}%`, value: won.length, icon: "check", tint: "green" }] : []),
+                ]
+              : [
+                  { label: "Open briefs", value: pool.length, icon: "brief", tint: "lavender" },
+                  { label: "My briefs", value: myProposals.filter((p) => p.stage !== "done").length, icon: "upload", tint: "blue" },
+                  { label: "With the bots", value: myProposals.filter((p) => /queued|running|awaiting/.test(p.stage)).length, icon: "sparkle", tint: "amber" },
+                  { label: "Delivered", value: myProposals.filter((p) => p.stage === "done").length, icon: "check", tint: "green" },
+                ]
+          }
+        />
       </header>
 
-      <div className={`rise mt-6 grid grid-cols-2 gap-3 sm:gap-4 [animation-delay:40ms] ${staff || sales ? (admin ? "lg:grid-cols-4" : "lg:grid-cols-3") : "lg:grid-cols-4"}`}>
-        {staff || sales ? (
-          <>
-            <Stat label={staff ? "New leads · 7 days" : "New to me · 7 days"} value={thisWeek} delta={pct(thisWeek, lastWeek)} sub={`${lastWeek} the week before`} icon="sparkle" tint="lavender" />
-            <Stat label={staff ? "Open pipeline" : "My open leads"} value={open.length} sub={`${leads.length} in total`} icon="leads" tint="blue" />
-            <Stat label="Meetings · next 7 days" value={meetingsWeek.length} sub={`${upcoming.length} upcoming`} icon="calendar" tint="amber" />
-            {admin && <Stat label="Won" value={won.length} sub={winRate == null ? "No closed deals yet" : `${winRate}% win rate`} icon="check" tint="green" />}
-          </>
-        ) : (
-          <>
-            <Stat label="Open briefs" value={pool.length} sub="Waiting to be picked up" icon="brief" tint="lavender" />
-            <Stat label="My briefs" value={myProposals.filter((p) => p.stage !== "done").length} sub="In progress" icon="upload" tint="blue" />
-            <Stat label="With the bots" value={myProposals.filter((p) => /queued|running|awaiting/.test(p.stage)).length} sub="CRL / commercials / deck" icon="sparkle" tint="amber" />
-            <Stat label="Delivered" value={myProposals.filter((p) => p.stage === "done").length} sub="CRL & deck ready" icon="check" tint="green" />
-          </>
-        )}
-      </div>
-
-      <div className="rise mt-5 grid gap-5 [animation-delay:80ms] lg:grid-cols-[minmax(300px,1fr)_2.3fr]">
+      <div className="rise mt-6 grid gap-5 [animation-delay:80ms] lg:grid-cols-[minmax(300px,1fr)_2.3fr]">
         {/* Left: what needs doing */}
         <Panel
           title="Needs your attention"

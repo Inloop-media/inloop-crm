@@ -76,27 +76,28 @@ export function CornerLink({ href, icon = "expand", label }) {
   );
 }
 
-/** A headline number as a small card: tinted icon, change badge, label, value, one line of context. */
-export function Stat({ label, value, sub, delta, icon = "chart", tint = "lavender", className = "" }) {
+/** Headline numbers side by side in one card, split by hairlines: icon, label, value, change badge. */
+export function StatStrip({ items, className = "" }) {
   return (
-    <div className={`card card-hover flex min-w-0 flex-col p-4 sm:p-5 ${className}`}>
-      <div className="flex items-start justify-between gap-2">
-        <span className={`tint-${tint} grid h-10 w-10 shrink-0 place-items-center rounded-xl text-ink`}>
-          <Icon name={icon} size={17} />
-        </span>
-        {delta != null && (
-          <span
-            className={`rounded-full px-2 py-0.5 text-[11px] font-semibold tabular-nums ${
-              delta >= 0 ? "bg-emerald-400/15 text-emerald-400" : "bg-rose-400/15 text-rose-400"
-            }`}
-          >
-            {delta >= 0 ? "↑" : "↓"} {Math.abs(delta)}%
+    <div className={`card grid grid-cols-2 gap-y-4 p-4 sm:flex sm:gap-0 sm:divide-x sm:divide-line sm:px-2 sm:py-4 ${className}`}>
+      {items.map((it) => (
+        <div key={it.label} className="flex min-w-0 items-center gap-3 px-2 sm:px-5">
+          <span className={`tint-${it.tint || "lavender"} grid h-10 w-10 shrink-0 place-items-center rounded-xl text-ink`}>
+            <Icon name={it.icon || "chart"} size={16} />
           </span>
-        )}
-      </div>
-      <div className="mt-4 truncate text-xs text-muted">{label}</div>
-      <div className="mt-1 text-[32px] font-medium leading-none tracking-[-0.02em] sm:text-[36px]">{value}</div>
-      {sub && <div className="mt-2 truncate text-[11px] text-faint">{sub}</div>}
+          <div className="min-w-0">
+            <div className="truncate text-xs text-muted">{it.label}</div>
+            <div className="mt-0.5 flex items-center gap-2">
+              <span className="text-[26px] font-medium leading-none tracking-[-0.02em]">{it.value}</span>
+              {it.delta != null && (
+                <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-semibold tabular-nums ${it.delta >= 0 ? "bg-emerald-400/15 text-emerald-400" : "bg-rose-400/15 text-rose-400"}`}>
+                  {it.delta >= 0 ? "↑" : "↓"} {Math.abs(it.delta)}%
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+      ))}
     </div>
   );
 }

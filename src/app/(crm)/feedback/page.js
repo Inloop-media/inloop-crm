@@ -1,6 +1,6 @@
 import Link from "next/link";
 import FeedbackStatus from "@/components/FeedbackStatus";
-import { Avatar, Empty, PageHeader, Stat } from "@/components/ui";
+import { Avatar, Empty, PageHeader, StatStrip } from "@/components/ui";
 import { requireMember } from "@/lib/auth";
 import { db } from "@/lib/supabase/server";
 import { ago } from "@/lib/format";
@@ -37,10 +37,12 @@ export default async function FeedbackPage({ searchParams }) {
         kicker="What the team says about the CRM"
         title="Feedback"
         actions={
-          <div className="grid grid-cols-2 gap-3">
-            <Stat label="Open problems" value={count("problem")} icon="alert" tint="pink" className="min-w-[150px]" />
-            <Stat label="Open ideas" value={count("idea")} icon="sparkle" tint="blue" className="min-w-[150px]" />
-          </div>
+          <StatStrip
+            items={[
+              { label: "Open problems", value: count("problem"), icon: "alert", tint: "pink" },
+              { label: "Open ideas", value: count("idea"), icon: "sparkle", tint: "blue" },
+            ]}
+          />
         }
       />
 
