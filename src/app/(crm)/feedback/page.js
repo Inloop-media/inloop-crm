@@ -37,9 +37,9 @@ export default async function FeedbackPage({ searchParams }) {
         kicker="What the team says about the CRM"
         title="Feedback"
         actions={
-          <div className="flex gap-8">
-            <Stat label="Open problems" value={count("problem")} />
-            <Stat label="Open ideas" value={count("idea")} />
+          <div className="grid grid-cols-2 gap-3">
+            <Stat label="Open problems" value={count("problem")} icon="alert" tint="pink" className="min-w-[150px]" />
+            <Stat label="Open ideas" value={count("idea")} icon="sparkle" tint="blue" className="min-w-[150px]" />
           </div>
         }
       />

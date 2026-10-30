@@ -372,34 +372,33 @@ export default function DashboardView({ me, data }) {
 
   return (
     <div className="page">
-      {/* Title + headline numbers */}
-      <header className="rise flex flex-wrap items-end justify-between gap-x-10 gap-y-6">
-        <div className="min-w-0">
-          <p className="text-sm text-muted">
-            {greeting()}, {firstName} · {weekday.format(new Date(now))}
-          </p>
-          <h1 className="page-title mt-1">Dashboard</h1>
-        </div>
-        <div className="grid grid-cols-2 gap-x-8 gap-y-5 sm:flex sm:gap-0 sm:divide-x sm:divide-ink/[0.08] sm:[&>*]:px-8 sm:[&>*:first-child]:pl-0 sm:[&>*:last-child]:pr-0">
-          {staff || sales ? (
-            <>
-              <Stat label={staff ? "New leads · 7 days" : "New to me · 7 days"} value={thisWeek} delta={pct(thisWeek, lastWeek)} />
-              <Stat label={staff ? "Open pipeline" : "My open leads"} value={open.length} />
-              <Stat label="Meetings · 7 days" value={meetingsWeek.length} />
-              {admin && <Stat label="Won" value={won.length} sub={winRate == null ? null : `${winRate}% win rate`} />}
-            </>
-          ) : (
-            <>
-              <Stat label="Open briefs" value={pool.length} />
-              <Stat label="My briefs" value={myProposals.filter((p) => p.stage !== "done").length} />
-              <Stat label="With the bots" value={myProposals.filter((p) => /queued|running|awaiting/.test(p.stage)).length} />
-              <Stat label="Delivered" value={myProposals.filter((p) => p.stage === "done").length} />
-            </>
-          )}
-        </div>
+      {/* Title, then the headline numbers as a row of cards */}
+      <header className="rise">
+        <p className="text-sm text-muted">
+          {greeting()}, {firstName} · {weekday.format(new Date(now))}
+        </p>
+        <h1 className="page-title mt-1">Dashboard</h1>
       </header>
 
-      <div className="rise mt-6 grid gap-5 [animation-delay:80ms] lg:grid-cols-[minmax(300px,1fr)_2.3fr]">
+      <div className={`rise mt-6 grid grid-cols-2 gap-3 sm:gap-4 [animation-delay:40ms] ${staff || sales ? (admin ? "lg:grid-cols-4" : "lg:grid-cols-3") : "lg:grid-cols-4"}`}>
+        {staff || sales ? (
+          <>
+            <Stat label={staff ? "New leads · 7 days" : "New to me · 7 days"} value={thisWeek} delta={pct(thisWeek, lastWeek)} sub={`${lastWeek} the week before`} icon="sparkle" tint="lavender" />
+            <Stat label={staff ? "Open pipeline" : "My open leads"} value={open.length} sub={`${leads.length} in total`} icon="leads" tint="blue" />
+            <Stat label="Meetings · next 7 days" value={meetingsWeek.length} sub={`${upcoming.length} upcoming`} icon="calendar" tint="amber" />
+            {admin && <Stat label="Won" value={won.length} sub={winRate == null ? "No closed deals yet" : `${winRate}% win rate`} icon="check" tint="green" />}
+          </>
+        ) : (
+          <>
+            <Stat label="Open briefs" value={pool.length} sub="Waiting to be picked up" icon="brief" tint="lavender" />
+            <Stat label="My briefs" value={myProposals.filter((p) => p.stage !== "done").length} sub="In progress" icon="upload" tint="blue" />
+            <Stat label="With the bots" value={myProposals.filter((p) => /queued|running|awaiting/.test(p.stage)).length} sub="CRL / commercials / deck" icon="sparkle" tint="amber" />
+            <Stat label="Delivered" value={myProposals.filter((p) => p.stage === "done").length} sub="CRL & deck ready" icon="check" tint="green" />
+          </>
+        )}
+      </div>
+
+      <div className="rise mt-5 grid gap-5 [animation-delay:80ms] lg:grid-cols-[minmax(300px,1fr)_2.3fr]">
         {/* Left: what needs doing */}
         <Panel
           title="Needs your attention"
