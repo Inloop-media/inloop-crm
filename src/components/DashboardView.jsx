@@ -252,6 +252,8 @@ export default function DashboardView({ me, data }) {
   // Things that need someone to act, as pastel cards
   const actions = [];
   if (staff) {
+    for (const p of proposals.filter((p) => p.stage === "proposal_review"))
+      actions.push({ key: `r${p.id}`, href: `/leads/${p.lead.id}#proposal`, icon: "file", tint: "lavender", title: `Review the deck — ${brandOf(p.lead)}`, sub: `Version ${p.revision || 1} is ready. Approve it or ask for changes.`, code: p.lead.code, person: p.strategist?.name });
     for (const p of proposals.filter((p) => p.stage === "awaiting_commercials"))
       actions.push({ key: `c${p.id}`, href: `/leads/${p.lead.id}#proposal`, icon: "rupee", tint: "lavender", title: `Enter commercials — ${brandOf(p.lead)}`, sub: "The CRL is ready. The proposal bot waits for the commercials.", code: p.lead.code, person: p.strategist?.name });
     for (const p of proposals.filter((p) => PROPOSAL_STAGES[p.stage]?.error))

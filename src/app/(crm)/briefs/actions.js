@@ -7,6 +7,7 @@ import { addEvents } from "@/lib/leads";
 import { BUCKET, queueJob } from "@/lib/proposals";
 import { canEnterCommercials, canSeeProposal, canWorkOnProposal, isStrategist } from "@/lib/permissions";
 import { DOC_KINDS } from "@/lib/constants";
+import { announce } from "@/lib/updates";
 
 const MAX_FILE = 50 * 1024 * 1024;
 const str = (v, max = 5000) => String(v ?? "").trim().slice(0, max);
@@ -128,8 +129,50 @@ export async function saveCommercials(leadId, text) {
     commercials,
     commercials_by: me.id,
     commercials_at: new Date().toISOString(),
+    // A first build starts at version 1 with no feedback; a retry after a failed revision keeps both
+    ...(p.stage === "awaiting_commercials" ? { revision: 1, feedback: "" } : {}),
   });
   if (err) return { ok: false, error: err };
+  refresh(leadId);
+  return { ok: true };
+}
+
+/** Admin approves the deck the bot built → the proposal is ready. */
+export async function approveDeck(leadId) {
+  const me = await requireMember();
+  if (!canEnterCommercials(me)) return { ok: false, error: "Only admins can approve the deck." };
+  const p = await loadProposal(leadId);
+  if (!p || p.stage !== "proposal_review") return { ok: false, error: "There's no deck waiting for review." };
+  const now = new Date().toISOString();
+  await db().from("proposals").update({ stage: "done", done_at: now, updated_at: now }).eq("lead_id", leadId);
+  await addEvents(leadId, me.id, [{ type: "proposal_done" }]);
+  const { data: lead } = await db().from("leads").select("id, code, brand, first_name, last_name").eq("id", leadId).single();
+  await announce("proposal_ready", {
+    lead,
+    title: `Proposal ready — ${lead.brand || [lead.first_name, lead.last_name].filter(Boolean).join(" ")} (${lead.code})`,
+    body: `Approved by ${me.name}. The deck PDF is on the lead.`,
+  });
+  refresh(leadId);
+  return { ok: true };
+}
+
+/** Admin asks for changes → the bot rebuilds the deck as the next version with this feedback. */
+export async function requestDeckChanges(leadId, feedback, commercials) {
+  const me = await requireMember();
+  if (!canEnterCommercials(me)) return { ok: false, error: "Only admins can ask for changes." };
+  const p = await loadProposal(leadId);
+  if (!p || p.stage !== "proposal_review") return { ok: false, error: "There's no deck waiting for review." };
+  const text = str(feedback, 6000);
+  if (text.length < 3) return { ok: false, error: "Write what should change." };
+  const nextCommercials = str(commercials, 10000);
+  const changed = nextCommercials && nextCommercials !== p.commercials;
+  const err = await queueJob(leadId, "proposal", me.id, {
+    feedback: changed ? `${text}\n\n(The commercials were also updated — use the latest commercials in brief.md.)` : text,
+    revision: (p.revision || 1) + 1,
+    ...(changed ? { commercials: nextCommercials, commercials_by: me.id, commercials_at: new Date().toISOString() } : {}),
+  });
+  if (err) return { ok: false, error: err };
+  await addEvents(leadId, me.id, [{ type: "proposal_changes", data: { text, revision: (p.revision || 1) + 1 } }]);
   refresh(leadId);
   return { ok: true };
 }

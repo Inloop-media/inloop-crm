@@ -3,6 +3,7 @@ import { after } from "next/server";
 import { db } from "@/lib/supabase/server";
 import { addEvents } from "@/lib/leads";
 import { announce } from "@/lib/updates";
+import { pushTo, staffIds } from "@/lib/push";
 import { fullName } from "@/lib/format";
 
 // The proposal pipeline, shared by the server actions (people) and /api/worker/* (the Mac bots):
@@ -78,21 +79,19 @@ export async function completeJob(job, result) {
       body: "Next: the admin enters the commercials for the proposal deck.",
     });
   } else {
-    await db()
+    // The deck waits for an admin to approve it or ask for changes
+    const { data: p } = await db()
       .from("proposals")
-      .update({
-        stage: "done",
-        deck_url: String(result.deck_url || ""),
-        done_at: now,
-        updated_at: now,
-      })
-      .eq("lead_id", job.lead_id);
-    await addEvents(job.lead_id, null, [{ type: "proposal_done" }]);
-    await announce("proposal_ready", {
-      lead,
-      title: `Proposal ready — ${brandOf(lead)} (${lead.code})`,
-      url: String(result.deck_url || ""),
-      body: result.deck_url ? `Deck: ${result.deck_url}` : "",
+      .update({ stage: "proposal_review", deck_url: String(result.deck_url || ""), updated_at: now })
+      .eq("lead_id", job.lead_id)
+      .select("revision")
+      .single();
+    await addEvents(job.lead_id, null, [{ type: "proposal_review", data: { revision: p?.revision || 1 } }]);
+    await pushTo(await staffIds(), {
+      title: `Deck ready for review — ${brandOf(lead)} (${lead.code})`,
+      body: `Version ${p?.revision || 1}. Approve it or ask for changes.`,
+      url: `/leads/${lead.id}#proposal`,
+      tag: `proposal_review-${lead.id}`,
     });
   }
 }

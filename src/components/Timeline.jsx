@@ -35,6 +35,10 @@ export const describe = (e) => {
       return "Commercials in — proposal bot started";
     case "proposal_proposal_failed":
       return <>Proposal bot failed{e.data?.text ? <span className="mt-1 block text-rose-300/80">{e.data.text}</span> : null}</>;
+    case "proposal_review":
+      return <>Proposal deck v{e.data?.revision || 1} ready for review</>;
+    case "proposal_changes":
+      return <>Changes requested for v{e.data?.revision}{e.data?.text ? <span className="mt-1 block whitespace-pre-wrap text-ink/80">{e.data.text}</span> : null}</>;
     case "proposal_done":
       return <span className="text-emerald-300">Proposal deck ready</span>;
     default:

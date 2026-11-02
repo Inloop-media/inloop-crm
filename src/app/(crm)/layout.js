@@ -16,7 +16,7 @@ import { ROLES } from "@/lib/constants";
 async function briefsBadge(me) {
   const staff = me.role === "admin" || me.role === "ops";
   let q = db().from("proposals").select("id", { count: "exact", head: true });
-  if (staff) q = q.in("stage", ["awaiting_commercials", "crl_failed", "proposal_failed"]);
+  if (staff) q = q.in("stage", ["awaiting_commercials", "proposal_review", "crl_failed", "proposal_failed"]);
   else if (isStrategist(me)) q = q.or(`strategist_id.is.null,and(strategist_id.eq.${me.id},stage.in.(picked_up,crl_failed))`);
   else return 0;
   const { count } = await q;

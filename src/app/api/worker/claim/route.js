@@ -26,7 +26,7 @@ export async function POST(request) {
 
   const [{ data: lead }, { data: proposal }, { data: docs }] = await Promise.all([
     db().from("leads").select("id, code, first_name, last_name, brand, location, service, budget, details, brief").eq("id", job.lead_id).single(),
-    db().from("proposals").select("commercials, crl_url, strategist:members!proposals_strategist_id_fkey(name)").eq("lead_id", job.lead_id).maybeSingle(),
+    db().from("proposals").select("commercials, crl_url, feedback, revision, strategist:members!proposals_strategist_id_fkey(name)").eq("lead_id", job.lead_id).maybeSingle(),
     db().from("lead_documents").select("id, kind, name, storage_path, url").eq("lead_id", job.lead_id).neq("kind", "output").order("created_at"),
   ]);
 
@@ -34,7 +34,14 @@ export async function POST(request) {
     ok: true,
     job: { id: job.id, type: job.type, attempts: job.attempts },
     lead: { ...lead, client: fullName(lead) },
-    proposal: { commercials: proposal?.commercials || "", crl_url: proposal?.crl_url || "", strategist: proposal?.strategist?.name || "" },
+    proposal: {
+      commercials: proposal?.commercials || "",
+      crl_url: proposal?.crl_url || "",
+      strategist: proposal?.strategist?.name || "",
+      // Set when the admin asked for changes: the bot edits the previous deck with this feedback
+      feedback: proposal?.feedback || "",
+      revision: proposal?.revision || 1,
+    },
     docs: (await signDocs(docs || [])).map((d) => ({ kind: d.kind, name: d.name, url: d.href, is_file: Boolean(d.storage_path) })),
   });
 }

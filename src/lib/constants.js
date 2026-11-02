@@ -64,6 +64,7 @@ export const PROPOSAL_STAGES = {
   proposal_queued: { label: "Proposal queued", step: 4 },
   proposal_running: { label: "Proposal building", step: 4 },
   proposal_failed: { label: "Proposal failed", step: 4, error: true },
+  proposal_review: { label: "Review the deck", step: 4 },
   done: { label: "Proposal ready", step: 5 },
 };
 export const PROPOSAL_STEPS = ["Brief", "Documents", "CRL", "Commercials", "Strategy & deck", "Ready"];

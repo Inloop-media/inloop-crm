@@ -6,7 +6,7 @@ import Icon from "@/components/Icon";
 import { createClient } from "@/lib/supabase/browser";
 import { DOC_KINDS, PROPOSAL_STAGES } from "@/lib/constants";
 import { fmtDateTime } from "@/lib/format";
-import { addDocument, pickUpBrief, removeDocument, retryStep, saveCommercials, startUpload, submitForCrl } from "@/app/(crm)/briefs/actions";
+import { addDocument, approveDeck, pickUpBrief, removeDocument, requestDeckChanges, retryStep, saveCommercials, startUpload, submitForCrl } from "@/app/(crm)/briefs/actions";
 
 const EDITABLE = ["picked_up", "crl_failed"];
 const kb = (n) => (n > 1048576 ? `${(n / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(n / 1024))} KB`);
@@ -174,6 +174,81 @@ function Deliverable({ label, href, note, icon = "external" }) {
   );
 }
 
+/* ------------------------------ Review ------------------------------ */
+
+/** The bot's deck is waiting: open the PDF, approve it, or tell the bot what to change. */
+function DeckReview({ p, deck, canReview }) {
+  const { pending, error, run } = useAction();
+  const [feedback, setFeedback] = useState("");
+  const [commercials, setCommercials] = useState(p.commercials || "");
+  const [editCommercials, setEditCommercials] = useState(false);
+  return (
+    <section className="tint-lavender rounded-2xl p-5">
+      <div className="flex flex-wrap items-center gap-3">
+        <span className="icon-tile">
+          <Icon name="file" size={16} />
+        </span>
+        <div className="min-w-0 flex-1">
+          <div className="text-sm font-medium">Proposal deck v{p.revision || 1} is ready for review</div>
+          <div className="text-xs text-ink/60">Open the PDF, then approve it or tell the bot what to change.</div>
+        </div>
+        {deck && (
+          <a href={deck.href} target="_blank" rel="noreferrer" className="btn-ghost btn-sm">
+            <Icon name="external" size={13} /> Open deck PDF
+          </a>
+        )}
+      </div>
+
+      {canReview ? (
+        <>
+          <form
+            className="mt-4"
+            onSubmit={(e) => {
+              e.preventDefault();
+              run(() => requestDeckChanges(p.lead_id, feedback, editCommercials ? commercials : ""));
+            }}
+          >
+            <label className="label" htmlFor="deck-feedback">
+              What should change?
+            </label>
+            <textarea
+              id="deck-feedback"
+              rows={4}
+              value={feedback}
+              onChange={(e) => setFeedback(e.target.value)}
+              placeholder={"e.g. Slide 3: make the headline about footfall, not reach.\nCommercials: show website as ₹60,000 one-time.\nAdd a slide on Google Ads."}
+              className="field resize-y bg-panel"
+            />
+            {editCommercials ? (
+              <div className="mt-3">
+                <label className="label" htmlFor="deck-commercials">
+                  Commercials (updated)
+                </label>
+                <textarea id="deck-commercials" rows={4} value={commercials} onChange={(e) => setCommercials(e.target.value)} className="field resize-y bg-panel" />
+              </div>
+            ) : (
+              <button type="button" onClick={() => setEditCommercials(true)} className="mt-2 text-xs font-medium text-brand hover:underline">
+                Also change the commercials
+              </button>
+            )}
+            <div className="mt-4 flex flex-wrap items-center gap-2">
+              <button type="button" onClick={() => run(() => approveDeck(p.lead_id))} disabled={pending} className="btn-primary">
+                <Icon name="check" size={14} /> Approve deck
+              </button>
+              <button disabled={pending || feedback.trim().length < 3} className="btn-ghost">
+                <Icon name="sparkle" size={14} /> {pending ? "Sending…" : "Send changes to the bot"}
+              </button>
+            </div>
+          </form>
+          {error && <p className="mt-2 text-xs text-rose-400">{error}</p>}
+        </>
+      ) : (
+        <p className="mt-3 text-xs text-ink/60">An admin is reviewing the deck.</p>
+      )}
+    </section>
+  );
+}
+
 /* ------------------------------ Main ------------------------------ */
 
 export default function ProposalWorkspace({ proposal: p, canPick, canWork, canCommercials }) {
@@ -182,6 +257,8 @@ export default function ProposalWorkspace({ proposal: p, canPick, canWork, canCo
   const inputs = DOC_KINDS.map((def) => ({ def, docs: p.docs.filter((d) => d.kind === def.id) }));
   const ready = inputs.every((x) => x.docs.length);
   const outputs = p.docs.filter((d) => d.kind === "output");
+  // Newest PDF the proposal bot uploaded (one per version)
+  const deck = [...outputs].reverse().find((d) => /\.pdf$/i.test(d.name));
   const job = p.jobs[0];
   const busy = /queued|running/.test(p.stage);
   const { pending, error, run } = useAction();
@@ -206,6 +283,7 @@ export default function ProposalWorkspace({ proposal: p, canPick, canWork, canCo
             {p.stage === "awaiting_commercials" && "CRL is ready. An admin needs to enter the commercials for the proposal deck."}
             {p.stage === "proposal_queued" && "Waiting for the Mac worker to pick up the proposal job."}
             {p.stage === "proposal_running" && (job?.progress || "The proposal bot is building the deck.")}
+            {p.stage === "proposal_review" && `Deck v${p.revision || 1} is waiting for an admin to approve it or ask for changes.`}
             {p.stage === "done" && `Delivered ${fmtDateTime(p.done_at)}.`}
             {stage.error && (p.error || "The bot reported an error.")}
           </div>
@@ -281,12 +359,19 @@ export default function ProposalWorkspace({ proposal: p, canPick, canWork, canCo
         </section>
       )}
 
+      {p.stage === "proposal_review" && <DeckReview p={p} deck={deck} canReview={canCommercials} />}
+
       {/* Deliverables */}
       <section>
         <h3 className="mb-3 text-sm font-medium">Deliverables</h3>
         <div className="grid gap-2.5 md:grid-cols-2">
           <Deliverable label="CRL" href={p.crl_url} note="Built from the reference links + identity" />
-          <Deliverable label="Proposal deck" href={p.deck_url} note="After the CRL + commercials" icon="sparkle" />
+          <Deliverable
+            label={p.stage === "done" ? "Proposal deck" : "Proposal deck (draft)"}
+            href={p.deck_url || (["proposal_review", "done"].includes(p.stage) ? deck?.href : "")}
+            note="After the CRL + commercials"
+            icon="sparkle"
+          />
         </div>
         {outputs.length > 0 && (
           <ul className="mt-3 flex flex-col gap-1.5">
