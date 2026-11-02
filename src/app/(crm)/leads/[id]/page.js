@@ -68,6 +68,10 @@ export default async function LeadPage({ params }) {
   const phone = lead.phone.replace(/[^\d+]/g, "");
   // wa.me needs the country code; 10-digit numbers are Indian
   const whatsapp = phone.replace(/^\+/, "").replace(/^0?(\d{10})$/, "91$1");
+  // Newest proposal-deck PDF the bot made (one per version), shown with the lead's details for meetings
+  const decks = (lead.proposal?.docs || []).filter((d) => d.kind === "output" && /\.pdf$/i.test(d.name));
+  const deck = decks.at(-1);
+  const approved = lead.proposal?.stage === "done";
 
   return (
     <div className="page max-w-6xl">
@@ -118,6 +122,33 @@ export default async function LeadPage({ params }) {
             {lead.newsletter ? <span className="font-normal text-muted"> · newsletter</span> : null}
           </Detail>
         </dl>
+        {deck && (
+          <div className="relative px-6 pb-6 sm:px-8 sm:pb-8">
+            <div className={`flex flex-wrap items-center gap-4 rounded-2xl p-4 sm:p-5 ${approved ? "tint-green" : "tint-lavender"}`}>
+              <span className="icon-tile h-12 w-12">
+                <Icon name="file" size={20} />
+              </span>
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-[15px] font-medium">Proposal deck</span>
+                  <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${approved ? "bg-emerald-500 text-white" : "bg-panel text-muted"}`}>
+                    {approved ? "Approved" : "Draft — waiting for review"}
+                  </span>
+                  {decks.length > 1 && <span className="text-[11px] text-ink/60">v{decks.length}</span>}
+                </div>
+                <div className="mt-0.5 truncate text-xs text-ink/60">{deck.name}</div>
+              </div>
+              <div className="flex w-full gap-2 sm:w-auto">
+                <a href={deck.href} target="_blank" rel="noreferrer" className="btn-primary flex-1 sm:flex-none">
+                  <Icon name="external" size={14} /> Open PDF
+                </a>
+                <a href={`${deck.href}${deck.href.includes("?") ? "&" : "?"}download=${encodeURIComponent(deck.name)}`} className="btn-ghost flex-1 sm:flex-none">
+                  <Icon name="upload" size={14} className="rotate-180" /> Download
+                </a>
+              </div>
+            </div>
+          </div>
+        )}
         {lead.details && (
           <div className="relative px-6 pb-6 sm:px-8 sm:pb-8">
             <div className="tint-lavender rounded-2xl p-5">
