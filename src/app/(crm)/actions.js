@@ -21,6 +21,7 @@ import { discoveryMessage, proposalMessage } from "@/lib/messages";
 import { announce } from "@/lib/updates";
 import { pushTo } from "@/lib/push";
 import { shareBriefWithStrategists } from "@/lib/proposals";
+import { onboardLead } from "@/lib/clients";
 import { fmtDateTime, fullName } from "@/lib/format";
 
 const str = (v, max = 5000) => String(v ?? "").trim().slice(0, max);
@@ -88,6 +89,8 @@ export async function updateLead(id, patch) {
   if (error) return { ok: false, error: error.message };
   await addEvents(id, me.id, events);
   if (changes.assigned_to && changes.assigned_to !== me.id) after(() => pushNewLead([changes.assigned_to], lead, "New lead assigned to you"));
+  // Won → brand onboarded, everyone celebrates, and the brand gets its client login
+  if (changes.status === "Won") await onboardLead(id, me.id).catch((e) => console.error("Onboarding failed:", e));
 
   revalidatePath("/leads");
   revalidatePath(`/leads/${id}`);

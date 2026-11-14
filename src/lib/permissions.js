@@ -1,6 +1,6 @@
 // Who can do what. Used by pages (to hide controls) and by server actions (to enforce).
 // `me` is the signed-in member with `groups: [{ id, name, kind }]` (lib/auth.js).
-import { EXEC_STATUSES, STATUS_NAMES } from "@/lib/constants";
+import { EXEC_STATUSES, MAKER_KINDS, STATUS_NAMES } from "@/lib/constants";
 
 export const isAdmin = (me) => me.role === "admin";
 const isStaff = (me) => me.role === "admin" || me.role === "ops";
@@ -32,3 +32,14 @@ export const canSeeProposal = (me, p) =>
   isStaff(me) || (isStrategist(me) && (!p.strategist_id || p.strategist_id === me.id));
 export const canWorkOnProposal = (me, p) => isStaff(me) || (isStrategist(me) && p.strategist_id === me.id);
 export const canEnterCommercials = (me) => isStaff(me);
+
+// Phase 2 — brands and tasks
+export const isExecHead = (me) => inGroupKind(me, "execution");
+export const isMaker = (me) => MAKER_KINDS.some((k) => inGroupKind(me, k));
+/** Onboarding (MOU, signature) is for admin / ops. */
+export const canOnboard = (me) => isStaff(me);
+export const canSeeBrands = (me) => isStaff(me) || isExecHead(me);
+export const canAssignTasks = (me) => isStaff(me) || isExecHead(me);
+/** The employee works on their own tasks; heads / staff see all of them. */
+export const canSeeTask = (me, t) => canAssignTasks(me) || t.assignee_id === me.id;
+export const canReviewTask = (me, t) => isStaff(me) || t.assigned_by === me.id || isExecHead(me);

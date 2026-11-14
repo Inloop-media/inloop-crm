@@ -37,8 +37,14 @@ export const ROLES = [
 export const GROUP_KINDS = [
   { id: "sales", label: "Sales executives", help: "Get leads assigned, update status up to Discovery Call, book the discovery call" },
   { id: "strategy", label: "Creative strategists", help: "See shared briefs, pick one up and upload the 4 documents" },
+  { id: "execution", label: "Execution heads", help: "See every brand, assign tasks to the team, review work and share it with the client" },
+  { id: "design", label: "Designers", help: "Get design tasks (posts, carousels, stories) and deliver them" },
+  { id: "development", label: "Developers", help: "Get website / development tasks and deliver them" },
+  { id: "video", label: "Video editors", help: "Get reels and video tasks and deliver them" },
   { id: "other", label: "Other", help: "A label only, no extra access" },
 ];
+// Groups whose members do the execution work (and show up in the task assignee picker)
+export const MAKER_KINDS = ["design", "development", "video"];
 
 export const MEETING_MINUTES = { discovery: 30, proposal: 30 };
 export const MEETING_KINDS = {
@@ -99,3 +105,37 @@ export const UPDATE_EVENTS = [
   { id: "proposal_meeting", label: "Proposal meetings booked (with brief)", icon: "calendar" },
   { id: "bot_failed", label: "Bot failures", icon: "alert" },
 ];
+
+/* ------------------------------ Phase 2 ------------------------------ */
+
+export const BRAND_STAGES = {
+  mou_draft: { label: "MOU draft", tint: "amber" },
+  mou_sent: { label: "Waiting for signature", tint: "lavender" },
+  active: { label: "Onboarded", tint: "green" },
+};
+
+export const TASK_KINDS = [
+  { id: "post", label: "Post", group: "design" },
+  { id: "carousel", label: "Carousel", group: "design" },
+  { id: "story", label: "Story", group: "design" },
+  { id: "reel", label: "Reel", group: "video" },
+  { id: "video", label: "Video", group: "video" },
+  { id: "design", label: "Design", group: "design" },
+  { id: "website", label: "Website", group: "development" },
+  { id: "other", label: "Other" },
+];
+export const taskKindLabel = (id) => TASK_KINDS.find((k) => k.id === id)?.label || "Task";
+
+// `who` = whose move it is: the employee (maker), the execution head, the client, or nobody
+export const TASK_STATUSES = {
+  assigned: { label: "To do", color: "#60a5fa", who: "maker" },
+  in_progress: { label: "In progress", color: "#fbbf24", who: "maker" },
+  revision: { label: "Revision", color: "#fb7185", who: "maker" },
+  completed: { label: "Completed — in review", color: "#a78bfa", who: "head" },
+  client_rejected: { label: "Client asked for changes", color: "#f97316", who: "head" },
+  sent_to_client: { label: "With client", color: "#22d3ee", who: "client" },
+  done: { label: "Approved", color: "#4ade80", who: null },
+};
+export const OPEN_TASK = ["assigned", "in_progress", "revision"];
+// What the employee can pick from the dropdown on their own task
+export const MAKER_STATUS_OPTIONS = ["assigned", "in_progress", "completed"];

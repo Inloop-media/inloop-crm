@@ -4,12 +4,15 @@ import Icon from "@/components/Icon";
 import { Notes, OwnerPicker, StatusPicker } from "@/components/LeadEditor";
 import MeetingsPanel from "@/components/MeetingsPanel";
 import ProposalWorkspace from "@/components/ProposalWorkspace";
+import { ClientLogin, OnboardButton } from "@/components/ClientAccess";
+import { getBrandForLead } from "@/lib/brands";
+import { getClientAccount } from "@/lib/clients";
 import { Avatar, PageHeader, Panel, StagePill, StepTrack } from "@/components/ui";
 import StatusBadge from "@/components/StatusBadge";
 import Timeline from "@/components/Timeline";
 import { requireMember } from "@/lib/auth";
 import { getLead, listAssignees, listGuests, listMembers, openLeadCounts } from "@/lib/leads";
-import { canAssign, canBookDiscovery, canBookProposal, canEnterCommercials, canSeeLeads, isStrategist, statusOptions } from "@/lib/permissions";
+import { canAssign, canBookDiscovery, canBookProposal, canEnterCommercials, canOnboard, canSeeLeads, isStrategist, statusOptions } from "@/lib/permissions";
 import { fmtDateTime, fullName } from "@/lib/format";
 import { statusColor } from "@/lib/constants";
 
@@ -64,6 +67,8 @@ export default async function LeadPage({ params }) {
   // Names only in the browser — the server looks the emails up when booking
   const guests = guestRows.map(({ id, name, is_default }) => ({ id, name, is_default }));
   if (!lead) notFound();
+  const brand = canOnboard(me) ? await getBrandForLead(lead.id) : null;
+  const account = brand ? await getClientAccount(brand.id) : null;
   const owner = members.find((m) => m.id === lead.assigned_to);
   const phone = lead.phone.replace(/[^\d+]/g, "");
   // wa.me needs the country code; 10-digit numbers are Indian
@@ -161,6 +166,27 @@ export default async function LeadPage({ params }) {
 
       <div className="rise rise-2 mt-5 grid gap-5 lg:grid-cols-[1fr_360px]">
         <div className="flex min-w-0 flex-col gap-5">
+          {canOnboard(me) && (brand || lead.status === "Won") && (
+            <Section
+              id="onboarding"
+              title="Client"
+              sub={brand?.stage === "active" ? "Onboarded — share the login with the brand" : "Marking the lead Won onboards the client"}
+              action={
+                brand?.stage === "active" ? (
+                  <Link href={`/brands/${brand.id}`} className="btn-ghost btn-sm">
+                    Open brand <Icon name="arrow" size={13} />
+                  </Link>
+                ) : null
+              }
+            >
+              {brand?.stage === "active" && account ? (
+                <ClientLogin account={{ ...account, brand }} origin={process.env.CRM_URL || "https://inloop-crm.vercel.app"} />
+              ) : (
+                <OnboardButton leadId={lead.id} />
+              )}
+            </Section>
+          )}
+
           <Section title="Status" sub="Click a stage to move the lead">
             <StatusPicker lead={lead} statuses={statusOptions(me)} />
           </Section>

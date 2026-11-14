@@ -82,7 +82,8 @@ export function TabBar({ items }) {
                   </span>
                 )}
               </span>
-              <span className="text-[10px] font-medium">{it.label}</span>
+              {/* With many sections the labels would squash — icons only (the active one keeps its label) */}
+              <span className={`text-[10px] font-medium ${items.length > 6 && !active ? "sr-only" : ""}`}>{it.label}</span>
             </Link>
           );
         })}

@@ -2,6 +2,8 @@ import { redirect } from "next/navigation";
 import { getCurrentMember } from "@/lib/auth";
 import { isConfigured } from "@/lib/supabase/server";
 import GoogleButton from "./GoogleButton";
+import ClientLoginForm from "./ClientLoginForm";
+import { getCurrentClient } from "@/lib/clients";
 import Logo from "@/components/Logo";
 
 export const metadata = { title: "Sign in" };
@@ -10,6 +12,7 @@ export default async function LoginPage({ searchParams }) {
   const { error } = await searchParams;
   const configured = isConfigured();
   if (configured && (await getCurrentMember())) redirect("/");
+  if (configured && (await getCurrentClient())) redirect("/client");
 
   return (
     <main className="relative flex min-h-svh items-center justify-center px-4 py-10">
@@ -17,7 +20,7 @@ export default async function LoginPage({ searchParams }) {
         <div className="card p-8 sm:p-10">
           <Logo />
           <h1 className="mt-10 text-[34px] font-medium leading-tight tracking-[-0.02em]">Welcome back</h1>
-          <p className="mt-2 text-sm text-muted">Sign in with your Inloop Media Google account.</p>
+          <p className="mt-2 text-sm text-muted">Team: sign in with your Inloop Media Google account. Brands: use the login Inloop shared with you.</p>
           <div className="mt-8">
             {configured ? (
               <GoogleButton domain={process.env.ALLOWED_DOMAIN} />
@@ -27,9 +30,17 @@ export default async function LoginPage({ searchParams }) {
               </p>
             )}
           </div>
+          {configured && (
+            <>
+              <div className="my-5 flex items-center gap-3 text-[11px] text-faint">
+                <span className="h-px flex-1 bg-line" /> or <span className="h-px flex-1 bg-line" />
+              </div>
+              <ClientLoginForm />
+            </>
+          )}
           {error && <p className="tint-pink mt-4 rounded-2xl p-3.5 text-sm">Sign-in didn&apos;t complete. Please try again.</p>}
         </div>
-        <p className="mt-6 text-center text-xs text-muted">Inloop Media · internal workspace</p>
+        <p className="mt-6 text-center text-xs text-muted">Inloop Media · team & client workspace</p>
       </div>
     </main>
   );

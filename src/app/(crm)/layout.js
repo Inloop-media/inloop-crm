@@ -5,11 +5,14 @@ import Nav, { Rail, TabBar } from "@/components/Nav";
 import MobileHeader, { ProfileMenu } from "@/components/MobileHeader";
 import ThemeToggle from "@/components/ThemeToggle";
 import FeedbackNote from "@/components/FeedbackNote";
+import Celebration from "@/components/Celebration";
+import { unseenCelebrations } from "@/lib/brands";
+import { taskBadge } from "@/lib/tasks";
 import { getTheme } from "@/lib/theme";
 import { requireMember } from "@/lib/auth";
 import { db } from "@/lib/supabase/server";
 import { listFeeds } from "@/lib/leads";
-import { canCreateLead, canManageTeam, canSeeBriefs, canSeeLeads, isStrategist } from "@/lib/permissions";
+import { canAssignTasks, canCreateLead, canManageTeam, canSeeBrands, canSeeBriefs, canSeeLeads, isMaker, isStrategist } from "@/lib/permissions";
 import { ROLES } from "@/lib/constants";
 
 /** Work waiting on this member: open briefs for strategists, commercials for admin / ops. */
@@ -42,6 +45,9 @@ export default async function CrmLayout({ children }) {
   const items = [{ href: "/", label: "Dashboard", icon: "home" }];
   if (canSeeLeads(me)) items.push({ href: "/leads", label: "Leads", icon: "leads" });
   if (canSeeBriefs(me)) items.push({ href: "/briefs", label: "Briefs", icon: "brief", badge: await briefsBadge(me) });
+  if (canSeeBrands(me)) items.push({ href: "/brands", label: "Brands", icon: "brand" });
+  const tasksCount = await taskBadge(me).catch(() => 0);
+  if (canAssignTasks(me) || isMaker(me) || tasksCount) items.push({ href: "/tasks", label: "Tasks", icon: "tasks", badge: tasksCount });
   const feeds = await listFeeds(me);
   if (feeds.length) items.push({ href: "/updates", label: "Updates", icon: "slack", badge: feeds.reduce((n, g) => n + g.unread, 0) });
   if (canManageTeam(me)) items.push({ href: "/team", label: "Team", icon: "team" });
@@ -57,6 +63,7 @@ export default async function CrmLayout({ children }) {
     rail.push({ href: "/leads?view=list", label: "Lead list", icon: "list" });
   }
   if (canSeeBriefs(me)) rail.push({ href: "/briefs", label: "Briefs", icon: "brief" });
+  if (canAssignTasks(me) || isMaker(me)) rail.push({ href: "/tasks", label: "My tasks", icon: "tasks" });
   if (feeds.length) rail.push({ href: "/updates", label: "Updates", icon: "bell" });
 
   const profile = {
@@ -99,6 +106,7 @@ export default async function CrmLayout({ children }) {
       </div>
       <TabBar items={items} />
       {me.role !== "admin" && <FeedbackNote />}
+      <Celebration initial={await unseenCelebrations(me).catch(() => [])} />
     </div>
   );
 }

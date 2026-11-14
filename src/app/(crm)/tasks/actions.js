@@ -1,0 +1,278 @@
+"use server";
+
+import { revalidatePath } from "next/cache";
+import { after } from "next/server";
+import { requireMember } from "@/lib/auth";
+import { db } from "@/lib/supabase/server";
+import { getBrand } from "@/lib/brands";
+import { logTask, notifyTask, TASK_FIELDS } from "@/lib/tasks";
+import { MAKER_STATUS_OPTIONS, TASK_KINDS, TASK_STATUSES } from "@/lib/constants";
+import { canAssignTasks, canReviewTask } from "@/lib/permissions";
+
+const str = (v, max = 4000) => String(v ?? "").trim().slice(0, max);
+const isUuid = (v) => /^[0-9a-f-]{36}$/i.test(String(v || ""));
+const BUCKET = "lead-docs";
+const MAX_FILE = 50 * 1024 * 1024;
+
+/** "2026-11-20" or "2026-11-20T18:00" (India time) → ISO; end of day when no time is given. */
+function dueAt(v) {
+  const s = str(v, 40);
+  if (!s) return null;
+  const local = /T\d{2}:\d{2}/.test(s) ? s : `${s}T19:00`;
+  const d = new Date(`${local.slice(0, 16)}:00+05:30`);
+  return Number.isNaN(d.getTime()) ? undefined : d.toISOString();
+}
+
+async function activeMember(id) {
+  if (!isUuid(id)) return null;
+  const { data } = await db().from("members").select("id, name, active").eq("id", id).maybeSingle();
+  return data?.active ? data : null;
+}
+
+async function loadTask(id) {
+  if (!isUuid(id)) return null;
+  const { data } = await db().from("tasks").select(TASK_FIELDS).eq("id", id).maybeSingle();
+  return data;
+}
+
+function refresh(task) {
+  revalidatePath("/tasks");
+  revalidatePath(`/tasks/${task.id}`);
+  revalidatePath(`/brands/${task.brand_id}`);
+  revalidatePath("/brands");
+  revalidatePath("/");
+}
+
+/* ------------------------------ Heads ------------------------------ */
+
+export async function createTask(brandId, input) {
+  const me = await requireMember();
+  if (!canAssignTasks(me)) return { ok: false, error: "Only execution heads and admins assign tasks." };
+  const brand = await getBrand(brandId);
+  if (!brand) return { ok: false, error: "Brand not found." };
+  const title = str(input.title, 160);
+  if (!title) return { ok: false, error: "Give the task a title." };
+  const kind = TASK_KINDS.some((k) => k.id === input.kind) ? input.kind : "other";
+  const assignee = await activeMember(input.assignee_id);
+  if (!assignee) return { ok: false, error: "Pick who does it." };
+  const due = dueAt(input.due_at);
+  if (due === undefined) return { ok: false, error: "The due date isn't valid." };
+
+  const { data: task, error } = await db()
+    .from("tasks")
+    .insert({ brand_id: brandId, title, kind, brief: str(input.brief, 8000), assignee_id: assignee.id, assigned_by: me.id, due_at: due })
+    .select(TASK_FIELDS)
+    .single();
+  if (error) return { ok: false, error: error.message };
+  await logTask(task.id, me.id, "created", { to: assignee.name });
+  if (assignee.id !== me.id) after(() => notifyTask([assignee.id], task, "New task"));
+  refresh(task);
+  return { ok: true, id: task.id };
+}
+
+export async function updateTask(id, patch) {
+  const me = await requireMember();
+  const task = await loadTask(id);
+  if (!task || !canAssignTasks(me)) return { ok: false, error: "You can't edit this task." };
+  const changes = {};
+  if ("title" in patch) changes.title = str(patch.title, 160) || task.title;
+  if ("brief" in patch) changes.brief = str(patch.brief, 8000);
+  if ("kind" in patch && TASK_KINDS.some((k) => k.id === patch.kind)) changes.kind = patch.kind;
+  if ("due_at" in patch) {
+    const due = dueAt(patch.due_at);
+    if (due === undefined) return { ok: false, error: "The due date isn't valid." };
+    changes.due_at = due;
+    changes.due_soon_notified_at = null;
+    changes.overdue_notified_at = null;
+  }
+  let newAssignee = null;
+  if ("assignee_id" in patch && patch.assignee_id !== task.assignee_id) {
+    newAssignee = await activeMember(patch.assignee_id);
+    if (!newAssignee) return { ok: false, error: "Pick who does it." };
+    changes.assignee_id = newAssignee.id;
+  }
+  if (!Object.keys(changes).length) return { ok: true };
+  changes.updated_at = new Date().toISOString();
+  const { error } = await db().from("tasks").update(changes).eq("id", id);
+  if (error) return { ok: false, error: error.message };
+  await logTask(id, me.id, "edited", { fields: Object.keys(changes).filter((k) => !k.endsWith("_at") || k === "due_at"), to: newAssignee?.name });
+  if (newAssignee && newAssignee.id !== me.id) after(() => notifyTask([newAssignee.id], { ...task, ...changes }, "Task assigned to you"));
+  refresh(task);
+  return { ok: true };
+}
+
+export async function deleteTask(id) {
+  const me = await requireMember();
+  const task = await loadTask(id);
+  if (!task || !canAssignTasks(me)) return { ok: false, error: "You can't delete this task." };
+  const { data: files } = await db().from("task_files").select("storage_path").eq("task_id", id);
+  const paths = (files || []).map((f) => f.storage_path).filter(Boolean);
+  if (paths.length) await db().storage.from(BUCKET).remove(paths);
+  await db().from("tasks").delete().eq("id", id);
+  refresh(task);
+  return { ok: true };
+}
+
+/**
+ * The head's moves after the employee marks a task Completed, and after the client's answer:
+ *   send_back      completed → revision (feedback goes to the employee)
+ *   share_client   completed → with the client for approval
+ *   approve        completed → done (internal work that needs no client approval)
+ *   client_ok      with client → done (until the client dashboard is live, the team records the answer)
+ *   client_changes with client → client asked for changes (feedback)
+ *   reassign       client asked for changes / completed → revision, to the same or another person
+ */
+export async function reviewTask(id, action, { feedback = "", assignee_id, due_at } = {}) {
+  const me = await requireMember();
+  const task = await loadTask(id);
+  if (!task || !canReviewTask(me, task) || !canAssignTasks(me)) return { ok: false, error: "Only the execution heads review tasks." };
+  const now = new Date().toISOString();
+  const note = str(feedback, 4000);
+  const from = task.status;
+  let changes;
+  let notify = null;
+
+  switch (action) {
+    case "send_back":
+      if (from !== "completed") return { ok: false, error: "Only completed work can be sent back." };
+      if (!note) return { ok: false, error: "Tell them what to change." };
+      changes = { status: "revision", revision: task.revision + 1, feedback: note };
+      notify = { to: [task.assignee_id], title: "Revision needed", body: note.slice(0, 140) };
+      break;
+    case "share_client":
+      if (from !== "completed") return { ok: false, error: "Review the completed work first." };
+      changes = { status: "sent_to_client", feedback: "" };
+      break;
+    case "approve":
+      if (from !== "completed") return { ok: false, error: "Only completed work can be approved." };
+      changes = { status: "done", done_at: now, feedback: "" };
+      notify = { to: [task.assignee_id], title: "Approved", body: "Nice work — it's done." };
+      break;
+    case "client_ok":
+      if (from !== "sent_to_client") return { ok: false, error: "It isn't with the client." };
+      changes = { status: "done", done_at: now, feedback: "" };
+      notify = { to: [task.assignee_id], title: "Client approved", body: "The client approved it." };
+      break;
+    case "client_changes":
+      if (from !== "sent_to_client") return { ok: false, error: "It isn't with the client." };
+      if (!note) return { ok: false, error: "Write what the client wants changed." };
+      changes = { status: "client_rejected", feedback: note };
+      notify = { to: [task.assigned_by].filter((x) => x !== me.id), title: "Client asked for changes", body: note.slice(0, 140) };
+      break;
+    case "reassign": {
+      if (!["client_rejected", "completed"].includes(from)) return { ok: false, error: "Nothing to reassign." };
+      const person = await activeMember(assignee_id || task.assignee_id);
+      if (!person) return { ok: false, error: "Pick who does the revision." };
+      const due = due_at ? dueAt(due_at) : task.due_at;
+      if (due === undefined) return { ok: false, error: "The due date isn't valid." };
+      changes = {
+        status: "revision",
+        revision: task.revision + 1,
+        assignee_id: person.id,
+        feedback: note || task.feedback,
+        due_at: due,
+        due_soon_notified_at: null,
+        overdue_notified_at: null,
+      };
+      notify = { to: [person.id], title: person.id === task.assignee_id ? "Revision needed" : "Revision assigned to you", body: (note || task.feedback).slice(0, 140) };
+      break;
+    }
+    default:
+      return { ok: false, error: "Unknown action." };
+  }
+
+  changes.updated_at = now;
+  const { error } = await db().from("tasks").update(changes).eq("id", id).eq("status", from);
+  if (error) return { ok: false, error: error.message };
+  await logTask(id, me.id, action, { feedback: note || undefined, to: changes.assignee_id && changes.assignee_id !== task.assignee_id ? "new" : undefined, revision: changes.revision });
+  if (notify?.to?.length) after(() => notifyTask(notify.to, task, notify.title, notify.body));
+  refresh(task);
+  return { ok: true };
+}
+
+/* ------------------------------ Employee ------------------------------ */
+
+/** The dropdown on the employee's task: To do / In progress / Completed. */
+export async function setTaskStatus(id, status) {
+  const me = await requireMember();
+  const task = await loadTask(id);
+  if (!task) return { ok: false, error: "Task not found." };
+  const mine = task.assignee_id === me.id;
+  if (!mine && !canAssignTasks(me)) return { ok: false, error: "This task isn't yours." };
+  if (!MAKER_STATUS_OPTIONS.includes(status) && status !== "revision") return { ok: false, error: "Unknown status." };
+  if (!["assigned", "in_progress", "revision", "completed"].includes(task.status)) {
+    return { ok: false, error: `It's "${TASK_STATUSES[task.status].label}" — the head moves it from here.` };
+  }
+  if (status === task.status) return { ok: true };
+  if (status === "completed") {
+    const { count } = await db()
+      .from("task_files")
+      .select("id", { count: "exact", head: true })
+      .eq("task_id", id)
+      .eq("role", "deliverable")
+      .eq("revision", task.revision);
+    if (!count) return { ok: false, error: task.revision ? "Upload the revised file (or add its link) before marking it completed." : "Upload the file (or add its link) before marking it completed." };
+  }
+  if (task.status === "completed" && !canAssignTasks(me)) return { ok: false, error: "It's with the head for review now." };
+  // A revision stays a revision until it's completed again
+  const next = status === "assigned" && task.revision > 0 ? "revision" : status;
+  const now = new Date().toISOString();
+  const { error } = await db()
+    .from("tasks")
+    .update({ status: next, updated_at: now, ...(next === "completed" ? { completed_at: now } : {}) })
+    .eq("id", id);
+  if (error) return { ok: false, error: error.message };
+  await logTask(id, me.id, "status", { from: task.status, to: next });
+  if (next === "completed" && task.assigned_by && task.assigned_by !== me.id) {
+    after(() => notifyTask([task.assigned_by], task, `${me.name} completed`, task.revision ? `Revision ${task.revision} is ready for review.` : "Ready for your review."));
+  }
+  refresh(task);
+  return { ok: true };
+}
+
+/** Upload URL for a deliverable / reference file on a task. */
+export async function startTaskUpload(id, fileName, size) {
+  const me = await requireMember();
+  const task = await loadTask(id);
+  if (!task || (task.assignee_id !== me.id && !canAssignTasks(me))) return { ok: false, error: "This task isn't yours." };
+  if (!(size > 0) || size > MAX_FILE) return { ok: false, error: "Files must be under 50 MB for now — add bigger videos as a link." };
+  const safe = str(fileName, 120).replace(/[^\w.\-]+/g, "_") || "file";
+  const path = `tasks/${task.id}/${Date.now()}-${safe}`;
+  const { data, error } = await db().storage.from(BUCKET).createSignedUploadUrl(path);
+  if (error) return { ok: false, error: error.message };
+  return { ok: true, path: data.path, token: data.token };
+}
+
+export async function addTaskFile(id, { path, url, name, size, role = "deliverable" }) {
+  const me = await requireMember();
+  const task = await loadTask(id);
+  if (!task || (task.assignee_id !== me.id && !canAssignTasks(me))) return { ok: false, error: "This task isn't yours." };
+  const row = { task_id: id, revision: task.revision, role: role === "reference" ? "reference" : "deliverable", uploaded_by: me.id };
+  if (path) {
+    if (!String(path).startsWith(`tasks/${id}/`)) return { ok: false, error: "Upload not recognised." };
+    Object.assign(row, { storage_path: path, name: str(name, 200), size: Number(size) || 0 });
+  } else {
+    const u = str(url, 1000);
+    if (!/^https?:\/\/\S+$/i.test(u)) return { ok: false, error: "Paste a full link starting with https://" };
+    Object.assign(row, { url: u, name: str(name, 200) || u.replace(/^https?:\/\//, "").slice(0, 80) });
+  }
+  const { error } = await db().from("task_files").insert(row);
+  if (error) return { ok: false, error: error.message };
+  await logTask(id, me.id, row.role === "reference" ? "reference" : "file", { name: row.name, revision: task.revision });
+  refresh(task);
+  return { ok: true };
+}
+
+export async function removeTaskFile(fileId) {
+  const me = await requireMember();
+  if (!isUuid(fileId)) return { ok: false, error: "File not found." };
+  const { data: f } = await db().from("task_files").select("id, task_id, storage_path, uploaded_by").eq("id", fileId).maybeSingle();
+  if (!f) return { ok: false, error: "File not found." };
+  const task = await loadTask(f.task_id);
+  if (f.uploaded_by !== me.id && !canAssignTasks(me)) return { ok: false, error: "You can only remove your own files." };
+  if (task && ["sent_to_client", "done"].includes(task.status)) return { ok: false, error: "This work is already with the client." };
+  if (f.storage_path) await db().storage.from(BUCKET).remove([f.storage_path]);
+  await db().from("task_files").delete().eq("id", fileId);
+  if (task) refresh(task);
+  return { ok: true };
+}

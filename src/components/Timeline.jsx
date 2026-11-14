@@ -41,12 +41,18 @@ export const describe = (e) => {
       return <>Changes requested for v{e.data?.revision}{e.data?.text ? <span className="mt-1 block whitespace-pre-wrap text-ink/80">{e.data.text}</span> : null}</>;
     case "proposal_done":
       return <span className="text-emerald-300">Proposal deck ready</span>;
+    case "onboarding_started":
+      return <>Onboarding started — MOU drafted</>;
+    case "mou_sent":
+      return <>MOU v{e.data?.version || 1} sent to the client</>;
+    case "onboarded":
+      return <span className="text-emerald-400">MOU signed — {e.data?.brand} is onboarded</span>;
     default:
       return e.type;
   }
 };
 
-const DOT = { status: "bg-brand", assigned: "bg-cyan-400", meeting: "bg-violet-400", created: "bg-emerald-400" };
+const DOT = { onboarded: "bg-emerald-400", mou_sent: "bg-violet-400", status: "bg-brand", assigned: "bg-cyan-400", meeting: "bg-violet-400", created: "bg-emerald-400" };
 
 export default function Timeline({ events }) {
   if (!events.length) return <p className="text-sm text-muted">Nothing yet.</p>;

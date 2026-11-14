@@ -62,7 +62,12 @@ export const getCurrentMember = cache(async () => {
  */
 export async function requireMember(allowed) {
   const me = await getCurrentMember();
-  if (!me) redirect("/no-access");
+  if (!me) {
+    // Brand logins have their own dashboard
+    const { getCurrentClient } = await import("@/lib/clients");
+    if (await getCurrentClient()) redirect("/client");
+    redirect("/no-access");
+  }
   const ok = !allowed || (typeof allowed === "function" ? allowed(me) : allowed.includes(me.role));
   if (!ok) redirect("/");
   return me;
