@@ -10,7 +10,6 @@ import { getCurrentClient } from "@/lib/clients";
 import { db } from "@/lib/supabase/server";
 import { getTheme } from "@/lib/theme";
 import { taskKindLabel } from "@/lib/constants";
-import { fmtDay } from "@/lib/format";
 
 export const metadata = { title: "Your dashboard" };
 
@@ -141,30 +140,6 @@ export default async function ClientHome() {
             )}
           </section>
 
-          <section className="rise rise-3 mt-10">
-            <h2 className="mb-4 text-xl font-medium tracking-[-0.015em]">Approved work</h2>
-            {approved.length ? (
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-                {approved.flatMap((t) =>
-                  (t.files.length ? t.files : [{ id: t.id, name: "", href: "" }]).slice(0, 1).map((f) => (
-                    <a key={f.id} href={f.href || undefined} target="_blank" rel="noreferrer" className="card overflow-hidden">
-                      <Media f={f} title={t.title} />
-                      <div className="px-3 py-2.5">
-                        <div className="truncate text-xs font-medium">{t.title}</div>
-                        <div className="text-[11px] text-muted">
-                          {taskKindLabel(t.kind)} · {fmtDay(t.done_at)}
-                        </div>
-                      </div>
-                    </a>
-                  ))
-                )}
-              </div>
-            ) : (
-              <div className="card">
-                <Empty icon="file">Everything you approve collects here.</Empty>
-              </div>
-            )}
-          </section>
           </div>
 
           <aside className="rise rise-2 lg:mt-2">
