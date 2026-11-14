@@ -9,7 +9,7 @@ import { ensureBrand, getBrand, onboardBrand } from "@/lib/brands";
 import { onboardLead, resetClientPassword } from "@/lib/clients";
 import { BILLING, DEFAULT_TERMS, buildMouPdf } from "@/lib/mou";
 import { canOnboard, canSeeBrands } from "@/lib/permissions";
-import { listMessages, postMessage } from "@/lib/chat";
+import { chatUploadUrl, loadChat, markRead, postMessage } from "@/lib/chat";
 
 const str = (v, max = 2000) => String(v ?? "").trim().slice(0, max);
 const BUCKET = "lead-docs";
@@ -162,14 +162,29 @@ async function chatBrand(brandId) {
 }
 
 /** The brand's chat with the client. */
-export async function brandMessages(brandId) {
+export async function brandChat(brandId) {
   const { brand, error } = await chatBrand(brandId);
   if (error) return { ok: false, error };
-  return { ok: true, messages: await listMessages(brand.id) };
+  const chat = await loadChat(brand.id);
+  return { ok: true, messages: chat.messages, reads: chat.reads };
 }
 
-export async function sendBrandMessage(brandId, body) {
+export async function sendBrandMessage(brandId, body, attachments) {
   const { me, brand, error } = await chatBrand(brandId);
   if (error) return { ok: false, error };
-  return postMessage({ brand, memberId: me.id, body, senderName: me.name });
+  return postMessage({ brand, memberId: me.id, body, attachments, senderName: me.name });
+}
+
+export async function brandChatUpload(brandId, fileName, size) {
+  const { brand, error } = await chatBrand(brandId);
+  if (error) return { ok: false, error };
+  return chatUploadUrl(brand.id, fileName, size);
+}
+
+export async function markBrandRead(brandId) {
+  const { me, brand, error } = await chatBrand(brandId);
+  if (error) return { ok: false };
+  await markRead(brand.id, me.id);
+  revalidatePath("/brands");
+  return { ok: true };
 }

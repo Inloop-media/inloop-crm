@@ -5,8 +5,8 @@ import { Avatar, Empty, PageHeader, Panel, StatStrip } from "@/components/ui";
 import { Progress, TaskList } from "@/components/Tasks";
 import { NewTaskForm } from "@/components/TaskForms";
 import BrandChat from "@/components/BrandChat";
-import { brandMessages, sendBrandMessage } from "../actions";
-import { listMessages } from "@/lib/chat";
+import { brandChat, brandChatUpload, markBrandRead, sendBrandMessage } from "../actions";
+import { loadChat, unreadCounts } from "@/lib/chat";
 import { requireMember } from "@/lib/auth";
 import { getBrand } from "@/lib/brands";
 import { listMakers, listTasks } from "@/lib/tasks";
@@ -59,7 +59,8 @@ export default async function BrandPage({ params, searchParams }) {
   const done = tasks.filter((t) => t.status === "done");
   const current = ["tasks", "chat", "library", "about"].includes(tab) ? tab : "tasks";
   const files = current === "library" ? await library(tasks) : [];
-  const messages = current === "chat" ? await listMessages(id) : [];
+  const chat = current === "chat" ? await loadChat(id) : null;
+  const unread = current === "chat" ? 0 : (await unreadCounts([id], me.id))[id] || 0;
 
   // Work by kind: how many posts / reels / … and how many approved
   const kinds = {};
@@ -113,7 +114,7 @@ export default async function BrandPage({ params, searchParams }) {
         <nav className="seg flex p-1.5">
           {[
             ["tasks", "Tasks"],
-            ["chat", "Chat"],
+            ["chat", unread ? `Chat · ${unread}` : "Chat"],
             ["library", "Library"],
             ["about", "Scope"],
           ].map(([k, l]) => (
@@ -161,9 +162,20 @@ export default async function BrandPage({ params, searchParams }) {
         )}
 
         {current === "chat" && (
-          <Panel title={`Chat with ${brand.name}`} sub="The client sees this on their dashboard. Admin, ops and execution heads can reply.">
-            <BrandChat initial={messages} side="team" meId={me.id} brandName={brand.name} load={brandMessages.bind(null, id)} send={sendBrandMessage.bind(null, id)} />
-          </Panel>
+          <BrandChat
+            brandId={id}
+            brandName={brand.name}
+            side="team"
+            meId={me.id}
+            meName={me.name}
+            initial={{ messages: chat.messages, reads: chat.reads }}
+            lastReadAt={chat.mine[me.id] || null}
+            load={brandChat.bind(null, id)}
+            send={sendBrandMessage.bind(null, id)}
+            upload={brandChatUpload.bind(null, id)}
+            markRead={markBrandRead.bind(null, id)}
+            className="h-[calc(100svh-14rem)] min-h-[480px]"
+          />
         )}
 
         {current === "library" && (

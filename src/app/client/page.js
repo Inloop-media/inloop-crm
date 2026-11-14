@@ -4,9 +4,8 @@ import Icon from "@/components/Icon";
 import ThemeToggle from "@/components/ThemeToggle";
 import { Avatar, Empty } from "@/components/ui";
 import Decide from "./Decide";
-import BrandChat from "@/components/BrandChat";
-import { clientMessages, clientSendMessage } from "./actions";
-import { listMessages } from "@/lib/chat";
+import ClientChatDock from "./ClientChatDock";
+import { CLIENT, loadChat } from "@/lib/chat";
 import { getCurrentClient } from "@/lib/clients";
 import { db } from "@/lib/supabase/server";
 import { getTheme } from "@/lib/theme";
@@ -68,7 +67,9 @@ export default async function ClientHome() {
   const client = await getCurrentClient();
   if (!client) redirect("/login");
   const brand = client.brand;
-  const [{ pending, approved, inProduction }, theme, messages] = await Promise.all([clientWork(brand.id), getTheme(), listMessages(brand.id)]);
+  const [{ pending, approved, inProduction }, theme, chat] = await Promise.all([clientWork(brand.id), getTheme(), loadChat(brand.id)]);
+  const lastReadAt = chat.mine[CLIENT] || null;
+  const unread = chat.messages.filter((m) => !m.from_client && (!lastReadAt || m.created_at > lastReadAt)).length;
 
   return (
     <div className="min-h-svh md:p-4 lg:p-5">
@@ -166,19 +167,8 @@ export default async function ClientHome() {
           </section>
           </div>
 
-          <aside className="rise rise-2 mt-8 lg:mt-2">
-            <section className="card p-5 lg:sticky lg:top-5">
-              <div className="mb-4 flex items-center gap-2">
-                <span className="icon-tile">
-                  <Icon name="chat" size={15} />
-                </span>
-                <div>
-                  <h2 className="text-base font-medium">Chat with Inloop</h2>
-                  <p className="text-xs text-muted">Your account team replies here</p>
-                </div>
-              </div>
-              <BrandChat initial={messages} side="client" brandName={brand.name} load={clientMessages} send={clientSendMessage} />
-            </section>
+          <aside className="rise rise-2 lg:mt-2">
+            <ClientChatDock brandId={brand.id} brandName={brand.name} initial={{ messages: chat.messages, reads: chat.reads }} lastReadAt={lastReadAt} unread={unread} />
           </aside>
           </div>
         </main>

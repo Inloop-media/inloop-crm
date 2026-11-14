@@ -6,7 +6,7 @@ import { redirect } from "next/navigation";
 import { db } from "@/lib/supabase/server";
 import { getCurrentClient } from "@/lib/clients";
 import { logTask, notifyTask, TASK_FIELDS } from "@/lib/tasks";
-import { listMessages, postMessage } from "@/lib/chat";
+import { CLIENT, chatUploadUrl, loadChat, markRead, postMessage } from "@/lib/chat";
 
 /** The brand approves a piece of work, or asks for changes (the note goes to the execution head). */
 export async function clientDecide(taskId, decision, feedback = "") {
@@ -40,14 +40,28 @@ export async function clientDecide(taskId, decision, feedback = "") {
 }
 
 /** The brand's chat with the team. */
-export async function clientMessages() {
+export async function clientChat() {
   const client = await getCurrentClient();
   if (!client) return { ok: false, error: "Signed out." };
-  return { ok: true, messages: await listMessages(client.brand.id) };
+  const chat = await loadChat(client.brand.id);
+  return { ok: true, messages: chat.messages, reads: chat.reads };
 }
 
-export async function clientSendMessage(body) {
+export async function clientSendMessage(body, attachments) {
   const client = await getCurrentClient();
   if (!client) return { ok: false, error: "Signed out." };
-  return postMessage({ brand: client.brand, fromClient: true, body });
+  return postMessage({ brand: client.brand, fromClient: true, body, attachments });
+}
+
+export async function clientChatUpload(fileName, size) {
+  const client = await getCurrentClient();
+  if (!client) return { ok: false, error: "Signed out." };
+  return chatUploadUrl(client.brand.id, fileName, size);
+}
+
+export async function clientMarkRead() {
+  const client = await getCurrentClient();
+  if (!client) return { ok: false };
+  await markRead(client.brand.id, CLIENT);
+  return { ok: true };
 }

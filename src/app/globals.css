@@ -344,3 +344,16 @@ html.theme-switching * {
 }
 .confetti { animation: confetti-fall 3s cubic-bezier(.25,.6,.4,1) infinite; }
 @media (prefers-reduced-motion: reduce) { .confetti { display: none; } }
+
+/* Chat (BrandChat): WhatsApp-like wallpaper and own-message bubble */
+.chat-wall {
+  background-color: color-mix(in srgb, var(--color-panel-2) 70%, var(--color-bg));
+  background-image: radial-gradient(color-mix(in srgb, var(--color-brand) 13%, transparent) 1px, transparent 1.2px);
+  background-size: 18px 18px;
+}
+.chat-own {
+  background: color-mix(in srgb, var(--color-brand) 16%, var(--color-panel));
+}
+:root[data-theme="dark"] .chat-own {
+  background: color-mix(in srgb, var(--color-brand) 34%, var(--color-panel));
+}

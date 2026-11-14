@@ -4,13 +4,14 @@ import { Avatar, Empty, PageHeader, StatStrip } from "@/components/ui";
 import { Progress } from "@/components/Tasks";
 import { requireMember } from "@/lib/auth";
 import { listBrands } from "@/lib/brands";
+import { unreadCounts } from "@/lib/chat";
 import { canOnboard, canSeeBrands } from "@/lib/permissions";
 import { BRAND_STAGES } from "@/lib/constants";
 import { fmtDay } from "@/lib/format";
 
 export const metadata = { title: "Brands" };
 
-function BrandCard({ b }) {
+function BrandCard({ b, unread = 0 }) {
   const c = b.counts;
   const stage = BRAND_STAGES[b.stage];
   const href = b.stage === "active" ? `/brands/${b.id}` : `/leads/${b.lead?.id}#onboarding`;
@@ -22,7 +23,13 @@ function BrandCard({ b }) {
           <div className="truncate text-lg font-medium tracking-[-0.01em]">{b.name}</div>
           <div className="truncate text-xs text-muted">{(b.services || []).map((s) => s.name).join(" · ") || "No services listed"}</div>
         </div>
-        <span className={`tint-${stage.tint} shrink-0 rounded-full px-2.5 py-1 text-[11px] font-medium`}>{stage.label}</span>
+        {unread > 0 ? (
+          <span className="flex shrink-0 items-center gap-1 rounded-full bg-emerald-400/15 px-2.5 py-1 text-[11px] font-semibold text-emerald-500">
+            <Icon name="chat" size={12} /> {unread} new
+          </span>
+        ) : (
+          <span className={`tint-${stage.tint} shrink-0 rounded-full px-2.5 py-1 text-[11px] font-medium`}>{stage.label}</span>
+        )}
       </div>
       {b.stage === "active" ? (
         <>
@@ -61,6 +68,7 @@ export default async function BrandsPage() {
   const brands = (await listBrands()).filter((b) => b.stage === "active" || canOnboard(me));
   const active = brands.filter((b) => b.stage === "active");
   const onboarding = brands.filter((b) => b.stage !== "active");
+  const unread = await unreadCounts(active.map((b) => b.id), me.id);
   const sum = (k) => active.reduce((n, b) => n + b.counts[k], 0);
 
   return (
@@ -86,7 +94,7 @@ export default async function BrandsPage() {
           {active.length > 0 && (
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
               {active.map((b) => (
-                <BrandCard key={b.id} b={b} />
+                <BrandCard key={b.id} b={b} unread={unread[b.id]} />
               ))}
             </div>
           )}
@@ -95,7 +103,7 @@ export default async function BrandsPage() {
               <h2 className="mb-3 text-sm font-medium text-muted">Onboarding</h2>
               <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                 {onboarding.map((b) => (
-                  <BrandCard key={b.id} b={b} />
+                  <BrandCard key={b.id} b={b} unread={unread[b.id]} />
                 ))}
               </div>
             </section>
