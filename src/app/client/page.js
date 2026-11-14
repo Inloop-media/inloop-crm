@@ -4,6 +4,9 @@ import Icon from "@/components/Icon";
 import ThemeToggle from "@/components/ThemeToggle";
 import { Avatar, Empty } from "@/components/ui";
 import Decide from "./Decide";
+import BrandChat from "@/components/BrandChat";
+import { clientMessages, clientSendMessage } from "./actions";
+import { listMessages } from "@/lib/chat";
 import { getCurrentClient } from "@/lib/clients";
 import { db } from "@/lib/supabase/server";
 import { getTheme } from "@/lib/theme";
@@ -65,7 +68,7 @@ export default async function ClientHome() {
   const client = await getCurrentClient();
   if (!client) redirect("/login");
   const brand = client.brand;
-  const [{ pending, approved, inProduction }, theme] = await Promise.all([clientWork(brand.id), getTheme()]);
+  const [{ pending, approved, inProduction }, theme, messages] = await Promise.all([clientWork(brand.id), getTheme(), listMessages(brand.id)]);
 
   return (
     <div className="min-h-svh md:p-4 lg:p-5">
@@ -81,7 +84,9 @@ export default async function ClientHome() {
           </form>
         </header>
 
-        <main className="page max-w-5xl">
+        <main className="page max-w-6xl">
+          <div className="grid gap-x-6 lg:grid-cols-[minmax(0,1fr)_380px]">
+          <div className="min-w-0">
           <section className="rise card relative mt-2 overflow-hidden p-6 sm:p-8">
             <span className="pointer-events-none absolute -right-24 -top-28 h-72 w-72 rounded-full blur-3xl" style={{ background: "color-mix(in srgb, #8b93ff 25%, transparent)" }} />
             <div className="relative flex flex-wrap items-center gap-4">
@@ -159,6 +164,23 @@ export default async function ClientHome() {
               </div>
             )}
           </section>
+          </div>
+
+          <aside className="rise rise-2 mt-8 lg:mt-2">
+            <section className="card p-5 lg:sticky lg:top-5">
+              <div className="mb-4 flex items-center gap-2">
+                <span className="icon-tile">
+                  <Icon name="chat" size={15} />
+                </span>
+                <div>
+                  <h2 className="text-base font-medium">Chat with Inloop</h2>
+                  <p className="text-xs text-muted">Your account team replies here</p>
+                </div>
+              </div>
+              <BrandChat initial={messages} side="client" brandName={brand.name} load={clientMessages} send={clientSendMessage} />
+            </section>
+          </aside>
+          </div>
         </main>
       </div>
     </div>

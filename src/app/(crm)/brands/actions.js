@@ -8,7 +8,8 @@ import { addEvents } from "@/lib/leads";
 import { ensureBrand, getBrand, onboardBrand } from "@/lib/brands";
 import { onboardLead, resetClientPassword } from "@/lib/clients";
 import { BILLING, DEFAULT_TERMS, buildMouPdf } from "@/lib/mou";
-import { canOnboard } from "@/lib/permissions";
+import { canOnboard, canSeeBrands } from "@/lib/permissions";
+import { listMessages, postMessage } from "@/lib/chat";
 
 const str = (v, max = 2000) => String(v ?? "").trim().slice(0, max);
 const BUCKET = "lead-docs";
@@ -150,4 +151,25 @@ export async function newClientPassword(brandId) {
   const res = await resetClientPassword(brandId);
   refresh(brand);
   return res;
+}
+
+async function chatBrand(brandId) {
+  const me = await requireMember();
+  if (!canSeeBrands(me)) return { error: "Only admin / ops and execution heads can chat with clients." };
+  const brand = await getBrand(brandId);
+  if (!brand) return { error: "Brand not found." };
+  return { me, brand };
+}
+
+/** The brand's chat with the client. */
+export async function brandMessages(brandId) {
+  const { brand, error } = await chatBrand(brandId);
+  if (error) return { ok: false, error };
+  return { ok: true, messages: await listMessages(brand.id) };
+}
+
+export async function sendBrandMessage(brandId, body) {
+  const { me, brand, error } = await chatBrand(brandId);
+  if (error) return { ok: false, error };
+  return postMessage({ brand, memberId: me.id, body, senderName: me.name });
 }

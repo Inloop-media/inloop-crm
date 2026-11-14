@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import { db } from "@/lib/supabase/server";
 import { getCurrentClient } from "@/lib/clients";
 import { logTask, notifyTask, TASK_FIELDS } from "@/lib/tasks";
+import { listMessages, postMessage } from "@/lib/chat";
 
 /** The brand approves a piece of work, or asks for changes (the note goes to the execution head). */
 export async function clientDecide(taskId, decision, feedback = "") {
@@ -36,4 +37,17 @@ export async function clientDecide(taskId, decision, feedback = "") {
   revalidatePath(`/tasks/${taskId}`);
   revalidatePath(`/brands/${task.brand_id}`);
   return { ok: true };
+}
+
+/** The brand's chat with the team. */
+export async function clientMessages() {
+  const client = await getCurrentClient();
+  if (!client) return { ok: false, error: "Signed out." };
+  return { ok: true, messages: await listMessages(client.brand.id) };
+}
+
+export async function clientSendMessage(body) {
+  const client = await getCurrentClient();
+  if (!client) return { ok: false, error: "Signed out." };
+  return postMessage({ brand: client.brand, fromClient: true, body });
 }

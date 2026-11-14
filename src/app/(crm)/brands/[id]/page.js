@@ -4,6 +4,9 @@ import Icon from "@/components/Icon";
 import { Avatar, Empty, PageHeader, Panel, StatStrip } from "@/components/ui";
 import { Progress, TaskList } from "@/components/Tasks";
 import { NewTaskForm } from "@/components/TaskForms";
+import BrandChat from "@/components/BrandChat";
+import { brandMessages, sendBrandMessage } from "../actions";
+import { listMessages } from "@/lib/chat";
 import { requireMember } from "@/lib/auth";
 import { getBrand } from "@/lib/brands";
 import { listMakers, listTasks } from "@/lib/tasks";
@@ -54,8 +57,9 @@ export default async function BrandPage({ params, searchParams }) {
   const [tasks, people] = await Promise.all([listTasks(me, { view: "all", brandId: id }), canAssignTasks(me) ? listMakers() : []]);
   const overdue = tasks.filter(isOverdue);
   const done = tasks.filter((t) => t.status === "done");
-  const current = ["tasks", "library", "about"].includes(tab) ? tab : "tasks";
+  const current = ["tasks", "chat", "library", "about"].includes(tab) ? tab : "tasks";
   const files = current === "library" ? await library(tasks) : [];
+  const messages = current === "chat" ? await listMessages(id) : [];
 
   // Work by kind: how many posts / reels / … and how many approved
   const kinds = {};
@@ -109,6 +113,7 @@ export default async function BrandPage({ params, searchParams }) {
         <nav className="seg flex p-1.5">
           {[
             ["tasks", "Tasks"],
+            ["chat", "Chat"],
             ["library", "Library"],
             ["about", "Scope"],
           ].map(([k, l]) => (
@@ -153,6 +158,12 @@ export default async function BrandPage({ params, searchParams }) {
               <TaskList tasks={[...done].reverse()} showBrand={false} empty="Nothing approved yet." />
             </Panel>
           </>
+        )}
+
+        {current === "chat" && (
+          <Panel title={`Chat with ${brand.name}`} sub="The client sees this on their dashboard. Admin, ops and execution heads can reply.">
+            <BrandChat initial={messages} side="team" meId={me.id} brandName={brand.name} load={brandMessages.bind(null, id)} send={sendBrandMessage.bind(null, id)} />
+          </Panel>
         )}
 
         {current === "library" && (
