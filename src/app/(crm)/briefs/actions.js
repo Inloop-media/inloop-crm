@@ -6,10 +6,11 @@ import { db } from "@/lib/supabase/server";
 import { addEvents } from "@/lib/leads";
 import { BUCKET, queueJob } from "@/lib/proposals";
 import { canEnterCommercials, canSeeProposal, canWorkOnProposal, isStrategist } from "@/lib/permissions";
-import { DOC_KINDS } from "@/lib/constants";
+import { DOC_KINDS, IMAGE_EXT } from "@/lib/constants";
 import { announce } from "@/lib/updates";
 
 const MAX_FILE = 50 * 1024 * 1024;
+const MAX_IMAGE = 20 * 1024 * 1024;
 const str = (v, max = 5000) => String(v ?? "").trim().slice(0, max);
 
 async function loadProposal(leadId) {
@@ -54,6 +55,8 @@ export async function startUpload(leadId, kind, fileName, size, type) {
   if (!def) return { ok: false, error: "Unknown document type." };
   if (!(size > 0) || size > MAX_FILE) return { ok: false, error: "Files must be under 50 MB — share bigger ones as a link." };
   if (def.pdf && !(/\.pdf$/i.test(fileName) || type === "application/pdf")) return { ok: false, error: `${def.label} must be a PDF (the CRL bot reads it).` };
+  if (def.images && !IMAGE_EXT.test(fileName)) return { ok: false, error: `${fileName}: creatives must be JPG, PNG or WebP images — they go straight into the deck.` };
+  if (def.images && size > MAX_IMAGE) return { ok: false, error: `${fileName} is over 20 MB — export it smaller.` };
 
   const safe = str(fileName, 120).replace(/[^\w.\-]+/g, "_") || "file";
   const path = `${p.lead.code}/${kind}/${Date.now()}-${safe}`;
@@ -80,6 +83,7 @@ export async function addDocument(leadId, kind, doc) {
     const url = str(doc.url, 1000);
     if (!/^https?:\/\/\S+$/i.test(url)) return { ok: false, error: "Paste a full link starting with https://" };
     if (def.pdf) return { ok: false, error: `${def.label} must be uploaded as a PDF — the CRL bot reads the file.` };
+    if (def.images) return { ok: false, error: "Upload the creative images themselves — the bot can't put a link into the deck." };
     Object.assign(row, { url, name: str(doc.name, 200) || url.replace(/^https?:\/\//, "").slice(0, 80) });
   }
   const { error } = await db().from("lead_documents").insert(row);

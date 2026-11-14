@@ -4,7 +4,7 @@ import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Icon from "@/components/Icon";
 import { createClient } from "@/lib/supabase/browser";
-import { DOC_KINDS, PROPOSAL_STAGES } from "@/lib/constants";
+import { DOC_KINDS, IMAGE_EXT, PROPOSAL_STAGES } from "@/lib/constants";
 import { fmtDateTime } from "@/lib/format";
 import { addDocument, approveDeck, pickUpBrief, removeDocument, requestDeckChanges, retryStep, saveCommercials, startUpload, submitForCrl } from "@/app/(crm)/briefs/actions";
 
@@ -34,6 +34,9 @@ function DocSlot({ leadId, def, docs, editable }) {
   const [progress, setProgress] = useState("");
   const { pending, error, run, setError } = useAction();
   const done = docs.length > 0;
+  const isImage = (d) => d.storage_path && IMAGE_EXT.test(d.name || "");
+  const images = def.images ? docs.filter(isImage) : [];
+  const rows = def.images ? docs.filter((d) => !isImage(d)) : docs;
 
   const upload = async (files) => {
     setError("");
@@ -42,8 +45,8 @@ function DocSlot({ leadId, def, docs, editable }) {
       failed = true;
       setError(msg);
     };
-    for (const file of files) {
-      setProgress(`Uploading ${file.name}…`);
+    for (const [i, file] of files.entries()) {
+      setProgress(files.length > 1 ? `Uploading ${i + 1} of ${files.length} — ${file.name}…` : `Uploading ${file.name}…`);
       const s = await startUpload(leadId, def.id, file.name, file.size, file.type);
       if (!s.ok) {
         fail(s.error);
@@ -75,12 +78,37 @@ function DocSlot({ leadId, def, docs, editable }) {
           <div className="flex items-center gap-2 text-sm font-medium">
             {def.label}
             {def.pdf && <span className="rounded-full bg-panel px-1.5 py-0.5 text-[10px] font-medium text-muted">PDF</span>}
+            {def.images && <span className="rounded-full bg-panel px-1.5 py-0.5 text-[10px] font-medium text-muted">Images</span>}
+            {def.images && images.length > 0 && <span className="text-xs font-normal text-muted">· {images.length}</span>}
           </div>
           <p className="mt-0.5 text-xs text-muted">{def.help}</p>
 
-          {docs.length > 0 && (
+          {def.images && images.length > 0 && (
+            <div className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-4">
+              {images.map((d) => (
+                <div key={d.id} className="group relative aspect-square overflow-hidden rounded-xl bg-panel shadow-[var(--card-shadow)]">
+                  <a href={d.href} target="_blank" rel="noreferrer" title={d.name}>
+                    {/* eslint-disable-next-line @next/next/no-img-element -- signed storage URL */}
+                    <img src={d.href} alt={d.name} loading="lazy" className="h-full w-full object-cover transition duration-300 group-hover:scale-105" />
+                  </a>
+                  {editable && (
+                    <button
+                      onClick={() => run(() => removeDocument(d.id))}
+                      disabled={pending}
+                      title="Remove"
+                      className="absolute right-1.5 top-1.5 grid h-6 w-6 place-items-center rounded-full bg-black/55 text-white opacity-0 transition hover:bg-rose-500 group-hover:opacity-100 focus:opacity-100"
+                    >
+                      <Icon name="x" size={12} />
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {rows.length > 0 && (
             <ul className="mt-3 flex flex-col gap-1.5">
-              {docs.map((d) => (
+              {rows.map((d) => (
                 <li key={d.id} className="flex items-center gap-2 rounded-xl bg-panel px-3 py-2 text-xs shadow-[var(--card-shadow)]">
                   <Icon name={d.storage_path ? "file" : "link"} size={13} className="text-muted" />
                   <a href={d.href} target="_blank" rel="noreferrer" className="min-w-0 flex-1 truncate hover:text-brand">
@@ -108,14 +136,14 @@ function DocSlot({ leadId, def, docs, editable }) {
                 ref={fileRef}
                 type="file"
                 multiple={!def.pdf}
-                accept={def.pdf ? "application/pdf,.pdf" : undefined}
+                accept={def.pdf ? "application/pdf,.pdf" : def.images ? "image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp" : undefined}
                 className="hidden"
                 onChange={(e) => e.target.files?.length && upload([...e.target.files])}
               />
               <button onClick={() => fileRef.current?.click()} disabled={Boolean(progress) || pending} className="btn-ghost btn-sm">
-                <Icon name="upload" size={13} /> {progress ? "Uploading…" : "Upload file"}
+                <Icon name="upload" size={13} /> {progress ? "Uploading…" : def.images ? (images.length ? "Add more images" : "Upload images") : "Upload file"}
               </button>
-              {!def.pdf && (
+              {!def.pdf && !def.images && (
                 <button onClick={() => setShowLink((v) => !v)} className="px-1 text-xs text-muted hover:text-ink">
                   or add a link
                 </button>

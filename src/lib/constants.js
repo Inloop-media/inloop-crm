@@ -46,10 +46,12 @@ export const MEETING_KINDS = {
   proposal: { label: "Proposal meeting", color: "#a78bfa" },
 };
 
-// What the strategist uploads. reference_links + brand_identity feed the CRL bot, so they must be PDFs.
+// What the strategist uploads. reference_links + brand_identity feed the CRL bot, so they must be PDFs;
+// creatives are images that go straight into the proposal deck.
+export const IMAGE_EXT = /\.(jpe?g|png|webp)$/i;
 export const DOC_KINDS = [
   { id: "reference_links", label: "Reference links", help: "Content reference PDF with the IG / Pinterest links, by pillar", pdf: true },
-  { id: "creatives", label: "Creatives", help: "Creative references — files or a Drive link" },
+  { id: "creatives", label: "Creatives", help: "Sample creative images (JPG / PNG / WebP) — the bot puts these straight into the proposal deck", images: true },
   { id: "brand_strategy", label: "Brand strategy", help: "Strategy notes / document" },
   { id: "brand_identity", label: "Brand identity", help: "Brand identity PDF — colours, fonts, logo", pdf: true },
 ];
