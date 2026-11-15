@@ -1,7 +1,7 @@
 // The heads' home: three plain questions — what do I need to check, what's late, how is each brand doing.
 import Link from "next/link";
 import Icon from "@/components/Icon";
-import { Avatar } from "@/components/ui";
+import { Avatar, StatCard } from "@/components/ui";
 import ReviewButtons from "@/components/ReviewButtons";
 import { OPEN_TASK, taskKindLabel } from "@/lib/constants";
 
@@ -10,20 +10,6 @@ const late = (t) => OPEN_TASK.includes(t.status) && t.due_at && new Date(t.due_a
 const daysLate = (t) => Math.max(0, Math.floor((now() - new Date(t.due_at).getTime()) / 86400000));
 const isImg = (n) => /\.(jpe?g|png|webp|gif)$/i.test(n || "");
 const isVid = (n) => /\.(mp4|mov|webm|m4v)$/i.test(n || "");
-
-function Tile({ href, label, value, tone, note }) {
-  return (
-    <a href={href} className="card group flex items-center gap-4 !rounded-3xl p-5 transition hover:-translate-y-0.5">
-      <span className="text-[40px] font-medium leading-none tracking-[-0.03em] tabular-nums" style={value ? { color: tone } : undefined}>
-        {value}
-      </span>
-      <span className="min-w-0">
-        <span className="block text-sm font-medium">{label}</span>
-        <span className="block truncate text-xs text-muted">{note}</span>
-      </span>
-    </a>
-  );
-}
 
 function Heading({ id, title, sub, action }) {
   return (
@@ -68,10 +54,11 @@ export default function HeadHome({ tasks, brands = [], files = {}, boardHref = "
 
   return (
     <div>
-      <div className="grid gap-3 sm:grid-cols-3">
-        <Tile href="#review" label="To check" value={review.length} tone="#a78bfa" note={review.length ? "Work the team finished" : "Nothing waiting"} />
-        <Tile href="#late" label="Late" value={overdue.length} tone="#fb7185" note={overdue.length ? "Past the due date" : "Nothing late"} />
-        <Tile href={boardHref} label="In progress" value={inWork.length} tone="var(--color-ink)" note={`${withClient.length} with clients`} />
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <StatCard coral href="#review" label="To check" value={review.length} note={review.length ? "Work the team finished" : "Nothing waiting"} />
+        <StatCard href="#late" label="Late" value={overdue.length} tone="#e11d48" note={overdue.length ? "Past the due date" : "Nothing late"} />
+        <StatCard href={boardHref} label="In progress" value={inWork.length} note="Being made now" />
+        <StatCard href={boardHref} label="With clients" value={withClient.length} note="Waiting for their OK" bar={tasks.length ? Math.round((tasks.filter((t) => t.status === "done").length / tasks.length) * 100) : 0} />
       </div>
 
       <Heading id="review" title="To check" sub="The team finished these. Look at the work, then send it to the client, approve it, or send it back." />

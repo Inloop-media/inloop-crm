@@ -1,12 +1,10 @@
-import Logo from "@/components/Logo";
-import { Suspense } from "react";
-import { unreadCounts } from "@/lib/chat";
-import Link from "next/link";
-import { PhoneTabs, Sidebar } from "@/components/Nav";
-import Icon from "@/components/Icon";
-import MobileHeader, { SidebarProfile } from "@/components/MobileHeader";
+import { PhoneTabs, Rail, RailTool, TopBar } from "@/components/Nav";
+import MobileHeader, { AvatarMenu } from "@/components/MobileHeader";
+import PushSetup from "@/components/PushSetup";
+import ThemeToggle from "@/components/ThemeToggle";
 import FeedbackNote from "@/components/FeedbackNote";
 import Celebration from "@/components/Celebration";
+import { unreadCounts } from "@/lib/chat";
 import { unseenCelebrations } from "@/lib/brands";
 import { taskBadge } from "@/lib/tasks";
 import { getTheme } from "@/lib/theme";
@@ -43,32 +41,20 @@ const initials = (name) =>
 
 export default async function CrmLayout({ children }) {
   const me = await requireMember();
-  // Sidebar (ClickUp / Notion style): your work on top, sales, then every brand as a workspace
+  // Icon rail, top to bottom: your work, sales, clients
   const tasksCount = await taskBadge(me).catch(() => 0);
   const feeds = await listFeeds(me);
-  const main = [{ href: "/", label: "Home", icon: "home" }];
-  if (canAssignTasks(me) || isMaker(me) || tasksCount) main.push({ href: "/tasks", label: canAssignTasks(me) ? "Tasks" : "My tasks", icon: "tasks", badge: tasksCount });
-  if (canSeeCalendar(me)) main.push({ href: "/calendar", label: "Content calendar", icon: "calendar" });
-  const sales = [];
-  if (canSeeLeads(me)) sales.push({ href: "/leads", label: "Leads", icon: "leads" });
-  if (canSeeBriefs(me)) sales.push({ href: "/briefs", label: "Proposals", icon: "brief", badge: await briefsBadge(me) });
-  const groups = [
-    { title: "", items: main },
-    { title: "Sales", items: sales },
-  ].filter((g) => g.items.length);
-
-  let brands = null;
-  if (canSeeBrands(me) || canSeeCalendar(me)) {
-    const { data } = await db().from("brands").select("id, name, stage").order("name");
-    const list = (data || []).filter((b) => b.stage === "active" || canSeeBrands(me));
-    const unread = canSeeBrands(me) ? await unreadCounts(list.map((b) => b.id), me.id).catch(() => ({})) : {};
-    brands = {
-      allHref: canSeeBrands(me) ? "/brands" : "/calendar",
-      items: list
-        .sort((a, b) => (b.stage === "active") - (a.stage === "active") || a.name.localeCompare(b.name))
-        .map((b) => ({ id: b.id, name: b.name, href: canSeeBrands(me) ? `/brands/${b.id}` : `/calendar?brand=${b.id}`, badge: unread[b.id] || 0, muted: b.stage !== "active" })),
-    };
+  const items = [{ href: "/", label: "Home", icon: "home" }];
+  if (canAssignTasks(me) || isMaker(me) || tasksCount) items.push({ href: "/tasks", label: canAssignTasks(me) ? "Tasks" : "My tasks", icon: "tasks", badge: tasksCount });
+  if (canSeeCalendar(me)) items.push({ href: "/calendar", label: "Content calendar", icon: "calendar" });
+  if (canSeeLeads(me)) items.push({ href: "/leads", label: "Leads", icon: "leads" });
+  if (canSeeBriefs(me)) items.push({ href: "/briefs", label: "Proposals", icon: "brief", badge: await briefsBadge(me) });
+  if (canSeeBrands(me)) {
+    const { data } = await db().from("brands").select("id");
+    const unread = await unreadCounts((data || []).map((b) => b.id), me.id).catch(() => ({}));
+    items.push({ href: "/brands", label: "Brands", icon: "brand", badge: Object.values(unread).reduce((n, c) => n + c, 0) });
   }
+  if (canCreateLead(me)) items.push({ href: "/leads/new", label: "New lead", icon: "plus" });
 
   const bottom = [];
   if (feeds.length) bottom.push({ href: "/updates", label: "Updates", icon: "slack", badge: feeds.reduce((n, g) => n + g.unread, 0) });
@@ -86,37 +72,42 @@ export default async function CrmLayout({ children }) {
     theme,
   };
 
+  const date = new Intl.DateTimeFormat("en-IN", { timeZone: "Asia/Kolkata", weekday: "long", day: "numeric", month: "long" }).format(new Date());
+
   return (
     <div className="min-h-svh">
       <MobileHeader {...profile} />
-
-      <div className="md:flex">
-        {/* Desktop sidebar */}
-        <aside className="sticky top-0 hidden h-svh w-[248px] shrink-0 flex-col gap-6 border-r border-line bg-panel/40 px-3 py-5 backdrop-blur-xl md:flex">
-          <Link href="/" aria-label="Home" className="px-3">
-            <Logo />
-          </Link>
-          <Suspense>
-          <Sidebar
-            groups={groups}
-            brands={brands}
-            bottom={bottom}
-            top={
-              canCreateLead(me) ? (
-                <Link href="/leads/new" className="btn-primary btn-sm mx-1 !justify-start">
-                  <Icon name="plus" size={14} /> New lead
-                </Link>
-              ) : null
-            }
-            footer={<SidebarProfile {...profile} />}
-          />
-          </Suspense>
-        </aside>
-        <main className="relative z-[1] min-w-0 flex-1 pb-[calc(env(safe-area-inset-bottom)+96px)] md:pb-6">{children}</main>
+      <Rail
+        items={items}
+        bottom={bottom}
+        logo={
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src="/images/hero-logo.webp" alt="Inloop" className="h-auto w-6" />
+        }
+        tools={
+          <>
+            <ThemeToggle initial={theme} variant="icon" />
+            <form action="/auth/signout" method="post">
+              <RailTool type="submit" label="Sign out" icon="logout" />
+            </form>
+          </>
+        }
+      />
+      <div className="md:pl-[92px]">
+        <TopBar
+          items={[...items, ...bottom]}
+          date={date}
+          search={canSeeLeads(me)}
+          right={
+            <>
+              <PushSetup variant="circle" />
+              <AvatarMenu {...profile} />
+            </>
+          }
+        />
+        <main className="relative z-[1] min-w-0 pb-[calc(env(safe-area-inset-bottom)+104px)] md:pb-6">{children}</main>
       </div>
-      <Suspense>
-        <PhoneTabs groups={groups} brands={brands} bottom={bottom} />
-      </Suspense>
+      <PhoneTabs items={items.filter((it) => it.href !== "/leads/new")} bottom={bottom} />
       {me.role !== "admin" && <FeedbackNote />}
       <Celebration initial={await unseenCelebrations(me).catch(() => [])} />
     </div>

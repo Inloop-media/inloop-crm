@@ -157,10 +157,10 @@ export default function PushSetup({ variant = "card" }) {
       <button
         onClick={() => setOpen((o) => !o)}
         title="Notifications"
-        className={`relative grid h-10 w-10 place-items-center rounded-full transition ${open ? "bg-panel-2 text-ink" : "text-muted hover:bg-panel-2 hover:text-ink"}`}
+        className={`relative grid h-10 w-10 place-items-center rounded-full transition ${variant === "circle" ? "h-11 w-11 bg-panel text-ink shadow-[var(--card-shadow)] hover:-translate-y-0.5" : open ? "bg-panel-2 text-ink" : "text-muted hover:bg-panel-2 hover:text-ink"}`}
       >
         <Icon name="bell" size={17} />
-        {state !== "on" && <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-brand ring-2 ring-panel" />}
+        {state !== "on" && <span className={`absolute h-2 w-2 rounded-full bg-brand ring-2 ring-panel ${variant === "circle" ? "right-2.5 top-2.5" : "right-2 top-2"}`} />}
       </button>
       {open && (
         <>

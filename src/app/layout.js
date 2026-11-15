@@ -1,8 +1,8 @@
-import { Outfit } from "next/font/google";
+import { Inter } from "next/font/google";
 import { getTheme, THEME_COLOR } from "@/lib/theme";
 import "./globals.css";
 
-const outfit = Outfit({ variable: "--font-outfit", subsets: ["latin"] });
+const inter = Inter({ variable: "--font-inter", subsets: ["latin"] });
 
 export const metadata = {
   title: { default: "Inloop CRM", template: "%s · Inloop CRM" },
@@ -19,7 +19,7 @@ export async function generateViewport() {
 export default async function RootLayout({ children }) {
   const theme = await getTheme();
   return (
-    <html lang="en" data-theme={theme} className={`${outfit.variable} h-full antialiased`}>
+    <html lang="en" data-theme={theme} className={`${inter.variable} h-full antialiased`}>
       <body className="min-h-full">{children}</body>
     </html>
   );

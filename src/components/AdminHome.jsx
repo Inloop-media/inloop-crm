@@ -11,7 +11,6 @@ import { ago, fullName } from "@/lib/format";
 
 const DAY = 864e5;
 const IST = { timeZone: "Asia/Kolkata" };
-const weekday = new Intl.DateTimeFormat("en-IN", { ...IST, weekday: "long", day: "numeric", month: "long" });
 const brandOf = (l) => l.brand || fullName(l);
 function greeting() {
   const h = Number(new Intl.DateTimeFormat("en-IN", { ...IST, hour: "numeric", hour12: false }).format(new Date()));
@@ -28,7 +27,7 @@ const AREAS = {
 function Todo({ items }) {
   if (!items.length)
     return (
-      <div className="card flex items-center gap-4 !rounded-3xl p-6">
+      <div className="flex items-center gap-4 rounded-2xl bg-panel-2 p-5">
         <span className="grid h-11 w-11 place-items-center rounded-2xl bg-emerald-400/15 text-emerald-400">
           <Icon name="check" size={18} />
         </span>
@@ -39,7 +38,7 @@ function Todo({ items }) {
       </div>
     );
   return (
-    <ul className="card flex flex-col divide-y divide-line !rounded-3xl px-2">
+    <ul className="-mx-1 flex flex-col divide-y divide-line">
       {items.map((it) => {
         const a = AREAS[it.area];
         return (
@@ -65,9 +64,10 @@ function Todo({ items }) {
 }
 
 function Step({ n, area, href, value, title, lines }) {
-  const a = AREAS[area];
+  const coral = n === 1;
+  const a = coral ? { ...AREAS[area], color: "#ffffff" } : AREAS[area];
   return (
-    <Link href={href} className="card card-hover group relative flex flex-col gap-3 !rounded-3xl p-5">
+    <Link href={href} className={`group relative flex flex-col gap-3 p-5 transition duration-300 hover:-translate-y-0.5 ${coral ? "card-coral" : "card"}`}>
       <div className="flex items-center gap-2 text-xs text-muted">
         <span className="grid h-6 w-6 place-items-center rounded-full text-[11px] font-semibold" style={{ background: `color-mix(in srgb, ${a.color} 18%, transparent)`, color: a.color }}>
           {n}
@@ -76,12 +76,12 @@ function Step({ n, area, href, value, title, lines }) {
         <Icon name="arrow" size={13} className="ml-auto text-faint transition group-hover:translate-x-0.5 group-hover:text-ink" />
       </div>
       <div>
-        <div className="text-[34px] font-medium leading-none tracking-[-0.03em] tabular-nums">{value}</div>
+        <div className="text-[44px] font-light leading-none tracking-[-0.04em] tabular-nums">{value}</div>
         <div className="mt-1 text-sm">{title}</div>
       </div>
       <ul className="flex flex-col gap-1 text-xs text-muted">
         {lines.filter(Boolean).map(([text, warn]) => (
-          <li key={text} className={warn ? "font-medium text-amber-400" : ""}>
+          <li key={text} className={warn ? (coral ? "font-medium text-white" : "font-medium text-brand") : ""}>
             {text}
           </li>
         ))}
@@ -132,27 +132,16 @@ export default function AdminHome({ me, data, brands = [], tasks = [], actions }
   const todayMeetings = upcoming.filter((m) => new Date(m.starts_at).getTime() < now + DAY).length;
 
   return (
-    <div className="page max-w-6xl">
+    <div className="page">
       <header className="rise flex flex-wrap items-end justify-between gap-x-8 gap-y-4">
-        <div className="min-w-0">
-          <p className="text-sm text-muted">{weekday.format(new Date(now))}</p>
-          <h1 className="mt-1 text-[30px] font-medium leading-tight tracking-[-0.02em] md:text-[36px]">
-            {greeting()}, {me.name.split(" ")[0]}
-          </h1>
-        </div>
+        <h1 className="text-[34px] font-normal leading-tight tracking-[-0.03em] md:text-[44px]">
+          {greeting()}, {me.name.split(" ")[0]} 👋
+        </h1>
         {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
       </header>
 
-      <section className="rise mt-8 [animation-delay:40ms]">
-        <h2 className="mb-1 text-xl font-medium tracking-[-0.015em]">Needs you</h2>
-        <p className="mb-3 text-sm text-muted">{todo.length ? `${todo.length} thing${todo.length > 1 ? "s" : ""} — tap one to do it.` : "You're all caught up."}</p>
-        <Todo items={todo} />
-      </section>
-
-      <section className="rise mt-10 [animation-delay:80ms]">
-        <h2 className="mb-1 text-xl font-medium tracking-[-0.015em]">The agency</h2>
-        <p className="mb-3 text-sm text-muted">Every client goes left to right: lead → proposal → client → work.</p>
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <section className="rise mt-6 [animation-delay:40ms]">
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <Step n={1} area="sales" href="/leads" value={open.length} title="Open leads" lines={[[`${newWeek} new this week`], unassigned.length > 0 && [`${unassigned.length} not assigned`, true]]} />
           <Step n={2} area="proposal" href="/briefs" value={liveProposals.length} title="Proposals in progress" lines={[[`${proposals.filter((p) => p.stage === "done").length} ready`], deckReview.length + commercials.length > 0 && [`${deckReview.length + commercials.length} need you`, true]]} />
           <Step n={3} area="client" href="/brands" value={active.length} title="Active clients" lines={[mouOut.length > 0 && [`${mouOut.length} waiting to sign the MOU`], mouDraft.length > 0 && [`${mouDraft.length} MOU to send`, true], !mouOut.length && !mouDraft.length && ["All onboarded"]]} />
@@ -160,14 +149,26 @@ export default function AdminHome({ me, data, brands = [], tasks = [], actions }
         </div>
       </section>
 
-      <section className="rise mt-10 [animation-delay:120ms]">
-        <h2 className="mb-1 text-xl font-medium tracking-[-0.015em]">Meetings</h2>
-        <p className="mb-3 text-sm text-muted">{todayMeetings ? `${todayMeetings} in the next 24 hours` : "Coming up"}</p>
-        <div className="card !rounded-3xl p-4">
-          <MeetingAgenda meetings={upcoming} now={now} />
-        </div>
-      </section>
+      <div className="mt-4 grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_380px]">
+        <section className="rise card p-4 [animation-delay:80ms] sm:p-5">
+          <div className="mb-3 flex items-end justify-between gap-3 px-1">
+            <div>
+              <h2 className="text-xl font-medium tracking-[-0.015em]">Needs you</h2>
+              <p className="text-sm text-muted">{todo.length ? `${todo.length} thing${todo.length > 1 ? "s" : ""} — tap one to do it.` : "You're all caught up."}</p>
+            </div>
+            {todo.length > 0 && <span className="rounded-full bg-brand px-2.5 py-1 text-xs font-semibold text-white">{todo.length}</span>}
+          </div>
+          <Todo items={todo} />
+        </section>
 
+        <section className="rise card p-4 [animation-delay:120ms] sm:p-5">
+          <div className="mb-3 px-1">
+            <h2 className="text-xl font-medium tracking-[-0.015em]">Meetings</h2>
+            <p className="text-sm text-muted">{todayMeetings ? `${todayMeetings} in the next 24 hours` : "Coming up"}</p>
+          </div>
+          <MeetingAgenda meetings={upcoming} now={now} />
+        </section>
+      </div>
     </div>
   );
 }

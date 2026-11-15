@@ -2,12 +2,13 @@
 
 import { useState } from "react";
 import Icon from "@/components/Icon";
+import { RailTool } from "@/components/Nav";
 
 const THEMES = [
   { id: "light", label: "Light", icon: "sun" },
   { id: "dark", label: "Dark", icon: "moon" },
 ];
-const COLOR = { light: "#ecebf6", dark: "#0c0b12" };
+const COLOR = { light: "#ebebed", dark: "#0e0e10" };
 
 function switchTo(next) {
   const root = document.documentElement;
@@ -28,6 +29,8 @@ export default function ThemeToggle({ initial = "light", variant = "rail" }) {
     switchTo(next);
     setTheme(next);
   };
+
+  if (variant === "icon") return <RailTool label={theme === "light" ? "Dark mode" : "Light mode"} icon={theme === "light" ? "moon" : "sun"} onClick={() => apply(theme === "light" ? "dark" : "light")} />;
 
   if (variant === "row") {
     return (

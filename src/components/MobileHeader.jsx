@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
 import { usePathname } from "next/navigation";
 import Logo from "@/components/Logo";
 import Icon from "@/components/Icon";
@@ -63,30 +62,6 @@ function useOpen() {
   return [open, setOpen];
 }
 
-/** Desktop top bar, right side: search, notifications and the profile menu in one pill. */
-export function ProfileMenu(props) {
-  const [open, setOpen] = useOpen();
-  return (
-    <div className="pill-group relative">
-      <Link href="/leads?view=list" title="Search leads" className="grid h-10 w-10 place-items-center rounded-full text-muted transition hover:bg-panel-2 hover:text-ink">
-        <Icon name="search" size={17} />
-      </Link>
-      <PushSetup variant="bell" />
-      <button onClick={() => setOpen((o) => !o)} aria-label="Profile" className="rounded-full transition hover:opacity-90">
-        <Me initials={props.initials} />
-      </button>
-      {open && (
-        <>
-          <button aria-label="Close" onClick={() => setOpen(false)} className="fixed inset-0 z-30 cursor-default" />
-          <div className="rise pop absolute right-0 top-14 z-40 w-80 p-5">
-            <ProfileBody {...props} />
-          </div>
-        </>
-      )}
-    </div>
-  );
-}
-
 /** Phone header: logo on the left, notifications + profile on the right (profile opens a sheet). */
 export default function MobileHeader(props) {
   const [open, setOpen] = useOpen();
@@ -124,23 +99,18 @@ export default function MobileHeader(props) {
   );
 }
 
-/** Desktop sidebar foot: who's signed in; opens the same profile menu upward. */
-export function SidebarProfile(props) {
+/** Desktop top bar, far right: your avatar; opens the profile menu (notifications, calendar, theme, sign out). */
+export function AvatarMenu(props) {
   const [open, setOpen] = useOpen();
   return (
     <div className="relative">
-      <button onClick={() => setOpen((o) => !o)} className="flex w-full items-center gap-3 rounded-2xl px-2 py-2 text-left transition hover:bg-panel-2">
-        <Me initials={props.initials} size="h-9 w-9 text-xs" />
-        <span className="min-w-0 flex-1">
-          <span className="block truncate text-sm font-medium">{props.name}</span>
-          <span className="block truncate text-[11px] text-muted">{props.roleLabel}</span>
-        </span>
-        <Icon name="chevron" size={14} className="rotate-180 text-faint" />
+      <button onClick={() => setOpen((o) => !o)} aria-label="Profile" title={props.name} className="block rounded-full ring-2 ring-panel transition hover:-translate-y-0.5">
+        <Me initials={props.initials} size="h-11 w-11 text-xs" />
       </button>
       {open && (
         <>
           <button aria-label="Close" onClick={() => setOpen(false)} className="fixed inset-0 z-30 cursor-default" />
-          <div className="rise pop absolute bottom-14 left-0 z-40 w-80 p-5">
+          <div className="rise pop absolute right-0 top-14 z-40 w-80 p-5">
             <ProfileBody {...props} showTheme />
           </div>
         </>

@@ -6,4 +6,4 @@ export async function getTheme() {
   return (await cookies()).get("crm_theme")?.value === "dark" ? "dark" : "light";
 }
 
-export const THEME_COLOR = { light: "#ecebf6", dark: "#0c0b12" };
+export const THEME_COLOR = { light: "#ebebed", dark: "#0e0e10" };

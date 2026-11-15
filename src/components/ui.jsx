@@ -163,3 +163,38 @@ export function BrandMark({ name, size = 20 }) {
     </span>
   );
 }
+
+/**
+ * A number card: label on top, a big light number underneath. `coral` makes it the screen's one
+ * highlight card; `bar` (0–100) adds a small progress line with a hatched remainder.
+ */
+export function StatCard({ href, label, value, note, coral = false, bar, tone }) {
+  const body = (
+    <>
+      <span className="flex items-start justify-between gap-2">
+        <span className="text-sm">{label}</span>
+        {href && <Icon name="arrow" size={14} className="-rotate-45 opacity-0 transition group-hover:opacity-60" />}
+      </span>
+      <span className="flex items-end justify-between gap-3">
+        <span className="text-[44px] font-light leading-none tracking-[-0.04em] tabular-nums" style={!coral && value && tone ? { color: tone } : undefined}>
+          {value}
+        </span>
+        {note && <span className="hidden truncate pb-1 text-xs text-muted sm:block">{note}</span>}
+      </span>
+      {bar !== undefined && (
+        <span className="flex h-1.5 gap-1">
+          <span className="rounded-full bg-brand" style={{ width: `${Math.max(4, bar)}%` }} />
+          <span className="hatch flex-1 rounded-full" />
+        </span>
+      )}
+    </>
+  );
+  const cls = `group flex min-h-[132px] flex-col justify-between gap-3 p-5 transition duration-300 hover:-translate-y-0.5 ${coral ? "card-coral" : "card"}`;
+  return href ? (
+    <Link href={href} className={cls}>
+      {body}
+    </Link>
+  ) : (
+    <div className={cls}>{body}</div>
+  );
+}
