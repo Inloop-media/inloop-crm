@@ -290,7 +290,7 @@ const norm = (q) =>
 const has = (q, words) => words.some((w) => q.includes(` ${w}`));
 
 const W = {
-  task: ["task", "kaam", "kam ", "work", "post", "reel", "story", "stories", "design", "video", "carousel", "deliver"],
+  task: ["task", "due", "deadline", "kaam", "kam ", "work", "post", "reel", "story", "stories", "design", "video", "carousel", "deliver"],
   late: ["late", "overdue", "der ", "delay", "miss", "lat "],
   today: ["aaj", "aj ", "today", "abhi"],
   kal: ["kal "],
@@ -302,7 +302,7 @@ const W = {
   who: ["kis ", "kiska", "kiske", "kaun", "employee", "team", "sab ", "sabka", "har ", "each", "per ", "workload", "busy", "load", "logo", "log "],
   check: ["check", "review", "approval", "dekhna", "verify"],
   client: ["client ke paas", "client pe", "client par", "with client", "client ko bhej", "sent to client"],
-  done: ["approved", "approve ho", "done", "complete", "khatam", "finish", "ho gaya", "ho gye", "hue ", "hua "],
+  done: ["approved", "approve", "approve ho", "done", "complete", "khatam", "finish", "ho gaya", "ho gye", "hue ", "hua "],
   lead: ["lead"],
   meeting: ["meeting", "call", "meet "],
   proposal: ["proposal", "deck", "brief", "pitch"],
@@ -314,9 +314,12 @@ const W = {
   count: ["how many", "how much", "kitne", "kitna", "kitni", "count", "total", "number", "kaun kaun", "kon kon", "list", "all ", "sab ", "saare", "sare ", "till now", "ab tak", "abtak", "so far"],
   onboard: ["onboard", "signed", "sign ", "joined", "join ", "naye client", "new client", "client bane", "mou"],
   people: ["team", "employee", "staff", "member", "log ", "logo", "people", "designer", "editor", "developer", "strategist", "sales person", "salesperson", "executive", "head"],
-  perform: ["performer", "best", "sabse zyada kaam", "sabse jyada kaam", "most work", "kisne kiya", "kisne kaam", "productive", "top ", "leaderboard", "ranking"],
+  perform: ["performer", "best", "most work done", "kisne kiya", "kisne kaam", "productive", "top ", "leaderboard", "ranking"],
   revision: ["revision", "fix", "galti", "changes", "redo", "sent back"],
   source: ["source", "kahan se", "kaha se", "where from", "channel", "website se", "instagram", "referral"],
+  least: ["free", "kam kaam", "sabse kam", "least", "khali", "khaali", "less work", "available"],
+  stale: ["update nahi", "no update", "stale", "kaafi din", "bahut din", "follow up nahi", "followup nahi", "untouched", "pade hue", "pada hua", "not updated"],
+  onboarding: ["onboarding", "mou", "signature", "sign nahi"],
   conversion: ["conversion", "convert", "win rate", "winrate", "success rate", "close rate", "kitne won", "kitne lost"],
 };
 const KIND_WORDS = [
@@ -685,6 +688,108 @@ async function conversionAnswer(me) {
   ];
 }
 
+async function leastAnswer(me) {
+  const [{ people: work }, team] = await Promise.all([READ.team_workload({}, me), people()]);
+  const makers = team.filter((m) => m.groups.some((g) => ["design", "video", "development", "execution"].includes(g)));
+  const open = Object.fromEntries(work.map((w) => [w.person, w]));
+  const list = (makers.length ? makers : team).map((m) => ({ name: m.name, open: open[m.name]?.open || 0, late: open[m.name]?.late || 0 })).sort((a, b) => a.open - b.open);
+  if (!list.length) return [text("Team mein abhi koi nahi hai.")];
+  const free = list.filter((m) => m.open === 0);
+  return [
+    text(free.length ? `**${free.map((m) => first(m.name)).join(", ")}** ke paas abhi koi pending kaam nahi hai — inko naya task de sakte ho.` : `Sabse kam kaam **${first(list[0].name)}** ke paas hai (${plural(list[0].open, "task", "tasks")}).`),
+    chart({ type: "bar", title: "Pending work per person (least first)", labels: list.map((m) => first(m.name)), datasets: [{ label: "Open", values: list.map((m) => m.open) }, { label: "Late", values: list.map((m) => m.late) }] }),
+  ];
+}
+
+async function onboardingAnswer(me) {
+  const { brands } = await READ.list_brands({}, me);
+  const list = brands.filter((b) => b.stage !== "active client");
+  if (!list.length) return [text("Abhi koi brand onboarding mein nahi hai — sab active clients hain ✓")];
+  return [
+    text(`**${plural(list.length, "brand", "brands")}** abhi onboarding mein ${list.length === 1 ? "hai" : "hain"}:`),
+    { type: "table", columns: ["Brand", "Stage"], rows: list.map((b) => ({ cells: [b.name, b.stage] })) },
+  ];
+}
+
+async function staleLeadsAnswer(me, q) {
+  if (!canSeeAllLeads(me)) return [text("Leads ka data sirf admin aur ops dekh sakte hain.")];
+  const days = Number((q.match(/(\d+)\s*(din|day)/) || [])[1]) || 5;
+  const r = await READ.list_leads({ open_only: true, untouched_for_days: days, limit: 30 }, me);
+  return r.total
+    ? [text(`**${plural(r.total, "open lead", "open leads")}** pe ${days}+ din se koi update nahi hua — inpe follow up karo:`), leadTable(r.leads)]
+    : [text(`Saare open leads pe pichhle ${days} din mein kaam hua hai ✓`)];
+}
+
+/** What people can ask Amigo, grouped — shown on the Amigo screen. {person} / {brand} are filled in with real names. */
+export const AMIGO_QUESTIONS = [
+  ["Overview", ["Aaj ka overview do", "CRM ka summary batao", "Is hafte ka report do"]],
+  [
+    "Tasks",
+    [
+      "Aaj kitne tasks pending hain?",
+      "Kaunse tasks late hain?",
+      "Kal kya kya due hai?",
+      "Is hafte kitne tasks due hain?",
+      "Kya check karna baaki hai?",
+      "Client ke paas kitne tasks hain?",
+      "Is hafte kitne task approve hue?",
+      "Aaj kitne task approve hue?",
+      "Is mahine kitne tasks complete hue?",
+      "Kitne reels pending hain?",
+      "Kitne posts late hain?",
+      "Kitni stories approve hui?",
+      "Revisions kis task mein hue?",
+    ],
+  ],
+  [
+    "Team",
+    [
+      "Kis employee ka kitna kaam pending hai?",
+      "Sabse zyada kaam kiske paas hai?",
+      "Kiske paas sabse kam kaam hai? Kaun free hai?",
+      "Team mein kaun kaun hai?",
+      "Kitne designers hain?",
+      "Video editors kaun kaun hain?",
+      "Is mahine sabse zyada kaam kisne kiya?",
+      "Best performer this week",
+      "Sabse zyada late kaam kiska hai?",
+      "{person} ka kaam",
+      "{person} ke late tasks",
+      "{person} ne is hafte kitna kaam kiya?",
+      "{person} ka aaj kya due hai?",
+    ],
+  ],
+  [
+    "Brands",
+    [
+      "Ab tak kitne brands onboard hue?",
+      "Is mahine kitne brands onboard hue?",
+      "Kis brand ka sabse zyada kaam pending hai?",
+      "{brand} ka status",
+      "{brand} ke late tasks",
+      "Kaunse brands onboarding mein hain?",
+      "Kitne clients hain?",
+    ],
+  ],
+  [
+    "Leads",
+    [
+      "Is hafte kitne leads aaye?",
+      "Aaj kitne leads aaye?",
+      "Total leads kitne hain?",
+      "Unassigned leads kaunse hain?",
+      "Kis sales person ke paas kitne leads hain?",
+      "Leads kahan se aa rahe hain?",
+      "Conversion rate kya hai?",
+      "Kitne leads won hue?",
+      "Negotiation mein kaunse leads hain?",
+      "Kaunse leads pe kaafi din se update nahi hua?",
+      "{person} ke leads",
+    ],
+  ],
+  ["Meetings & proposals", ["Aaj kitni meetings hain?", "Kal kis kis ki meeting hai?", "Is hafte ki meetings", "Proposals ka kya haal hai?"]],
+];
+
 const HELP = [
   "Aaj ka overview do",
   "Kis employee ka kitna kaam pending hai?",
@@ -721,22 +826,37 @@ async function understand(question, me) {
   if (has(q, W.meeting)) return meetingsAnswer(me, q);
   if (has(q, W.proposal)) return proposalsAnswer(me);
   if (has(q, W.lead)) {
+    if (has(q, W.stale)) return staleLeadsAnswer(me, q);
     if (has(q, W.source)) return leadsBySource(me);
     if (has(q, W.conversion)) return conversionAnswer(me);
-    if (!person && (has(q, W.who) || has(q, W.people)) && !has(q, W.unassigned)) return leadsByOwner(me);
+    const status = STATUS_WORDS.some(([w]) => q.includes(w));
+    if (!person && !status && !has(q, W.unassigned) && (q.includes(" kis ") || q.includes("sales person") || q.includes("salesperson") || q.includes(" per ") || q.includes(" har ") || q.includes("kiske") || q.includes("each"))) return leadsByOwner(me);
     return leadsAnswer(me, q, team);
   }
   if (has(q, W.conversion)) return conversionAnswer(me);
   if (has(q, W.perform) && !has(q, W.brand)) return performersAnswer(me, q);
   if (has(q, W.revision) && !person) return revisionsAnswer(me);
-  if (brand && !person) return brandAnswer(me, brand);
+  if (brand && !person) {
+    const bn = brand.name;
+    if (has(q, W.late)) return tasksAnswer(me, "late", { none: `${bn} ka koi task late nahi hai ✓`, some: (n) => `${bn} ke **${plural(n, "task", "tasks")} late** hain:` }, { brand });
+    if (has(q, W.check)) return tasksAnswer(me, "to_check", { none: `${bn} ka kuch check karna baaki nahi hai.`, some: (n) => `${bn} ke **${n}** tasks check karne hain:` }, { brand });
+    if (has(q, W.done)) return tasksAnswer(me, "approved", { none: `${bn} ka abhi koi task approved nahi hai.`, some: (n) => `${bn} ke **${plural(n, "task", "tasks")} approved** hue:` }, { brand });
+    return brandAnswer(me, brand);
+  }
+  if (has(q, W.least) && !has(q, W.lead)) return leastAnswer(me);
+  if (has(q, W.most) && (q.includes("paas") || q.includes("pass ") || q.includes("busy")) && !has(q, W.brand)) return workloadAnswer(me);
   // "Team mein kaun kaun hai", "kitne designers hain"
   if (!person && has(q, W.people) && (has(q, W.count) || has(q, W.who)) && !has(q, W.pending) && !has(q, W.late) && !has(q, W.check) && !q.includes("kaam")) return teamAnswer(me, q);
 
   if (person) {
     if (has(q, W.late)) return tasksAnswer(me, "late", { none: `${p} ka koi task late nahi hai ✓`, some: (n) => `${p} ke **${plural(n, "task", "tasks")} late** hain:` }, { person });
     if (has(q, W.check)) return tasksAnswer(me, "to_check", { none: `${p} ka kuch check karna baaki nahi hai.`, some: (n) => `${p} ke **${n}** tasks check karne hain:` }, { person });
-    if (has(q, W.done)) return tasksAnswer(me, "approved", { none: `${p} ka abhi koi task approved nahi hai.`, some: (n) => `${p} ke **${plural(n, "task", "tasks")} approved** hue hain:` }, { person });
+    if (has(q, W.done) || q.includes("kitna kaam kiya") || q.includes("kya kiya")) {
+      const days = has(q, W.today) ? 1 : has(q, W.week) ? 7 : has(q, W.month) ? 30 : null;
+      const r = await READ.list_tasks({ filter: "approved", person: person.name, approved_within_days: days || undefined, limit: 30 }, me);
+      const when = days === 1 ? "aaj" : days === 7 ? "is hafte" : days === 30 ? "is mahine" : "ab tak";
+      return r.total ? [text(`${p} ke ${when} **${plural(r.total, "task", "tasks")} approved** hue:`), taskTable(r.tasks)] : [text(`${p} ka ${when} koi task approved nahi hua.`)];
+    }
     if (has(q, W.today)) return tasksAnswer(me, "due_today", { none: `${p} ka aaj koi task due nahi hai.`, some: (n) => `${p} ke aaj **${plural(n, "task", "tasks")} due** hain:` }, { person });
     const w = (await READ.team_workload({ person: person.name }, me)).people[0];
     const tasks = await tasksAnswer(me, "open", { none: `${p} ke paas abhi koi pending task nahi hai ✓`, some: () => "" }, { person });
@@ -747,6 +867,7 @@ async function understand(question, me) {
     ];
   }
 
+  if (has(q, W.onboarding) && !has(q, W.count)) return onboardingAnswer(me);
   if (W.client.some((w) => q.includes(w))) return tasksAnswer(me, "with_client", { none: "Abhi client ke paas koi task nahi hai.", some: (n) => `**${plural(n, "task", "tasks")}** client ke paas hain:` });
   if (has(q, W.brand) || has(q, W.onboard)) {
     if (has(q, W.most)) return brandsRanked(me);

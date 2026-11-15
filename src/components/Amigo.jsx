@@ -305,7 +305,28 @@ function Turn({ m, initials, onAsk }) {
   );
 }
 
-export default function Amigo({ meId, firstName, initials, suggestions = [], brands = [], people = [] }) {
+function Library({ questions, onAsk }) {
+  return (
+    <div className="grid w-full gap-3 text-left sm:grid-cols-2 lg:grid-cols-3">
+      {questions.map(([group, qs]) => (
+        <section key={group} className="rounded-2xl border border-line bg-panel p-3">
+          <h3 className="mb-2 px-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-faint">{group}</h3>
+          <ul className="flex flex-col">
+            {qs.map((q) => (
+              <li key={q}>
+                <button onClick={() => onAsk(q)} className="w-full rounded-lg px-2 py-1.5 text-left text-[13px] text-ink/80 transition hover:bg-panel-2 hover:text-ink">
+                  {q}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ))}
+    </div>
+  );
+}
+
+export default function Amigo({ meId, firstName, initials, questions = [], brands = [], people = [] }) {
   const key = `amigo:v2:${meId}`;
   // Rendered only in the browser (see AmigoLoader), so this device's last conversation can be read up front
   const [messages, setMessages] = useState(() => {
@@ -317,7 +338,9 @@ export default function Amigo({ meId, firstName, initials, suggestions = [], bra
   });
   const [busy, setBusy] = useState(false);
   const [text, setText] = useState("");
+  const [showAll, setShowAll] = useState(false);
   const end = useRef(null);
+  const total = questions.reduce((n, [, qs]) => n + qs.length, 0);
 
   useEffect(() => {
     try {
@@ -331,6 +354,7 @@ export default function Amigo({ meId, firstName, initials, suggestions = [], bra
   async function ask(q) {
     const question = String(q || "").trim();
     if (!question || busy) return;
+    setShowAll(false);
     setText("");
     setMessages((m) => [...m, { role: "user", text: question }]);
     setBusy(true);
@@ -353,6 +377,11 @@ export default function Amigo({ meId, firstName, initials, suggestions = [], bra
         </span>
         <div className="flex items-center gap-2">
           {messages.length > 0 && (
+            <button onClick={() => setShowAll((v) => !v)} className="flex items-center gap-1.5 rounded-full border border-line bg-panel px-3 py-1.5 text-xs text-muted hover:text-ink">
+              <Icon name="list" size={12} /> {showAll ? "Back to chat" : `All ${total} questions`}
+            </button>
+          )}
+          {messages.length > 0 && (
             <button onClick={() => setMessages([])} disabled={busy} className="flex items-center gap-1.5 rounded-full border border-line bg-panel px-3 py-1.5 text-xs text-muted hover:text-ink">
               <Icon name="refresh" size={12} /> New chat
             </button>
@@ -362,20 +391,19 @@ export default function Amigo({ meId, firstName, initials, suggestions = [], bra
       </div>
 
       <div className="amigo-grid relative min-h-0 flex-1 overflow-y-auto rounded-[24px] border border-line px-3 py-6 sm:px-8">
-        {!messages.length && !busy ? (
-          <div className="mx-auto flex h-full max-w-2xl flex-col items-center justify-center gap-6 text-center">
-            <Orb size={104} />
+        {showAll ? (
+          <div className="mx-auto max-w-5xl">
+            <p className="mb-3 text-sm text-muted">Inme se kuch bhi poocho — ya apne shabdon mein likho. Kisi bhi employee ya brand ka naam badal ke pooch sakte ho.</p>
+            <Library questions={questions} onAsk={ask} />
+          </div>
+        ) : !messages.length && !busy ? (
+          <div className="mx-auto flex max-w-5xl flex-col items-center gap-6 py-4 text-center">
+            <Orb size={96} />
             <div>
               <h2 className="text-[28px] font-semibold tracking-[-0.02em]">Good to see you, {firstName}</h2>
-              <p className="mt-1 text-sm text-muted">Main Amigo hoon. CRM ke baare mein poocho — kaam, team, leads, clients, meetings.</p>
+              <p className="mt-1 text-sm text-muted">Main Amigo hoon. CRM ke baare mein kuch bhi poocho — neeche {total} sawaal hain jo main samajhta hoon, ya apne shabdon mein likho.</p>
             </div>
-            <div className="flex flex-wrap justify-center gap-2">
-              {suggestions.map((s) => (
-                <button key={s} onClick={() => ask(s)} className="rounded-full border border-line bg-panel px-3.5 py-2 text-[13px] text-ink/80 transition hover:border-line-strong hover:text-ink">
-                  {s}
-                </button>
-              ))}
-            </div>
+            <Library questions={questions} onAsk={ask} />
           </div>
         ) : (
           <div className="mx-auto flex max-w-3xl flex-col gap-5">
