@@ -139,3 +139,15 @@ export const TASK_STATUSES = {
 export const OPEN_TASK = ["assigned", "in_progress", "revision"];
 // What the employee can pick from the dropdown on their own task
 export const MAKER_STATUS_OPTIONS = ["assigned", "in_progress", "completed"];
+
+// Content calendar
+export const PLAN_KINDS = ["post", "carousel", "story", "reel", "video"];
+export const PLATFORMS = [
+  { id: "instagram", label: "Instagram", short: "IG" },
+  { id: "facebook", label: "Facebook", short: "FB" },
+  { id: "linkedin", label: "LinkedIn", short: "IN" },
+  { id: "youtube", label: "YouTube", short: "YT" },
+  { id: "x", label: "X", short: "X" },
+  { id: "other", label: "Other", short: "•" },
+];
+export const kindPlural = (id) => ({ story: "Stories", other: "Other" })[id] || `${taskKindLabel(id)}s`;

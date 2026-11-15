@@ -115,10 +115,11 @@ export default async function BrandPage({ params, searchParams }) {
           {[
             ["tasks", "Tasks"],
             ["chat", unread ? `Chat · ${unread}` : "Chat"],
+            ["calendar", "Calendar"],
             ["library", "Library"],
             ["about", "Scope"],
           ].map(([k, l]) => (
-            <Link key={k} href={`/brands/${id}?tab=${k}`} data-on={current === k} className="seg-item">
+            <Link key={k} href={k === "calendar" ? `/calendar?brand=${id}` : `/brands/${id}?tab=${k}`} data-on={current === k} className="seg-item">
               {l}
             </Link>
           ))}

@@ -8,7 +8,8 @@ import { requireMember } from "@/lib/auth";
 import { dashboardData } from "@/lib/leads";
 import { listClientAccounts } from "@/lib/clients";
 import { listBrands } from "@/lib/brands";
-import { listTasks } from "@/lib/tasks";
+import { listMakers, listTasks } from "@/lib/tasks";
+import QuickAssign from "@/components/QuickAssign";
 import { canAssignTasks, canSeeAllLeads, canSeeLeads, isAdmin, isExecHead, isStrategist } from "@/lib/permissions";
 import { fmtDay } from "@/lib/format";
 
@@ -20,7 +21,7 @@ function greeting() {
   const h = Number(new Intl.DateTimeFormat("en-IN", { ...IST, hour: "numeric", hour12: false }).format(new Date()));
   return h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : "Good evening";
 }
-const PARAMS = ["brand", "bsort", "tsort", "show", "scope"];
+const PARAMS = ["brand", "bsort", "tsort", "show", "scope", "lay", "month"];
 const pick = (sp) => Object.fromEntries(PARAMS.filter((k) => typeof sp?.[k] === "string").map((k) => [k, sp[k]]));
 
 /** Admin: every brand's client login, ready to share. */
@@ -47,7 +48,8 @@ function ClientLogins({ accounts }) {
 /** Execution heads (Udit, Krish): the work they assigned — overall and brand by brand. */
 async function ExecDashboard({ me, params }) {
   const team = params.scope === "team";
-  const tasks = await listTasks(me, { view: team ? "all" : "assigned" });
+  const [tasks, people, brands] = await Promise.all([listTasks(me, { view: team ? "all" : "assigned" }), listMakers(), listBrands()]);
+  const active = brands.filter((b) => b.stage === "active").map((b) => ({ id: b.id, name: b.name }));
   const scopeLink = (s) => {
     const q = new URLSearchParams({ ...params, scope: s });
     q.delete("brand");
@@ -75,14 +77,15 @@ async function ExecDashboard({ me, params }) {
               Whole team
             </Link>
           </nav>
-          <Link href="/brands" className="btn-primary btn-sm">
-            <Icon name="plus" size={13} /> Assign a task
+          <Link href="/calendar" className="btn-ghost btn-sm">
+            <Icon name="calendar" size={13} /> Content calendar
           </Link>
+          <QuickAssign brands={active} people={people} defaultBrand={params.brand || ""} />
         </div>
       </header>
 
       <div className="rise mt-6 [animation-delay:60ms]">
-        <TaskOverview tasks={tasks} base="/" params={params} showAssigners={team} />
+        <TaskOverview tasks={tasks} base="/" params={params} showAssigners={team} people={people} />
       </div>
     </div>
   );
@@ -96,12 +99,14 @@ export default async function Dashboard({ searchParams }) {
   // Execution heads who aren't also on sales / strategy get a dashboard about their tasks
   if (isExecHead(me) && !staff && !canSeeLeads(me) && !isStrategist(me)) return <ExecDashboard me={me} params={params} />;
 
-  const [accounts, data, tasks, brands] = await Promise.all([
+  const [accounts, data, tasks, brands, people] = await Promise.all([
     isAdmin(me) ? listClientAccounts() : [],
     dashboardData(me),
     canAssignTasks(me) ? listTasks(me, { view: "all" }) : [],
-    staff ? listBrands() : [],
+    staff || canAssignTasks(me) ? listBrands() : [],
+    canAssignTasks(me) ? listMakers() : [],
   ]);
+  const activeBrands = brands.filter((b) => b.stage === "active");
   const work = canAssignTasks(me) ? (
     <section>
       <div className="mb-4 mt-3 flex items-end justify-between gap-3">
@@ -109,13 +114,17 @@ export default async function Dashboard({ searchParams }) {
           <h2 className="text-xl font-medium tracking-[-0.015em]">Brand tasks</h2>
           <p className="text-xs text-muted">What&apos;s assigned for each brand, by whom, and where it stands</p>
         </div>
-        <Link href="/tasks?view=brands" className="btn-ghost btn-sm">
-          Open tasks <Icon name="arrow" size={13} />
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link href="/calendar" className="btn-ghost btn-sm">
+            <Icon name="calendar" size={13} /> Calendar
+          </Link>
+          <QuickAssign brands={activeBrands.map((b) => ({ id: b.id, name: b.name }))} people={people} />
+        </div>
       </div>
       <TaskOverview
       tasks={tasks}
-      brands={brands.filter((b) => b.stage === "active")}
+      brands={activeBrands}
+      people={people}
       base="/"
       params={params}
     />

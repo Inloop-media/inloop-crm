@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Avatar, PageHeader, Panel, StatStrip } from "@/components/ui";
 import { TaskList } from "@/components/Tasks";
 import TaskOverview from "@/components/TaskOverview";
+import MyWork from "@/components/MyWork";
 import { requireMember } from "@/lib/auth";
 import { listMakers, listTasks } from "@/lib/tasks";
 import { canAssignTasks } from "@/lib/permissions";
@@ -9,43 +10,10 @@ import { OPEN_TASK } from "@/lib/constants";
 
 export const metadata = { title: "Tasks" };
 
-const keep = (sp, view) => ({ view, ...Object.fromEntries(["brand", "bsort", "tsort", "show"].filter((k) => typeof sp?.[k] === "string").map((k) => [k, sp[k]])) });
+const keep = (sp, view) => ({ view, ...Object.fromEntries(["brand", "bsort", "tsort", "show", "lay", "month"].filter((k) => typeof sp?.[k] === "string").map((k) => [k, sp[k]])) });
 
 const overdue = (t) => OPEN_TASK.includes(t.status) && t.due_at && new Date(t.due_at).getTime() < Date.now();
 const KIND_LABEL = { design: "Designer", development: "Developer", video: "Video editor", execution: "Execution head" };
-
-function MyTasks({ tasks }) {
-  const attention = tasks.filter((t) => t.status === "revision" || overdue(t));
-  const todo = tasks.filter((t) => t.status === "assigned" && !overdue(t));
-  const doing = tasks.filter((t) => t.status === "in_progress" && !overdue(t));
-  const waiting = tasks.filter((t) => ["completed", "sent_to_client", "client_rejected"].includes(t.status));
-  const done = tasks.filter((t) => t.status === "done").slice(-15).reverse();
-  return (
-    <div className="flex flex-col gap-5">
-      {attention.length > 0 && (
-        <Panel title="Needs attention" sub="Revisions and anything past its due date">
-          <TaskList tasks={attention} showAssignee={false} />
-        </Panel>
-      )}
-      <div className="grid gap-5 lg:grid-cols-2">
-        <Panel title="To do" sub={`${todo.length} task${todo.length === 1 ? "" : "s"}`}>
-          <TaskList tasks={todo} showAssignee={false} empty="Nothing new." />
-        </Panel>
-        <Panel title="In progress">
-          <TaskList tasks={doing} showAssignee={false} empty="Pick a task and set it to In progress." />
-        </Panel>
-      </div>
-      <Panel title="In review" sub="With your head or the client">
-        <TaskList tasks={waiting} showAssignee={false} empty="Nothing waiting." />
-      </Panel>
-      {done.length > 0 && (
-        <Panel title="Recently approved">
-          <TaskList tasks={done} showAssignee={false} />
-        </Panel>
-      )}
-    </div>
-  );
-}
 
 function Workload({ people, tasks }) {
   const open = tasks.filter((t) => OPEN_TASK.includes(t.status));
@@ -106,22 +74,10 @@ export default async function TasksPage({ searchParams }) {
   const mine = await listTasks(me, { view: "mine" });
 
   if (!head) {
-    const open = mine.filter((t) => OPEN_TASK.includes(t.status));
     return (
-      <div className="page">
-        <PageHeader kicker="Your work" title="My tasks">
-          <StatStrip
-            className="mt-5"
-            items={[
-              { label: "Open", value: open.length, icon: "tasks" },
-              { label: "Overdue", value: open.filter(overdue).length, icon: "clock", tint: "pink" },
-              { label: "Revisions", value: mine.filter((t) => t.status === "revision").length, icon: "refresh", tint: "amber" },
-              { label: "Approved", value: mine.filter((t) => t.status === "done").length, icon: "check", tint: "green" },
-            ]}
-          />
-        </PageHeader>
-        <div className="rise rise-2">
-          <MyTasks tasks={mine} />
+      <div className="page max-w-5xl">
+        <div className="rise">
+          <MyWork me={me} tasks={mine} />
         </div>
       </div>
     );
@@ -190,9 +146,9 @@ export default async function TasksPage({ searchParams }) {
               <p className="text-sm text-muted">Add people to the Designers, Developers and Video Editors groups on the Team page — they show up here and in the task picker.</p>
             </Panel>
           ))}
-        {current === "mine" && <MyTasks tasks={mine} />}
-        {current === "assigned" && <TaskOverview tasks={byMe} base="/tasks" params={keep(sp, "assigned")} showAssigners={false} />}
-        {current === "brands" && <TaskOverview tasks={all} base="/tasks" params={keep(sp, "brands")} />}
+        {current === "mine" && <MyWork me={me} tasks={mine} />}
+        {current === "assigned" && <TaskOverview tasks={byMe} base="/tasks" params={keep(sp, "assigned")} showAssigners={false} people={people} />}
+        {current === "brands" && <TaskOverview tasks={all} base="/tasks" params={keep(sp, "brands")} people={people} />}
       </div>
     </div>
   );

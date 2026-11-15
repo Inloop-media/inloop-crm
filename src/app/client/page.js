@@ -9,9 +9,48 @@ import { CLIENT, loadChat } from "@/lib/chat";
 import { getCurrentClient } from "@/lib/clients";
 import { db } from "@/lib/supabase/server";
 import { getTheme } from "@/lib/theme";
-import { taskKindLabel } from "@/lib/constants";
+import { PLATFORMS, taskKindLabel } from "@/lib/constants";
+import { upcomingItems } from "@/lib/calendar";
 
 export const metadata = { title: "Your dashboard" };
+
+const KIND_COLOR = { post: "#60a5fa", carousel: "#a78bfa", story: "#f472b6", reel: "#fbbf24", video: "#22d3ee" };
+const dayFmt = new Intl.DateTimeFormat("en-IN", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" });
+
+/** What's coming up on the brand's content calendar (read-only for the client). */
+function UpcomingCalendar({ items }) {
+  if (!items.length) return null;
+  const days = [...new Set(items.map((i) => i.publish_on))];
+  return (
+    <section className="rise rise-3 mt-8">
+      <h2 className="mb-1 text-xl font-medium tracking-[-0.015em]">Content calendar</h2>
+      <p className="mb-4 text-sm text-muted">What&apos;s planned to go out next.</p>
+      <ol className="card flex flex-col divide-y divide-line !rounded-3xl px-2 py-1">
+        {days.map((d) => (
+          <li key={d} className="flex gap-4 px-3 py-3">
+            <div className="w-20 shrink-0 pt-0.5 text-xs text-muted">{dayFmt.format(new Date(`${d}T00:00:00Z`))}</div>
+            <ul className="flex min-w-0 flex-1 flex-col gap-2">
+              {items
+                .filter((i) => i.publish_on === d)
+                .map((i) => (
+                  <li key={i.id} className="flex items-center gap-3">
+                    <span className="h-7 w-1 shrink-0 rounded-full" style={{ background: KIND_COLOR[i.kind] || "#94a3b8" }} />
+                    <div className="min-w-0">
+                      <div className={`truncate text-sm font-medium ${i.status === "posted" ? "line-through opacity-60" : ""}`}>{i.title}</div>
+                      <div className="text-xs text-muted">
+                        {taskKindLabel(i.kind)} · {PLATFORMS.find((p) => p.id === i.platform)?.label}
+                        {i.status === "posted" && " · Posted"}
+                      </div>
+                    </div>
+                  </li>
+                ))}
+            </ul>
+          </li>
+        ))}
+      </ol>
+    </section>
+  );
+}
 
 const isImg = (n) => /\.(jpe?g|png|webp|gif)$/i.test(n || "");
 const isVid = (n) => /\.(mp4|mov|webm|m4v)$/i.test(n || "");
@@ -66,7 +105,7 @@ export default async function ClientHome() {
   const client = await getCurrentClient();
   if (!client) redirect("/login");
   const brand = client.brand;
-  const [{ pending, approved, inProduction }, theme, chat] = await Promise.all([clientWork(brand.id), getTheme(), loadChat(brand.id)]);
+  const [{ pending, approved, inProduction }, theme, chat, upcoming] = await Promise.all([clientWork(brand.id), getTheme(), loadChat(brand.id), upcomingItems(brand.id)]);
   const lastReadAt = chat.mine[CLIENT] || null;
   const unread = chat.messages.filter((m) => !m.from_client && (!lastReadAt || m.created_at > lastReadAt)).length;
 
@@ -140,6 +179,7 @@ export default async function ClientHome() {
             )}
           </section>
 
+          <UpcomingCalendar items={upcoming} />
           </div>
 
           <aside className="rise rise-2 lg:mt-2">

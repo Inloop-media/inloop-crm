@@ -28,7 +28,7 @@ function useRun() {
 }
 
 /** Grouped people picker with each person's open-task count. */
-function PersonSelect({ people, value, onChange, kind }) {
+export function PersonSelect({ people, value, onChange, kind }) {
   const want = TASK_KINDS.find((k) => k.id === kind)?.group;
   const groups = {};
   for (const p of people) {

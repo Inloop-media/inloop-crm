@@ -12,7 +12,7 @@ import { getTheme } from "@/lib/theme";
 import { requireMember } from "@/lib/auth";
 import { db } from "@/lib/supabase/server";
 import { listFeeds } from "@/lib/leads";
-import { canAssignTasks, canCreateLead, canManageTeam, canSeeBrands, canSeeBriefs, canSeeLeads, isMaker, isStrategist } from "@/lib/permissions";
+import { canAssignTasks, canCreateLead, canManageTeam, canSeeBrands, canSeeBriefs, canSeeCalendar, canSeeLeads, isMaker, isStrategist } from "@/lib/permissions";
 import { ROLES } from "@/lib/constants";
 
 /** Work waiting on this member: open briefs for strategists, commercials for admin / ops. */
@@ -46,6 +46,7 @@ export default async function CrmLayout({ children }) {
   if (canSeeLeads(me)) items.push({ href: "/leads", label: "Leads", icon: "leads" });
   if (canSeeBriefs(me)) items.push({ href: "/briefs", label: "Briefs", icon: "brief", badge: await briefsBadge(me) });
   if (canSeeBrands(me)) items.push({ href: "/brands", label: "Brands", icon: "brand" });
+  if (canSeeCalendar(me)) items.push({ href: "/calendar", label: "Calendar", icon: "calendar" });
   const tasksCount = await taskBadge(me).catch(() => 0);
   if (canAssignTasks(me) || isMaker(me) || tasksCount) items.push({ href: "/tasks", label: "Tasks", icon: "tasks", badge: tasksCount });
   const feeds = await listFeeds(me);

@@ -43,3 +43,8 @@ export const canAssignTasks = (me) => isStaff(me) || isExecHead(me);
 /** The employee works on their own tasks; heads / staff see all of them. */
 export const canSeeTask = (me, t) => canAssignTasks(me) || t.assignee_id === me.id;
 export const canReviewTask = (me, t) => isStaff(me) || t.assigned_by === me.id || isExecHead(me);
+
+// Content calendar: the strategists build it, heads / staff can too; the monthly plan is the heads' call
+export const canSeeCalendar = (me) => isStaff(me) || isExecHead(me) || isStrategist(me);
+export const canEditCalendar = canSeeCalendar;
+export const canSetPlan = (me) => isStaff(me) || isExecHead(me);
