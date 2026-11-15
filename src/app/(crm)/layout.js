@@ -52,14 +52,15 @@ export default async function CrmLayout({ children }) {
   if (canSeeBrands(me)) {
     const { data } = await db().from("brands").select("id");
     const unread = await unreadCounts((data || []).map((b) => b.id), me.id).catch(() => ({}));
-    items.push({ href: "/brands", label: "Brands", icon: "brand", badge: Object.values(unread).reduce((n, c) => n + c, 0) });
+    items.push({ href: "/messages", label: "Messages", icon: "chat", badge: Object.values(unread).reduce((n, c) => n + c, 0) });
+    items.push({ href: "/brands", label: "Brands", icon: "brand" });
   }
   if (canCreateLead(me)) items.push({ href: "/leads/new", label: "New lead", icon: "plus" });
 
   const bottom = [];
   if (feeds.length) bottom.push({ href: "/updates", label: "Updates", icon: "slack", badge: feeds.reduce((n, g) => n + g.unread, 0) });
   if (canManageTeam(me)) bottom.push({ href: "/team", label: "Team", icon: "team" });
-  if (me.role === "admin") bottom.push({ href: "/feedback", label: "Feedback", icon: "chat", badge: await newFeedback() });
+  if (me.role === "admin") bottom.push({ href: "/feedback", label: "Feedback", icon: "sparkle", badge: await newFeedback() });
   const theme = await getTheme();
   const roleLabel = me.role === "member" ? me.groups.map((g) => g.name).join(" · ") || "Member" : ROLES.find((r) => r.id === me.role)?.label;
 
@@ -75,37 +76,39 @@ export default async function CrmLayout({ children }) {
   const date = new Intl.DateTimeFormat("en-IN", { timeZone: "Asia/Kolkata", weekday: "long", day: "numeric", month: "long" }).format(new Date());
 
   return (
-    <div className="min-h-svh">
+    <div className="min-h-svh md:h-svh md:p-3">
       <MobileHeader {...profile} />
-      <Rail
-        items={items}
-        bottom={bottom}
-        logo={
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src="/images/hero-logo.webp" alt="Inloop" className="h-auto w-6" />
-        }
-        tools={
-          <>
-            <ThemeToggle initial={theme} variant="icon" />
-            <form action="/auth/signout" method="post">
-              <RailTool type="submit" label="Sign out" icon="logout" />
-            </form>
-          </>
-        }
-      />
-      <div className="md:pl-[92px]">
-        <TopBar
-          items={[...items, ...bottom]}
-          date={date}
-          search={canSeeLeads(me)}
-          right={
+      <div className="md:flex md:h-full md:overflow-hidden md:rounded-[34px] md:bg-[var(--wash)] md:shadow-[0_0_0_1px_rgb(0_0_0/0.04),0_30px_80px_-40px_rgb(0_0_0/0.35)]">
+        <Rail
+          items={items}
+          bottom={bottom}
+          logo={
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src="/images/hero-logo.webp" alt="Inloop" className="h-auto w-6" />
+          }
+          tools={
             <>
-              <PushSetup variant="circle" />
-              <AvatarMenu {...profile} />
+              <ThemeToggle initial={theme} variant="icon" />
+              <form action="/auth/signout" method="post">
+                <RailTool type="submit" label="Sign out" icon="logout" />
+              </form>
             </>
           }
         />
-        <main className="relative z-[1] min-w-0 pb-[calc(env(safe-area-inset-bottom)+104px)] md:pb-6">{children}</main>
+        <div id="scroller" className="min-w-0 flex-1 md:overflow-y-auto">
+          <TopBar
+            items={[...items, ...bottom]}
+            date={date}
+            search={canSeeLeads(me)}
+            right={
+              <>
+                <PushSetup variant="circle" />
+                <AvatarMenu {...profile} />
+              </>
+            }
+          />
+          <main className="relative z-[1] min-w-0 pb-[calc(env(safe-area-inset-bottom)+104px)] md:pb-8">{children}</main>
+        </div>
       </div>
       <PhoneTabs items={items.filter((it) => it.href !== "/leads/new")} bottom={bottom} />
       {me.role !== "admin" && <FeedbackNote />}

@@ -8,6 +8,7 @@ import { dashboardData } from "@/lib/leads";
 import { listBrands } from "@/lib/brands";
 import { listMakers, listTasks, reviewFiles } from "@/lib/tasks";
 import QuickAssign from "@/components/QuickAssign";
+import { PageTop } from "@/components/Desk";
 import { canSeeAllLeads, canSeeLeads, isExecHead, isStrategist } from "@/lib/permissions";
 
 export const metadata = { title: "Dashboard" };
@@ -25,22 +26,20 @@ async function ExecDashboard({ me }) {
   const active = brands.filter((b) => b.stage === "active").map((b) => ({ id: b.id, name: b.name }));
   const files = await reviewFiles(tasks);
   return (
-    <div className="page max-w-6xl">
-      <header className="rise flex flex-wrap items-end justify-between gap-x-8 gap-y-4">
-        <div className="min-w-0">
-          <p className="text-sm text-muted">{weekday.format(new Date())}</p>
-          <h1 className="mt-1 text-[30px] font-medium leading-tight tracking-[-0.02em] md:text-[36px]">
-            {greeting()}, {me.name.split(" ")[0]}
-          </h1>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <Link href="/calendar" className="btn-ghost btn-sm">
-            <Icon name="calendar" size={13} /> Content calendar
-          </Link>
-          <QuickAssign brands={active} people={people} />
-        </div>
-      </header>
-      <div className="rise mt-6 [animation-delay:60ms]">
+    <div className="page">
+      <PageTop
+        title={`${greeting()}, ${me.name.split(" ")[0]} 👋`}
+        sub={weekday.format(new Date())}
+        right={
+          <>
+            <Link href="/calendar" className="btn-ghost btn-sm">
+              <Icon name="calendar" size={13} /> Content calendar
+            </Link>
+            <QuickAssign brands={active} people={people} label="New task" />
+          </>
+        }
+      />
+      <div className="rise">
         <HeadHome tasks={tasks} brands={active} files={files} />
       </div>
     </div>
@@ -64,14 +63,7 @@ export default async function Dashboard() {
         data={data}
         brands={brands}
         tasks={tasks}
-        actions={
-          <>
-            <Link href="/calendar" className="btn-ghost btn-sm">
-              <Icon name="calendar" size={13} /> Content calendar
-            </Link>
-            <QuickAssign brands={active} people={people} />
-          </>
-        }
+        actions={<QuickAssign brands={active} people={people} label="New task" />}
       />
     );
   }

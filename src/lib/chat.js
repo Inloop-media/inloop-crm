@@ -97,7 +97,7 @@ export async function postMessage({ brand, memberId = null, fromClient = false, 
     await pushTo(team, {
       title: fromClient ? `${brand.name}` : `${senderName || "Team"} → ${brand.name}`,
       body: preview.slice(0, 140),
-      url: `/brands/${brand.id}?tab=chat`,
+      url: `/messages?brand=${brand.id}`,
       tag: `chat-${brand.id}`,
     });
   });

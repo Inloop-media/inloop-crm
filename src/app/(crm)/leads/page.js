@@ -4,13 +4,15 @@ import Board from "@/components/Board";
 import Icon from "@/components/Icon";
 import LeadList from "@/components/LeadList";
 import LeadsToolbar from "@/components/LeadsToolbar";
-import { PageHeader } from "@/components/ui";
+import { StatCard } from "@/components/ui";
+import { FilterPills, PageTop } from "@/components/Desk";
 import { requireMember } from "@/lib/auth";
 import { listLeads, listMembers } from "@/lib/leads";
-import { EXEC_VISIBLE_STATUSES, STATUS_NAMES } from "@/lib/constants";
+import { CLOSED_STATUSES, EXEC_VISIBLE_STATUSES, STATUS_NAMES } from "@/lib/constants";
 import { canCreateLead, canSeeAllLeads, canSeeLeads, statusOptions } from "@/lib/permissions";
 
 export const metadata = { title: "Leads" };
+const nowMs = () => Date.now();
 
 export default async function LeadsPage({ searchParams }) {
   const me = await requireMember(canSeeLeads);
@@ -23,21 +25,45 @@ export default async function LeadsPage({ searchParams }) {
   const owners = Object.fromEntries(members.map((m) => [m.id, m.name]));
   const all = canSeeAllLeads(me);
 
+  const now = nowMs();
+  const open = leads.filter((l) => !CLOSED_STATUSES.includes(l.status));
+  const newWeek = leads.filter((l) => now - new Date(l.created_at).getTime() < 7 * 864e5);
+  const unassigned = open.filter((l) => !l.assigned_to);
+  const proposal = open.filter((l) => ["Proposal Meeting Scheduled", "Negotiation", "Waiting Client Decision"].includes(l.status));
+  const won = leads.filter((l) => l.status === "Won");
+  const viewHref = (v) => {
+    const q = new URLSearchParams(Object.entries({ q, owner, status: v === "list" ? status : undefined, view: v === "list" ? "list" : undefined }).filter(([, x]) => x));
+    return `/leads${q.size ? `?${q}` : ""}`;
+  };
+
   return (
     <div className="page">
-      <PageHeader
-        kicker="Pipeline"
+      <PageTop
         title={all ? "Leads" : "My leads"}
-        sub={`${leads.length} lead${leads.length === 1 ? "" : "s"}${all ? "" : " assigned to you"}`}
-        actions={
-          canCreateLead(me) && (
-            <Link href="/leads/new" className="btn-primary">
-              <Icon name="plus" size={14} /> New lead
-            </Link>
-          )
+        sub={`${open.length} open · ${newWeek.length} new this week${all ? ` · ${unassigned.length} unassigned` : ""}`}
+        right={
+          <>
+            <FilterPills
+              items={[
+                { label: "Board", href: viewHref("board"), on: !isList },
+                { label: "List", href: viewHref("list"), on: isList },
+              ]}
+            />
+            {canCreateLead(me) && (
+              <Link href="/leads/new" className="btn-primary btn-sm">
+                <Icon name="plus" size={13} /> New lead
+              </Link>
+            )}
+          </>
         }
       />
-      <div className="rise rise-1 mb-5">
+      <div className="rise grid grid-cols-2 gap-3 xl:grid-cols-4">
+        <StatCard coral label="New this week" value={newWeek.length} note="Fresh leads" />
+        <StatCard label={all ? "Unassigned" : "Open"} value={all ? unassigned.length : open.length} tone={all ? "#e11d48" : undefined} note={all ? "Need an owner" : "Being worked on"} href={all ? "/leads?view=list&owner=unassigned" : undefined} />
+        <StatCard label="In proposal" value={proposal.length} note="Meeting booked or negotiating" />
+        <StatCard label="Won" value={won.length} bar={leads.length ? Math.round((won.length / leads.length) * 100) : 0} />
+      </div>
+      <div className="rise mb-4 mt-4">
         <Suspense>
           <LeadsToolbar members={members.filter((m) => m.active && m.groups.some((g) => g.kind === "sales"))} showOwner={all} statuses={all ? STATUS_NAMES : EXEC_VISIBLE_STATUSES} />
         </Suspense>

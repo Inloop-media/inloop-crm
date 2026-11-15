@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { Avatar, Panel } from "@/components/ui";
+import { Avatar, Panel, StatCard } from "@/components/ui";
+import { FilterPills, PageTop, Section, TaskLine } from "@/components/Desk";
 import TaskBoard from "@/components/TaskBoard";
 import QuickAssign from "@/components/QuickAssign";
 import { listBrands } from "@/lib/brands";
@@ -7,9 +8,10 @@ import MyWork from "@/components/MyWork";
 import { requireMember } from "@/lib/auth";
 import { listMakers, listTasks } from "@/lib/tasks";
 import { canAssignTasks } from "@/lib/permissions";
-import { OPEN_TASK } from "@/lib/constants";
+import { OPEN_TASK, kindPlural } from "@/lib/constants";
 
 export const metadata = { title: "Tasks" };
+const nowMs = () => Date.now();
 
 
 const overdue = (t) => OPEN_TASK.includes(t.status) && t.due_at && new Date(t.due_at).getTime() < Date.now();
@@ -86,50 +88,94 @@ export default async function TasksPage({ searchParams }) {
   const [all, people, brands] = await Promise.all([listTasks(me, { view: "all" }), listMakers(), listBrands()]);
   const active = brands.filter((b) => b.stage === "active").map((b) => ({ id: b.id, name: b.name }));
   const myOpen = mine.filter((t) => t.status !== "done").length;
-  const tabs = [
+  const views = [
+    { id: "list", label: "List" },
     { id: "board", label: "Board" },
     { id: "team", label: "Team" },
-    ...(mine.length ? [{ id: "mine", label: myOpen ? `My tasks · ${myOpen}` : "My tasks" }] : []),
+    ...(mine.length ? [{ id: "mine", label: "Mine", count: myOpen }] : []),
   ];
-  const current = tabs.find((t) => t.id === view)?.id || "board";
+  const current = views.find((t) => t.id === view)?.id || "list";
   const brand = active.find((b) => b.id === sp.brand)?.id || "";
-  const shown = brand ? all.filter((t) => t.brand_id === brand) : all;
+  const byBrand = brand ? all.filter((t) => t.brand_id === brand) : all;
+  const kinds = [...new Set(byBrand.map((t) => t.kind))];
+  const kind = kinds.includes(sp.kind) ? sp.kind : "";
+  const shown = kind ? byBrand.filter((t) => t.kind === kind) : byBrand;
+  const href = (o) => {
+    const q = new URLSearchParams({ ...(current !== "list" && { view: current }), ...(brand && { brand }), ...(kind && { kind }), ...o });
+    for (const [k, v] of [...q]) if (!v) q.delete(k);
+    const str = q.toString();
+    return str ? `/tasks?${str}` : "/tasks";
+  };
+
+  const now = nowMs();
+  const isLate = (t) => OPEN_TASK.includes(t.status) && t.due_at && new Date(t.due_at).getTime() < now;
+  const toCheck = shown.filter((t) => ["completed", "client_rejected"].includes(t.status));
+  const late = shown.filter(isLate).sort((a, b) => a.due_at.localeCompare(b.due_at));
+  const working = shown.filter((t) => OPEN_TASK.includes(t.status) && !isLate(t)).sort((a, b) => (a.due_at || "9").localeCompare(b.due_at || "9"));
+  const withClient = shown.filter((t) => t.status === "sent_to_client");
+  const approved = shown.filter((t) => t.status === "done").sort((a, b) => (b.done_at || "").localeCompare(a.done_at || ""));
+  const doneShare = shown.length ? Math.round((approved.length / shown.length) * 100) : 0;
+  const open = shown.filter((t) => t.status !== "done").length;
 
   return (
     <div className="page">
-      <header className="rise mb-5 flex flex-wrap items-end justify-between gap-4">
-        <h1 className="text-[30px] font-medium leading-tight tracking-[-0.02em] md:text-[36px]">Tasks</h1>
-        <div className="flex flex-wrap items-center gap-2">
-          <nav className="seg flex p-1">
-            {tabs.map((t) => (
-              <Link key={t.id} href={`/tasks?view=${t.id}`} data-on={current === t.id} className="seg-item text-xs">
-                {t.label}
-              </Link>
-            ))}
-          </nav>
-          <QuickAssign brands={active} people={people} defaultBrand={brand} />
-        </div>
-      </header>
-
-      <div className="rise rise-1">
-        {current === "board" && (
+      <PageTop
+        title="Tasks"
+        sub={`${open} open · ${late.length} late · ${doneShare}% approved`}
+        right={
           <>
-            <p className="mb-3 text-sm text-muted">Drag a card to the next column when its stage changes. Click a card to open it.</p>
-            {active.length > 1 && (
-              <nav className="-mx-1 mb-4 flex gap-1.5 overflow-x-auto px-1 pb-1">
-                <Link href="/tasks" className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-medium ${!brand ? "solid" : "bg-panel text-muted hover:text-ink"}`}>
-                  All brands
-                </Link>
-                {active.map((b) => (
-                  <Link key={b.id} href={`/tasks?brand=${b.id}`} className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-medium ${brand === b.id ? "solid" : "bg-panel text-muted hover:text-ink"}`}>
-                    {b.name}
-                  </Link>
-                ))}
-              </nav>
-            )}
-            <TaskBoard tasks={shown} showBrand={!brand} />
+            <FilterPills items={views.map((v) => ({ label: v.label, count: v.count, href: href({ view: v.id === "list" ? "" : v.id }), on: current === v.id }))} />
+            <QuickAssign brands={active} people={people} defaultBrand={brand} label="New task" />
           </>
+        }
+      />
+
+      {(current === "list" || current === "board") && (
+        <>
+          <div className="rise grid grid-cols-2 gap-3 xl:grid-cols-4">
+            <StatCard coral label="To check" value={toCheck.length} note={toCheck.length ? "Finished, waiting for you" : "Nothing waiting"} />
+            <StatCard label="Late" value={late.length} tone="#e11d48" note={late.length ? "Past the due date" : "Nothing late"} />
+            <StatCard label="In progress" value={working.length} note={`${withClient.length} with clients`} />
+            <StatCard label="Approved" value={approved.length} bar={doneShare} />
+          </div>
+
+          <div className="rise mt-4 flex flex-wrap items-center gap-2">
+            <FilterPills
+              items={[{ label: "All", count: byBrand.length, href: href({ kind: "" }), on: !kind }, ...kinds.map((k) => ({ label: kindPlural(k), count: byBrand.filter((t) => t.kind === k).length, href: href({ kind: k }), on: kind === k }))]}
+            />
+            {active.length > 1 && (
+              <FilterPills className="ml-auto" items={[{ label: "All brands", href: href({ brand: "" }), on: !brand }, ...active.map((b) => ({ label: b.name, href: href({ brand: b.id }), on: brand === b.id }))]} />
+            )}
+          </div>
+        </>
+      )}
+
+      <div className="rise mt-4">
+        {current === "list" && (
+          <div className="grid items-start gap-4 lg:grid-cols-2">
+            <Section title="To check" count={toCheck.length} tone="#8b5cf6" empty="Nothing to check ✓">
+              {toCheck.map((t) => (
+                <TaskLine key={t.id} t={t} showBrand={!brand} />
+              ))}
+            </Section>
+            <Section title="Late" count={late.length} tone="#e11d48" empty="Nothing late ✓">
+              {late.map((t) => (
+                <TaskLine key={t.id} t={t} showBrand={!brand} />
+              ))}
+            </Section>
+            <Section title="In progress" count={working.length} tone="#f59e0b" empty="No open work">
+              {working.map((t) => (
+                <TaskLine key={t.id} t={t} showBrand={!brand} />
+              ))}
+            </Section>
+            <Section title="With client & approved" count={withClient.length + approved.length} tone="#10b981" empty="Nothing yet">
+              {[...withClient, ...approved.slice(0, 12)].map((t) => (
+                <TaskLine key={t.id} t={t} showBrand={!brand} />
+              ))}
+            </Section>
+          </div>
         )}
+        {current === "board" && <TaskBoard tasks={shown} showBrand={!brand} />}
         {current === "team" &&
           (people.length ? (
             <Workload people={people} tasks={all} />

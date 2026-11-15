@@ -53,9 +53,9 @@ export function Panel({ title, sub, action, children, className = "", bodyClass 
 }
 
 /** The top of every page: optional back link, a small kicker, the title, a line of context, actions. */
-export function PageHeader({ back, kicker, title, sub, actions, children }) {
+export function PageHeader({ back, title, sub, actions, children }) {
   return (
-    <header className="rise mb-7">
+    <header className="rise mb-6">
       {back && (
         <Link href={back.href} className="group mb-5 inline-flex items-center gap-1.5 rounded-full border border-line bg-panel py-1.5 pl-2 pr-3.5 text-xs font-medium text-muted shadow-[var(--card-shadow)] transition hover:text-ink">
           <span className="grid h-5 w-5 place-items-center rounded-full bg-panel-2 transition group-hover:-translate-x-0.5">
@@ -66,14 +66,8 @@ export function PageHeader({ back, kicker, title, sub, actions, children }) {
       )}
       <div className="flex flex-wrap items-end justify-between gap-x-8 gap-y-4">
         <div className="min-w-0">
-          {kicker && (
-            <p className="mb-2.5 inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted">
-              <span className="h-1.5 w-1.5 rounded-full bg-brand shadow-[0_0_0_3px_rgb(232_101_79/0.18)]" />
-              {kicker}
-            </p>
-          )}
           {title && <h1 className="page-title">{title}</h1>}
-          {sub && <p className="mt-2.5 max-w-2xl text-[14px] leading-relaxed text-muted">{sub}</p>}
+          {sub && <p className="mt-2 max-w-2xl text-[13px] leading-relaxed text-muted">{sub}</p>}
         </div>
         {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
       </div>
@@ -198,11 +192,11 @@ export function StatCard({ href, label, value, note, coral = false, bar, tone })
   const body = (
     <>
       <span className="flex items-start justify-between gap-2">
-        <span className="text-sm">{label}</span>
+        <span className="text-[13px]">{label}</span>
         {href && <Icon name="arrow" size={14} className="-rotate-45 opacity-0 transition group-hover:opacity-60" />}
       </span>
       <span className="flex items-end justify-between gap-3">
-        <span className="text-[44px] font-light leading-none tracking-[-0.04em] tabular-nums" style={!coral && value && tone ? { color: tone } : undefined}>
+        <span className="text-[36px] font-light leading-none tracking-[-0.03em] tabular-nums" style={!coral && value && tone ? { color: tone } : undefined}>
           {value}
         </span>
         {note && <span className="hidden truncate pb-1 text-xs text-muted sm:block">{note}</span>}
@@ -215,7 +209,7 @@ export function StatCard({ href, label, value, note, coral = false, bar, tone })
       )}
     </>
   );
-  const cls = `group flex min-h-[132px] flex-col justify-between gap-3 p-5 transition duration-300 hover:-translate-y-0.5 ${coral ? "card-coral" : "card"}`;
+  const cls = `group flex min-h-[120px] flex-col justify-between gap-3 p-5 transition duration-300 hover:-translate-y-0.5 ${coral ? "card-coral" : "card"}`;
   return href ? (
     <Link href={href} className={cls}>
       {body}

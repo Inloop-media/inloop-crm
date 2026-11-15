@@ -7,7 +7,7 @@
    rail, coral as the one accent, black pills for the main action. Light (default) and dark.
    Every colour is a token, so the theme switch is one attribute on <html>. */
 @theme {
-  --color-bg: #ebebed;
+  --color-bg: #f2f2f4;
   --color-panel: #ffffff;
   --color-panel-2: #f5f5f6;
   --color-panel-3: #ececee;
@@ -29,7 +29,7 @@
   --color-tint-green: #e2f1dd;
   --color-tint-pink: #fbe1e5;
   --color-tint-amber: #fbecd5;
-  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-outfit), ui-sans-serif, system-ui, sans-serif;
 
   /* Status hues used as text — deeper so they read on white */
   --color-emerald-300: #047857;
@@ -52,10 +52,8 @@
 
 :root {
   color-scheme: light;
-  --wash:
-    radial-gradient(1100px 520px at 85% -10%, rgb(244 165 150 / 0.22), transparent 60%),
-    radial-gradient(900px 500px at -10% 110%, rgb(255 255 255 / 0.7), transparent 60%),
-    #ebebed;
+  --wash: #f2f2f4;
+  --outer: #dfdfe3;
   --rail: #141416;
   --card-sheen: linear-gradient(180deg, #ffffff 0%, #fdfdfd 100%);
   --card-border: rgb(20 20 22 / 0.045);
@@ -67,13 +65,13 @@
   --field-bg: #ffffff;
   --field-border: rgb(20 20 22 / 0.09);
   --brand-grad: linear-gradient(90deg, #f4a596, #e8654f);
-  --coral-grad: radial-gradient(120% 100% at 100% 0%, rgb(255 255 255 / 0.22), transparent 55%), linear-gradient(160deg, #f19582 0%, #e5644f 100%);
+  --coral-grad: radial-gradient(90% 120% at 100% 0%, rgb(255 255 255 / 0.14), transparent 60%), linear-gradient(180deg, #ec7763 0%, #e5654f 100%);
   --coral-glow: 0 18px 40px -16px rgb(232 101 79 / 0.55);
 }
 
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --color-bg: #0e0e10;
+  --color-bg: #111113;
   --color-panel: #18181b;
   --color-panel-2: #212125;
   --color-panel-3: #2a2a2f;
@@ -111,9 +109,8 @@
   --color-violet-300: #c4b5fd;
   --color-violet-400: #a78bfa;
 
-  --wash:
-    radial-gradient(1100px 520px at 85% -10%, rgb(232 101 79 / 0.12), transparent 60%),
-    #0e0e10;
+  --wash: #111113;
+  --outer: #050506;
   --rail: #000000;
   --card-sheen: linear-gradient(180deg, #1b1b1f 0%, #17171a 100%);
   --card-border: rgb(255 255 255 / 0.06);
@@ -129,13 +126,10 @@
 }
 
 html {
-  font-feature-settings: "cv11", "ss01", "ss03", "cv05";
   text-rendering: optimizeLegibility;
 }
 body {
   background: var(--wash);
-  background-attachment: fixed;
-  letter-spacing: -0.006em;
   color: var(--color-ink);
   -webkit-tap-highlight-color: transparent;
 }
@@ -289,10 +283,10 @@ html.theme-switching * {
     @apply inline-flex items-center gap-1.5 rounded-full border border-line bg-panel-2 px-2.5 py-1 text-xs font-medium text-ink/75;
   }
   .page {
-    @apply relative z-[1] mx-auto w-full max-w-[1400px] px-4 py-5 md:px-6 md:py-6;
+    @apply relative z-[1] mx-auto w-full max-w-[1500px] px-4 py-5 md:px-7 md:py-5;
   }
   .page-title {
-    @apply text-[32px] font-medium leading-[1.05] tracking-[-0.035em] md:text-[44px];
+    @apply text-[34px] font-normal leading-[1.05] tracking-[-0.025em] md:text-[42px];
   }
   .seg {
     @apply inline-flex rounded-full bg-panel p-1 text-[13px] font-medium;
@@ -373,17 +367,27 @@ html.theme-switching * {
 .confetti { animation: confetti-fall 3s cubic-bezier(.25,.6,.4,1) infinite; }
 @media (prefers-reduced-motion: reduce) { .confetti { display: none; } }
 
-/* Chat (BrandChat): WhatsApp-like wallpaper and own-message bubble */
+/* Chat (BrandChat): a calm surface, the client's messages on white, ours in coral (like the reference) */
 .chat-wall {
-  background-color: color-mix(in srgb, var(--color-panel-2) 70%, var(--color-bg));
-  background-image: radial-gradient(color-mix(in srgb, var(--color-brand) 13%, transparent) 1px, transparent 1.2px);
-  background-size: 18px 18px;
+  background: color-mix(in srgb, var(--color-panel-2) 60%, var(--color-panel));
 }
 .chat-own {
-  background: color-mix(in srgb, var(--color-brand) 16%, var(--color-panel));
+  background: linear-gradient(180deg, #ee7c68 0%, #e5654f 100%);
+  color: #fff;
 }
-:root[data-theme="dark"] .chat-own {
-  background: color-mix(in srgb, var(--color-brand) 34%, var(--color-panel));
+.chat-own .text-muted,
+.chat-own .text-faint {
+  color: rgb(255 255 255 / 0.8);
+}
+.chat-own a {
+  color: #fff;
+  text-decoration: underline;
+}
+/* Desktop: the whole app sits in one big rounded frame on a darker surround (like the reference) */
+@media (min-width: 768px) {
+  body {
+    background: var(--outer);
+  }
 }
 
 /* Muted text on the coral card (unlayered so it beats the text-muted utility) */

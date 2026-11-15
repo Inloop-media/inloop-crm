@@ -30,6 +30,7 @@ function RailButton({ label, active, badge, children }) {
         {children}
         <Badge n={badge} on={active} />
       </span>
+      {active && <span className="absolute -right-[12px] top-1/2 h-2.5 w-2.5 -translate-y-1/2 rotate-45 rounded-[2px] bg-[var(--rail)]" />}
       <span className="pointer-events-none absolute left-full top-1/2 z-50 ml-3 -translate-x-1 -translate-y-1/2 whitespace-nowrap rounded-lg bg-[var(--rail)] px-2.5 py-1.5 text-xs font-medium text-white opacity-0 shadow-lg transition group-hover:translate-x-0 group-hover:opacity-100">
         {label}
         <span className="absolute -left-1 top-1/2 h-2 w-2 -translate-y-1/2 rotate-45 bg-[var(--rail)]" />
@@ -55,7 +56,7 @@ export function Rail({ items, bottom = [], tools, logo }) {
     </Link>
   );
   return (
-    <aside className="fixed bottom-4 left-4 top-4 z-40 hidden w-[60px] flex-col items-center rounded-full bg-[var(--rail)] py-2.5 shadow-[0_20px_50px_-20px_rgb(0_0_0/0.6)] md:flex">
+    <aside className="relative z-40 my-3 ml-3 hidden w-[58px] shrink-0 flex-col items-center rounded-full bg-[var(--rail)] py-2.5 shadow-[0_20px_50px_-20px_rgb(0_0_0/0.6)] md:flex">
       <Link href="/" aria-label="Home" className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-brand shadow-[0_8px_20px_-6px_rgb(232_101_79/0.9)]">
         {logo}
       </Link>
@@ -97,7 +98,7 @@ export function TopBar({ items, date, search, right }) {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
   return (
-    <header className="hidden items-center gap-4 px-6 pt-5 md:flex">
+    <header className="hidden items-center gap-4 px-7 pt-5 md:flex">
       <div className="min-w-0">
         <p className="text-xs text-muted">{date}</p>
         <h2 className="mt-0.5 flex items-center gap-2 text-[17px] font-medium tracking-[-0.01em]">

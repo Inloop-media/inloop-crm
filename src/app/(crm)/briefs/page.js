@@ -1,7 +1,7 @@
-import Link from "next/link";
 import Icon from "@/components/Icon";
 import BriefCard from "@/components/BriefCard";
-import { Empty, PageHeader } from "@/components/ui";
+import { Empty } from "@/components/ui";
+import { FilterPills, PageTop } from "@/components/Desk";
 import { requireMember } from "@/lib/auth";
 import { listProposals } from "@/lib/leads";
 import { canSeeAllLeads, canSeeBriefs } from "@/lib/permissions";
@@ -23,28 +23,17 @@ export default async function BriefsPage({ searchParams }) {
 
   return (
     <div className="page">
-      <PageHeader
-        kicker="Creative strategy"
-        title="Briefs"
-        sub="A brief lands here when the proposal meeting is booked. Pick one up, upload the reference links, creatives, brand strategy and brand identity — the CRL bot takes it from there."
+      <PageTop
+        title="Proposals"
+        sub={`${tabs[0].items.length} open · ${tabs[1].items.length} in progress · ${tabs[2].items.length} delivered`}
+        right={<FilterPills items={tabs.map((t) => ({ label: t.label, count: t.items.length, href: `/briefs?tab=${t.id}`, on: current.id === t.id }))} />}
       />
-
-      <nav className="seg rise rise-1 mb-5 flex w-full p-1.5 sm:w-fit">
-        {tabs.map((t) => (
-          <Link
-            key={t.id}
-            href={`/briefs?tab=${t.id}`}
-            data-on={current.id === t.id}
-            className="seg-item flex flex-1 items-center justify-center gap-2 sm:flex-none"
-          >
-            {t.label}
-            <span className="rounded-full bg-panel-2 px-1.5 text-[11px] tabular-nums text-muted">{t.items.length}</span>
-          </Link>
-        ))}
-      </nav>
+      <p className="rise -mt-2 mb-5 max-w-3xl text-[13px] text-muted">
+        A brief lands here when the proposal meeting is booked. Pick one up, upload the reference links, creatives, brand strategy and brand identity — the CRL bot takes it from there.
+      </p>
 
       {current.items.length ? (
-        <div className="rise rise-2 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <div className="rise grid gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
           {current.items.map((p) => (
             <BriefCard key={p.id} p={p} href={hrefFor(p)} />
           ))}
