@@ -32,8 +32,8 @@ export default async function LeadsPage({ searchParams }) {
   const proposal = open.filter((l) => ["Proposal Meeting Scheduled", "Negotiation", "Waiting Client Decision"].includes(l.status));
   const won = leads.filter((l) => l.status === "Won");
   const viewHref = (v) => {
-    const q = new URLSearchParams(Object.entries({ q, owner, status: v === "list" ? status : undefined, view: v === "list" ? "list" : undefined }).filter(([, x]) => x));
-    return `/leads${q.size ? `?${q}` : ""}`;
+    const params = new URLSearchParams(Object.entries({ q, owner, status: v === "list" ? status : undefined, view: v === "list" ? "list" : undefined }).filter(([, x]) => x));
+    return `/leads${params.size ? `?${params}` : ""}`;
   };
 
   return (
