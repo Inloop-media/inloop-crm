@@ -1,9 +1,9 @@
 import "server-only";
 import { cookies } from "next/headers";
 
-/** "light" (default) or "dark", picked with the theme switch and kept in a cookie. */
+/** "dark" (default) or "light", picked with the theme switch and kept in a cookie. */
 export async function getTheme() {
-  return (await cookies()).get("crm_theme")?.value === "dark" ? "dark" : "light";
+  return (await cookies()).get("crm_theme")?.value === "light" ? "light" : "dark";
 }
 
-export const THEME_COLOR = { light: "#ebebed", dark: "#0e0e10" };
+export const THEME_COLOR = { light: "#ebebed", dark: "#0b0b0b" };

@@ -1,4 +1,6 @@
-import { PhoneTabs, Rail, RailTool, TopBar } from "@/components/Nav";
+import { PhoneTabs, SideButton, Sidebar, TopBar } from "@/components/Nav";
+import Logo from "@/components/Logo";
+import { canUseAmigo } from "@/lib/amigo";
 import MobileHeader, { AvatarMenu } from "@/components/MobileHeader";
 import PushSetup from "@/components/PushSetup";
 import ThemeToggle from "@/components/ThemeToggle";
@@ -41,26 +43,36 @@ const initials = (name) =>
 
 export default async function CrmLayout({ children }) {
   const me = await requireMember();
-  // Icon rail, top to bottom: your work, sales, clients
+  // Sidebar groups: your work, sales, clients, admin
   const tasksCount = await taskBadge(me).catch(() => 0);
   const feeds = await listFeeds(me);
-  const items = [{ href: "/", label: "Home", icon: "home" }];
-  if (canAssignTasks(me) || isMaker(me) || tasksCount) items.push({ href: "/tasks", label: canAssignTasks(me) ? "Tasks" : "My tasks", icon: "tasks", badge: tasksCount });
-  if (canSeeCalendar(me)) items.push({ href: "/calendar", label: "Content calendar", icon: "calendar" });
-  if (canSeeLeads(me)) items.push({ href: "/leads", label: "Leads", icon: "leads" });
-  if (canSeeBriefs(me)) items.push({ href: "/briefs", label: "Proposals", icon: "brief", badge: await briefsBadge(me) });
+  const main = [{ href: "/", label: "Overview", icon: "home" }];
+  if (canUseAmigo(me)) main.push({ href: "/amigo", label: "Amigo", icon: "sparkle", tag: "AI" });
+  if (canAssignTasks(me) || isMaker(me) || tasksCount) main.push({ href: "/tasks", label: canAssignTasks(me) ? "Tasks" : "My tasks", icon: "tasks", badge: tasksCount });
+  if (canSeeCalendar(me)) main.push({ href: "/calendar", label: "Content calendar", icon: "calendar" });
+  const sales = [];
+  if (canSeeLeads(me)) sales.push({ href: "/leads", label: "Leads", icon: "leads" });
+  if (canSeeBriefs(me)) sales.push({ href: "/briefs", label: "Proposals", icon: "brief", badge: await briefsBadge(me) });
+  if (canCreateLead(me)) sales.push({ href: "/leads/new", label: "New lead", icon: "plus" });
+  const clients = [];
   if (canSeeBrands(me)) {
     const { data } = await db().from("brands").select("id");
     const unread = await unreadCounts((data || []).map((b) => b.id), me.id).catch(() => ({}));
-    items.push({ href: "/messages", label: "Messages", icon: "chat", badge: Object.values(unread).reduce((n, c) => n + c, 0) });
-    items.push({ href: "/brands", label: "Brands", icon: "brand" });
+    clients.push({ href: "/brands", label: "Brands", icon: "brand" });
+    clients.push({ href: "/messages", label: "Messages", icon: "chat", badge: Object.values(unread).reduce((n, c) => n + c, 0) });
   }
-  if (canCreateLead(me)) items.push({ href: "/leads/new", label: "New lead", icon: "plus" });
-
-  const bottom = [];
-  if (feeds.length) bottom.push({ href: "/updates", label: "Updates", icon: "slack", badge: feeds.reduce((n, g) => n + g.unread, 0) });
-  if (canManageTeam(me)) bottom.push({ href: "/team", label: "Team", icon: "team" });
-  if (me.role === "admin") bottom.push({ href: "/feedback", label: "Feedback", icon: "sparkle", badge: await newFeedback() });
+  const admin = [];
+  if (feeds.length) admin.push({ href: "/updates", label: "Updates", icon: "slack", badge: feeds.reduce((n, g) => n + g.unread, 0) });
+  if (canManageTeam(me)) admin.push({ href: "/team", label: "Team", icon: "team" });
+  if (me.role === "admin") admin.push({ href: "/feedback", label: "Feedback", icon: "alert", badge: await newFeedback() });
+  const groups = [
+    { title: "Main", items: main },
+    { title: "Sales", items: sales },
+    { title: "Clients", items: clients },
+    { title: "Admin", items: admin },
+  ].filter((g) => g.items.length);
+  const items = [...main, ...sales.filter((i) => i.href !== "/leads/new"), ...clients];
+  const bottom = admin;
   const theme = await getTheme();
   const roleLabel = me.role === "member" ? me.groups.map((g) => g.name).join(" · ") || "Member" : ROLES.find((r) => r.id === me.role)?.label;
 
@@ -73,41 +85,41 @@ export default async function CrmLayout({ children }) {
     theme,
   };
 
-  const date = new Intl.DateTimeFormat("en-IN", { timeZone: "Asia/Kolkata", weekday: "long", day: "numeric", month: "long" }).format(new Date());
-
   return (
-    <div className="min-h-svh md:h-svh md:p-3">
+    <div className="min-h-svh md:flex md:h-svh md:flex-col md:gap-2.5 md:p-2.5">
       <MobileHeader {...profile} />
-      <div className="md:flex md:h-full md:overflow-hidden md:rounded-[34px] md:bg-[var(--wash)] md:shadow-[0_0_0_1px_rgb(0_0_0/0.04),0_30px_80px_-40px_rgb(0_0_0/0.35)]">
-        <Rail
-          items={items}
-          bottom={bottom}
-          logo={
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src="/images/hero-logo.webp" alt="Inloop" className="h-auto w-6" />
-          }
-          tools={
-            <>
-              <ThemeToggle initial={theme} variant="icon" />
-              <form action="/auth/signout" method="post">
-                <RailTool type="submit" label="Sign out" icon="logout" />
-              </form>
-            </>
+      <TopBar
+        logo={<Logo />}
+        search={canSeeLeads(me)}
+        right={
+          <>
+            <ThemeToggle initial={theme} variant="icon" />
+            <PushSetup variant="circle" />
+            <AvatarMenu {...profile} />
+          </>
+        }
+      />
+      <div className="md:flex md:min-h-0 md:flex-1 md:gap-2.5">
+        <Sidebar
+          groups={groups}
+          bottom={
+            <form action="/auth/signout" method="post">
+              <SideButton type="submit" label="Logout" icon="logout" />
+            </form>
           }
         />
-        <div id="scroller" className="min-w-0 flex-1 md:overflow-y-auto">
-          <TopBar
-            items={[...items, ...bottom]}
-            date={date}
-            search={canSeeLeads(me)}
-            right={
-              <>
-                <PushSetup variant="circle" />
-                <AvatarMenu {...profile} />
-              </>
-            }
-          />
-          <main className="relative z-[1] min-w-0 pb-[calc(env(safe-area-inset-bottom)+104px)] md:pb-8">{children}</main>
+        <div className="md:flex md:min-w-0 md:flex-1 md:flex-col md:gap-2.5">
+          <div id="scroller" className="app-canvas min-w-0 md:min-h-0 md:flex-1 md:overflow-y-auto md:rounded-2xl md:border md:border-line">
+            <main className="relative z-[1] min-w-0 pb-[calc(env(safe-area-inset-bottom)+104px)] md:pb-6">{children}</main>
+          </div>
+          <footer className="hidden h-10 shrink-0 items-center justify-between rounded-2xl border border-line bg-panel px-4 text-[11px] text-muted md:flex">
+            <span>
+              © {new Date().getFullYear()} · Inloop CRM <span className="text-faint">v2.0</span>
+            </span>
+            <span>
+              by <span className="rounded-md border border-line bg-panel-2 px-1.5 py-0.5 font-medium text-ink">Inloop Media</span>
+            </span>
+          </footer>
         </div>
       </div>
       <PhoneTabs items={items.filter((it) => it.href !== "/leads/new")} bottom={bottom} />

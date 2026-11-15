@@ -2,13 +2,12 @@
 
 import { useState } from "react";
 import Icon from "@/components/Icon";
-import { RailTool } from "@/components/Nav";
 
 const THEMES = [
   { id: "light", label: "Light", icon: "sun" },
   { id: "dark", label: "Dark", icon: "moon" },
 ];
-const COLOR = { light: "#ebebed", dark: "#0e0e10" };
+const COLOR = { light: "#ebebed", dark: "#0b0b0b" };
 
 function switchTo(next) {
   const root = document.documentElement;
@@ -21,7 +20,7 @@ function switchTo(next) {
 
 /** Light / dark switch. Remembered in a cookie so the server renders the right theme with no flash.
  *  variant: "rail" (vertical pill of two round buttons) or "row" (phone profile sheet). */
-export default function ThemeToggle({ initial = "light", variant = "rail" }) {
+export default function ThemeToggle({ initial = "dark", variant = "rail" }) {
   const [theme, setTheme] = useState(initial);
 
   const apply = (next) => {
@@ -30,7 +29,12 @@ export default function ThemeToggle({ initial = "light", variant = "rail" }) {
     setTheme(next);
   };
 
-  if (variant === "icon") return <RailTool label={theme === "light" ? "Dark mode" : "Light mode"} icon={theme === "light" ? "moon" : "sun"} onClick={() => apply(theme === "light" ? "dark" : "light")} />;
+  if (variant === "icon")
+    return (
+      <button onClick={() => apply(theme === "light" ? "dark" : "light")} title={theme === "light" ? "Dark mode" : "Light mode"} className="grid h-9 w-9 place-items-center rounded-lg border border-line bg-panel-2 text-muted transition hover:text-ink">
+        <Icon name={theme === "light" ? "moon" : "sun"} size={15} />
+      </button>
+    );
 
   if (variant === "row") {
     return (

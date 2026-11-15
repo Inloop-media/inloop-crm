@@ -104,8 +104,10 @@ export function AvatarMenu(props) {
   const [open, setOpen] = useOpen();
   return (
     <div className="relative">
-      <button onClick={() => setOpen((o) => !o)} aria-label="Profile" title={props.name} className="block rounded-full ring-2 ring-panel transition hover:-translate-y-0.5">
-        <Me initials={props.initials} size="h-11 w-11 text-xs" />
+      <button onClick={() => setOpen((o) => !o)} aria-label="Profile" className="flex h-9 items-center gap-2 rounded-lg border border-line bg-panel-2 pl-1 pr-2.5 text-[13px] transition hover:bg-panel-3">
+        <Me initials={props.initials} size="h-7 w-7 text-[10px] rounded-md" />
+        <span className="max-w-[8rem] truncate">{props.name.split(" ")[0]}</span>
+        <Icon name="chevron" size={13} className="text-muted" />
       </button>
       {open && (
         <>

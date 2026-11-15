@@ -1,92 +1,100 @@
 "use client";
 
-// The app shell: a black floating icon rail on the left (desktop), a slim top bar with the page name,
-// search, notifications and the profile, and a black pill tab bar on phones.
+// The app shell, like an admin console: a full-width top bar (menu, logo, search, theme, bell, you),
+// a grouped sidebar with labels on the left (MAIN / SALES / CLIENTS / ADMIN) that folds down to icons,
+// and a pill tab bar on phones.
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Icon from "@/components/Icon";
 
 const isActive = (path, href) => (href === "/" ? path === "/" : path === href || path.startsWith(href + "/"));
 const activeItem = (path, items) => items.filter((it) => isActive(path, it.href)).sort((a, b) => b.href.length - a.href.length)[0];
+const FOLD_KEY = "crm_sidebar_folded";
 
-function Badge({ n, on }) {
+function Badge({ n, className = "" }) {
   if (!n) return null;
-  return (
-    <span className={`absolute -right-1 -top-1 min-w-[18px] rounded-full px-1 text-center text-[10px] font-semibold leading-[18px] tabular-nums ring-2 ring-[var(--rail)] ${on ? "bg-white text-brand" : "bg-brand text-white"}`}>
-      {n > 9 ? "9+" : n}
-    </span>
-  );
+  return <span className={`min-w-[18px] rounded-full bg-brand px-1 text-center text-[10px] font-semibold leading-[18px] tabular-nums text-white ${className}`}>{n > 99 ? "99+" : n}</span>;
 }
 
-function RailButton({ label, active, badge, children }) {
-  return (
-    <span className="group relative block">
-      <span
-        className={`relative grid h-10 w-10 place-items-center rounded-full transition duration-200 ${
-          active ? "bg-brand text-white shadow-[0_0_0_4px_rgb(232_101_79/0.22),0_10px_22px_-6px_rgb(232_101_79/0.9)]" : "text-white/50 hover:bg-white/10 hover:text-white"
-        }`}
-      >
-        {children}
-        <Badge n={badge} on={active} />
-      </span>
-      {active && <span className="absolute -right-[12px] top-1/2 h-2.5 w-2.5 -translate-y-1/2 rotate-45 rounded-[2px] bg-[var(--rail)]" />}
-      <span className="pointer-events-none absolute left-full top-1/2 z-50 ml-3 -translate-x-1 -translate-y-1/2 whitespace-nowrap rounded-lg bg-[var(--rail)] px-2.5 py-1.5 text-xs font-medium text-white opacity-0 shadow-lg transition group-hover:translate-x-0 group-hover:opacity-100">
-        {label}
-        <span className="absolute -left-1 top-1/2 h-2 w-2 -translate-y-1/2 rotate-45 bg-[var(--rail)]" />
-      </span>
-    </span>
-  );
+/** Is the sidebar folded down to icons? (remembered on this device) */
+const subscribe = (cb) => {
+  window.addEventListener("crm-fold", cb);
+  return () => window.removeEventListener("crm-fold", cb);
+};
+const folded = () => {
+  try {
+    return localStorage.getItem(FOLD_KEY) === "1";
+  } catch {
+    return false;
+  }
+};
+export function useFold() {
+  return useSyncExternalStore(subscribe, folded, () => false);
+}
+function toggleFold() {
+  try {
+    localStorage.setItem(FOLD_KEY, localStorage.getItem(FOLD_KEY) === "1" ? "0" : "1");
+  } catch {}
+  window.dispatchEvent(new Event("crm-fold"));
 }
 
 /**
- * Desktop: the floating black icon rail.
- *   items   [{ href, label, icon, badge }] — the app's sections, top to bottom
- *   bottom  smaller sections pinned near the foot (Updates, Team, Feedback)
- *   tools   extra buttons at the very bottom (theme, sign out)
+ * Desktop sidebar.
+ *   groups  [{ title, items: [{ href, label, icon, badge, tag }] }]
+ *   bottom  extra buttons at the foot (sign out)
  */
-export function Rail({ items, bottom = [], tools, logo }) {
+export function Sidebar({ groups, bottom }) {
   const path = usePathname();
-  const current = activeItem(path, [...items, ...bottom]);
-  const link = (it) => (
-    <Link key={it.href} href={it.href} aria-label={it.label}>
-      <RailButton label={it.label} active={current?.href === it.href} badge={it.badge}>
-        <Icon name={it.icon} size={18} />
-      </RailButton>
-    </Link>
-  );
+  const fold = useFold();
+  const current = activeItem(path, groups.flatMap((g) => g.items));
   return (
-    <aside className="relative z-40 my-3 ml-3 hidden w-[58px] shrink-0 flex-col items-center rounded-full bg-[var(--rail)] py-2.5 shadow-[0_20px_50px_-20px_rgb(0_0_0/0.6)] md:flex">
-      <Link href="/" aria-label="Home" className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-brand shadow-[0_8px_20px_-6px_rgb(232_101_79/0.9)]">
-        {logo}
-      </Link>
-      <nav className="mt-5 flex min-h-0 flex-1 flex-col items-center gap-1.5">
-        {items.map(link)}
-        {bottom.length > 0 && <span className="my-1.5 h-px w-6 shrink-0 bg-white/10" />}
-        {bottom.map(link)}
+    <aside className={`hidden shrink-0 flex-col rounded-2xl border border-line bg-panel py-3 transition-[width] duration-200 md:flex ${fold ? "w-[64px] px-2" : "w-[228px] px-3"}`}>
+      <nav className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto">
+        {groups.map((g) => (
+          <div key={g.title} className="flex flex-col gap-0.5">
+            {fold ? <span className="mx-auto mb-1 h-px w-6 bg-line" /> : <div className="px-2.5 pb-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-faint">{g.title}</div>}
+            {g.items.map((it) => {
+              const on = current?.href === it.href;
+              return (
+                <Link
+                  key={it.href}
+                  href={it.href}
+                  title={fold ? it.label : undefined}
+                  className={`group relative flex items-center gap-2.5 rounded-lg py-2 text-[13px] transition ${fold ? "justify-center px-0" : "px-2.5"} ${
+                    on ? "bg-panel-3 font-medium text-ink" : "text-muted hover:bg-panel-2 hover:text-ink"
+                  }`}
+                >
+                  <Icon name={it.icon} size={16} className={on ? "text-ink" : ""} />
+                  {!fold && <span className="min-w-0 flex-1 truncate">{it.label}</span>}
+                  {!fold && it.tag && <span className="rounded-md border border-brand/40 px-1.5 text-[9px] font-semibold uppercase tracking-wide text-brand">{it.tag}</span>}
+                  {it.badge > 0 && (fold ? <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-brand" /> : <Badge n={it.badge} />)}
+                </Link>
+              );
+            })}
+          </div>
+        ))}
       </nav>
-      <div className="flex flex-col items-center gap-1.5">{tools}</div>
+      <div className="mt-3 border-t border-line pt-3">{bottom}</div>
     </aside>
   );
 }
 
-/** A rail-styled button for the foot of the rail (theme, sign out). */
-export function RailTool({ label, icon, onClick, type = "button" }) {
+/** A sidebar-styled button for the foot (sign out). */
+export function SideButton({ label, icon, type = "button", onClick }) {
+  const fold = useFold();
   return (
-    <button type={type} onClick={onClick} aria-label={label}>
-      <RailButton label={label}>
-        <Icon name={icon} size={17} />
-      </RailButton>
+    <button type={type} onClick={onClick} title={fold ? label : undefined} className={`flex w-full items-center gap-2.5 rounded-lg py-2 text-[13px] text-muted transition hover:bg-panel-2 hover:text-ink ${fold ? "justify-center" : "px-2.5"}`}>
+      <Icon name={icon} size={16} />
+      {!fold && label}
     </button>
   );
 }
 
-/** Desktop top bar: today's date and the page name on the left; search, bell and profile on the right. */
-export function TopBar({ items, date, search, right }) {
-  const path = usePathname();
+/** Desktop top bar: menu + logo on the left; search, theme, bell and you on the right. */
+export function TopBar({ logo, search, right }) {
   const router = useRouter();
   const input = useRef(null);
-  const current = activeItem(path, items);
   useEffect(() => {
     const onKey = (e) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
@@ -98,15 +106,14 @@ export function TopBar({ items, date, search, right }) {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
   return (
-    <header className="hidden items-center gap-4 px-7 pt-5 md:flex">
-      <div className="min-w-0">
-        <p className="text-xs text-muted">{date}</p>
-        <h2 className="mt-0.5 flex items-center gap-2 text-[17px] font-medium tracking-[-0.01em]">
-          <Icon name={current?.icon || "home"} size={16} className="text-muted" />
-          {current?.label || "Home"}
-        </h2>
-      </div>
-      <div className="ml-auto flex items-center gap-2.5">
+    <header className="hidden h-14 shrink-0 items-center gap-3 rounded-2xl border border-line bg-panel px-3 md:flex">
+      <button onClick={toggleFold} aria-label="Fold the sidebar" className="grid h-9 w-9 place-items-center rounded-lg text-muted transition hover:bg-panel-2 hover:text-ink">
+        <Icon name="list" size={17} />
+      </button>
+      <Link href="/" className="flex items-center gap-2">
+        {logo}
+      </Link>
+      <div className="ml-auto flex items-center gap-2">
         {search && (
           <form
             onSubmit={(e) => {
@@ -114,11 +121,11 @@ export function TopBar({ items, date, search, right }) {
               const q = input.current?.value.trim();
               router.push(q ? `/leads?view=list&q=${encodeURIComponent(q)}` : "/leads?view=list");
             }}
-            className="flex h-11 w-[min(320px,30vw)] items-center gap-2.5 rounded-full bg-panel pl-4 pr-1.5 shadow-[var(--card-shadow)]"
+            className="flex h-9 w-[min(280px,26vw)] items-center gap-2 rounded-lg border border-line bg-panel-2 pl-3 pr-1.5"
           >
-            <Icon name="search" size={16} className="text-muted" />
-            <input ref={input} name="q" placeholder="Search leads, brands, phone…" className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-faint" />
-            <kbd className="rounded-full bg-panel-2 px-2 py-1 font-sans text-[10px] font-semibold text-muted">⌘K</kbd>
+            <Icon name="search" size={14} className="text-muted" />
+            <input ref={input} name="q" placeholder="Search…" className="min-w-0 flex-1 bg-transparent text-[13px] outline-none placeholder:text-faint" />
+            <kbd className="rounded-md border border-line bg-panel px-1.5 py-0.5 font-sans text-[10px] font-medium text-muted">⌘K</kbd>
           </form>
         )}
         {right}
@@ -127,7 +134,7 @@ export function TopBar({ items, date, search, right }) {
   );
 }
 
-/** Phone: a black pill tab bar; the first few sections, the rest behind "More". */
+/** Phone: a pill tab bar; the first few sections, the rest behind "More". */
 export function PhoneTabs({ items, bottom = [] }) {
   const path = usePathname();
   const [open, setOpen] = useState(false);
@@ -144,17 +151,17 @@ export function PhoneTabs({ items, bottom = [] }) {
   const moreBadge = rest.reduce((n, it) => n + (it.badge || 0), 0);
   const tab = (it, active) => (
     <span className="flex flex-1 flex-col items-center gap-1 py-1">
-      <span className={`relative grid h-9 w-9 place-items-center rounded-full transition ${active ? "bg-brand text-white shadow-[0_6px_16px_-4px_rgb(232_101_79/0.9)]" : "text-white/55"}`}>
+      <span className={`relative grid h-9 w-9 place-items-center rounded-full transition ${active ? "bg-solid text-on-solid" : "text-muted"}`}>
         <Icon name={it.icon} size={18} />
-        <Badge n={it.badge} on={active} />
+        {it.badge > 0 && <Badge n={it.badge} className="absolute -right-1.5 -top-1" />}
       </span>
-      <span className={`text-[10px] font-medium ${active ? "text-white" : "text-white/55"}`}>{it.label.split(" ")[0]}</span>
+      <span className={`text-[10px] font-medium ${active ? "text-ink" : "text-muted"}`}>{it.label.split(" ")[0]}</span>
     </span>
   );
   return (
     <>
       <nav className="fixed inset-x-0 bottom-0 z-30 px-3 pb-[calc(env(safe-area-inset-bottom)+8px)] md:hidden">
-        <div className="mx-auto flex max-w-md items-stretch justify-around rounded-[28px] bg-[var(--rail)] p-1.5 shadow-[0_20px_40px_-16px_rgb(0_0_0/0.6)]">
+        <div className="mx-auto flex max-w-md items-stretch justify-around rounded-[24px] border border-line bg-panel/95 p-1.5 shadow-[var(--pop-shadow)] backdrop-blur-xl">
           {main.map((it) => (
             <Link key={it.href} href={it.href} className="flex flex-1">
               {tab(it, current?.href === it.href)}
@@ -169,19 +176,19 @@ export function PhoneTabs({ items, bottom = [] }) {
       </nav>
       {open && (
         <div className="fixed inset-0 z-50 md:hidden" role="dialog" aria-modal="true">
-          <button aria-label="Close" onClick={() => setOpen(false)} className="absolute inset-0 bg-ink/30 backdrop-blur-sm" />
-          <div className="rise absolute inset-x-0 bottom-0 max-h-[80svh] overflow-y-auto rounded-t-[32px] bg-panel px-4 pb-[calc(env(safe-area-inset-bottom)+20px)] pt-3">
+          <button aria-label="Close" onClick={() => setOpen(false)} className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
+          <div className="rise absolute inset-x-0 bottom-0 max-h-[80svh] overflow-y-auto rounded-t-[28px] border-t border-line bg-panel px-4 pb-[calc(env(safe-area-inset-bottom)+20px)] pt-3">
             <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-ink/15" />
             <div className="flex flex-col gap-1">
               {rest.map((it) => {
                 const on = current?.href === it.href;
                 return (
-                  <Link key={it.href} href={it.href} className={`flex items-center gap-3 rounded-2xl px-3 py-3 text-[15px] ${on ? "bg-panel-2 font-medium" : ""}`}>
-                    <span className={`grid h-9 w-9 place-items-center rounded-full ${on ? "bg-brand text-white" : "bg-panel-2 text-muted"}`}>
+                  <Link key={it.href} href={it.href} className={`flex items-center gap-3 rounded-xl px-3 py-3 text-[15px] ${on ? "bg-panel-3 font-medium" : ""}`}>
+                    <span className="grid h-9 w-9 place-items-center rounded-lg bg-panel-2 text-muted">
                       <Icon name={it.icon} size={17} />
                     </span>
                     <span className="flex-1">{it.label}</span>
-                    {it.badge > 0 && <span className="min-w-5 rounded-full bg-brand px-1.5 text-center text-[11px] font-semibold leading-5 text-white">{it.badge}</span>}
+                    <Badge n={it.badge} />
                   </Link>
                 );
               })}

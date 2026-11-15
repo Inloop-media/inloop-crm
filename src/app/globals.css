@@ -29,7 +29,7 @@
   --color-tint-green: #e2f1dd;
   --color-tint-pink: #fbe1e5;
   --color-tint-amber: #fbecd5;
-  --font-sans: var(--font-outfit), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-geist), ui-sans-serif, system-ui, sans-serif;
 
   /* Status hues used as text — deeper so they read on white */
   --color-emerald-300: #047857;
@@ -71,26 +71,28 @@
 
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --color-bg: #111113;
-  --color-panel: #18181b;
-  --color-panel-2: #212125;
-  --color-panel-3: #2a2a2f;
-  --color-line: #26262b;
-  --color-line-strong: #34343a;
-  --color-ink: #f4f4f5;
-  --color-muted: #9d9da6;
-  --color-faint: #66666f;
-  --color-brand: #f07a64;
-  --color-brand-soft: #f6aa9b;
-  --color-brand-strong: #e8654f;
+  /* Charcoal console, like the reference video: near-black surround, panels a step lighter,
+     hairline borders, white primary buttons, coral-red only for charts and alerts */
+  --color-bg: #121212;
+  --color-panel: #181818;
+  --color-panel-2: #1f1f1f;
+  --color-panel-3: #2a2a2a;
+  --color-line: #262626;
+  --color-line-strong: #333333;
+  --color-ink: #ededed;
+  --color-muted: #9b9b9b;
+  --color-faint: #616161;
+  --color-brand: #ef6b57;
+  --color-brand-soft: #f4a596;
+  --color-brand-strong: #e5543f;
   --color-on-brand: #ffffff;
-  --color-solid: #f4f4f5;
-  --color-on-solid: #141416;
-  --color-tint-lavender: #3a221d;
-  --color-tint-blue: #1f2633;
-  --color-tint-green: #1c2e22;
-  --color-tint-pink: #3a2128;
-  --color-tint-amber: #362b18;
+  --color-solid: #f2f2f2;
+  --color-on-solid: #111111;
+  --color-tint-lavender: #2a1f1d;
+  --color-tint-blue: #1b2230;
+  --color-tint-green: #1a2a20;
+  --color-tint-pink: #2c1d22;
+  --color-tint-amber: #2c2416;
 
   --color-emerald-300: #6ee7b7;
   --color-emerald-400: #34d399;
@@ -109,20 +111,21 @@
   --color-violet-300: #c4b5fd;
   --color-violet-400: #a78bfa;
 
-  --wash: #111113;
-  --outer: #050506;
-  --rail: #000000;
-  --card-sheen: linear-gradient(180deg, #1b1b1f 0%, #17171a 100%);
-  --card-border: rgb(255 255 255 / 0.06);
-  --field-bg: #1d1d21;
-  --field-border: rgb(255 255 255 / 0.08);
-  --card-shadow: 0 1px 2px rgb(0 0 0 / 0.4), 0 20px 40px -28px rgb(0 0 0 / 0.8);
-  --card-shadow-hover: 0 2px 4px rgb(0 0 0 / 0.4), 0 28px 56px -28px rgb(0 0 0 / 0.95);
-  --pop-shadow: 0 24px 64px -16px rgb(0 0 0 / 0.7), 0 0 0 1px rgb(255 255 255 / 0.07);
-  --solid-grad: linear-gradient(180deg, #ffffff 0%, #e4e4e7 100%);
-  --solid-shadow: inset 0 1px 0 rgb(255 255 255 / 0.8), 0 6px 14px -8px rgb(0 0 0 / 0.6);
-  --brand-grad: linear-gradient(90deg, #e8654f, #f6aa9b);
-  --coral-glow: 0 18px 40px -16px rgb(232 101 79 / 0.4);
+  --wash: #121212;
+  --outer: #0b0b0b;
+  --rail: #0b0b0b;
+  --card-sheen: #181818;
+  --card-border: #262626;
+  --card-shadow: 0 1px 2px rgb(0 0 0 / 0.35);
+  --card-shadow-hover: 0 1px 2px rgb(0 0 0 / 0.4), 0 12px 30px -16px rgb(0 0 0 / 0.9);
+  --pop-shadow: 0 0 0 1px #2a2a2a, 0 24px 64px -16px rgb(0 0 0 / 0.8);
+  --solid-grad: #f2f2f2;
+  --solid-shadow: none;
+  --field-bg: #1c1c1c;
+  --field-border: #2c2c2c;
+  --brand-grad: linear-gradient(90deg, #e5543f, #f4a596);
+  --coral-grad: linear-gradient(180deg, #1f1f1f 0%, #1a1a1a 100%);
+  --coral-glow: inset 0 0 0 1px #2e2e2e;
 }
 
 html {
@@ -394,4 +397,62 @@ html.theme-switching * {
 .card-coral .text-muted,
 .card-coral .text-faint {
   color: rgb(255 255 255 / 0.85);
+}
+
+/* Amigo: the glowing orb and the faint grid behind the chat */
+@keyframes amigo-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.amigo-orb {
+  background: conic-gradient(from 0deg, #ef6b57, #f4a596, #60a5fa, #22d3ee, #a78bfa, #ef6b57);
+  filter: blur(0.5px);
+  box-shadow: 0 0 40px -6px rgb(239 107 87 / 0.55), 0 0 60px -10px rgb(96 165 250 / 0.45);
+  animation: amigo-spin 6s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .amigo-orb {
+    animation: none;
+  }
+}
+.amigo-grid {
+  background-color: color-mix(in srgb, var(--color-panel) 55%, transparent);
+  background-image:
+    linear-gradient(to right, color-mix(in srgb, var(--color-ink) 5%, transparent) 1px, transparent 1px),
+    linear-gradient(to bottom, color-mix(in srgb, var(--color-ink) 5%, transparent) 1px, transparent 1px);
+  background-size: 44px 44px;
+}
+
+/* Dark console: highlight cards are neutral panels (as in the reference), white text stays readable */
+:root[data-theme="dark"] .card-coral {
+  color: var(--color-ink);
+}
+:root[data-theme="dark"] .card-coral .text-muted,
+:root[data-theme="dark"] .card-coral .text-faint {
+  color: var(--color-muted);
+}
+:root[data-theme="dark"] .chat-own {
+  background: #2a2a2a;
+  color: var(--color-ink);
+}
+:root[data-theme="dark"] .card-hover:hover {
+  border-color: #3a3a3a;
+}
+
+/* The content canvas: a faint grid, like the reference */
+@media (min-width: 768px) {
+  .app-canvas {
+    background-color: var(--wash);
+    background-image:
+      linear-gradient(to right, color-mix(in srgb, var(--color-ink) 3.5%, transparent) 1px, transparent 1px),
+      linear-gradient(to bottom, color-mix(in srgb, var(--color-ink) 3.5%, transparent) 1px, transparent 1px);
+    background-size: 48px 48px;
+  }
+}
+:root[data-theme="dark"] :is(.card, .card-coral) {
+  border-radius: 16px;
+}
+:root[data-theme="dark"] .card-coral {
+  border: 1px solid #2a2a2a;
 }

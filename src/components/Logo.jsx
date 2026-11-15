@@ -2,12 +2,12 @@
 export default function Logo({ compact = false }) {
   return (
     <span className="flex items-center gap-3">
-      <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-brand shadow-[0_8px_20px_-8px_rgb(232_101_79/0.9)]">
+      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-brand">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/images/hero-logo.webp" alt="Inloop" className="h-auto w-7" />
+        <img src="/images/hero-logo.webp" alt="Inloop" className="h-auto w-6" />
       </span>
       {!compact && (
-        <span className="text-lg font-semibold leading-none tracking-tight">
+        <span className="text-[16px] font-semibold leading-none tracking-tight">
           inloop <span className="font-normal text-muted">crm</span>
         </span>
       )}
