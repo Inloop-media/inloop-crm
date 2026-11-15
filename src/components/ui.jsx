@@ -150,3 +150,16 @@ export function StagePill({ stage }) {
     </span>
   );
 }
+
+/** A brand's mark: a rounded square in the brand's colour with its first letter (sidebar, workspace header). */
+export function BrandMark({ name, size = 20 }) {
+  const c = tint(name);
+  return (
+    <span
+      className="grid shrink-0 place-items-center font-semibold"
+      style={{ width: size, height: size, borderRadius: Math.max(5, size * 0.28), fontSize: size * 0.5, background: c, color: "#13121a" }}
+    >
+      {String(name || "?").trim()[0]?.toUpperCase()}
+    </span>
+  );
+}

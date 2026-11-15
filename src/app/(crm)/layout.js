@@ -1,4 +1,6 @@
 import Logo from "@/components/Logo";
+import { Suspense } from "react";
+import { unreadCounts } from "@/lib/chat";
 import Link from "next/link";
 import { PhoneTabs, Sidebar } from "@/components/Nav";
 import Icon from "@/components/Icon";
@@ -41,28 +43,37 @@ const initials = (name) =>
 
 export default async function CrmLayout({ children }) {
   const me = await requireMember();
-  // The sidebar, grouped the way the agency works: sales → clients → work → team
+  // Sidebar (ClickUp / Notion style): your work on top, sales, then every brand as a workspace
   const tasksCount = await taskBadge(me).catch(() => 0);
   const feeds = await listFeeds(me);
+  const main = [{ href: "/", label: "Home", icon: "home" }];
+  if (canAssignTasks(me) || isMaker(me) || tasksCount) main.push({ href: "/tasks", label: canAssignTasks(me) ? "Tasks" : "My tasks", icon: "tasks", badge: tasksCount });
+  if (canSeeCalendar(me)) main.push({ href: "/calendar", label: "Content calendar", icon: "calendar" });
   const sales = [];
   if (canSeeLeads(me)) sales.push({ href: "/leads", label: "Leads", icon: "leads" });
   if (canSeeBriefs(me)) sales.push({ href: "/briefs", label: "Proposals", icon: "brief", badge: await briefsBadge(me) });
-  const clients = [];
-  if (canSeeBrands(me)) clients.push({ href: "/brands", label: "Brands", icon: "brand" });
-  if (canSeeCalendar(me)) clients.push({ href: "/calendar", label: "Content calendar", icon: "calendar" });
-  const work = [];
-  if (canAssignTasks(me) || isMaker(me) || tasksCount) work.push({ href: "/tasks", label: canAssignTasks(me) ? "Tasks" : "My tasks", icon: "tasks", badge: tasksCount });
-  const team = [];
-  if (feeds.length) team.push({ href: "/updates", label: "Updates", icon: "slack", badge: feeds.reduce((n, g) => n + g.unread, 0) });
-  if (canManageTeam(me)) team.push({ href: "/team", label: "Team", icon: "team" });
-  if (me.role === "admin") team.push({ href: "/feedback", label: "Feedback", icon: "chat", badge: await newFeedback() });
   const groups = [
-    { title: "", items: [{ href: "/", label: "Home", icon: "home" }] },
+    { title: "", items: main },
     { title: "Sales", items: sales },
-    { title: "Clients", items: clients },
-    { title: "Work", items: work },
-    { title: "Team", items: team },
   ].filter((g) => g.items.length);
+
+  let brands = null;
+  if (canSeeBrands(me) || canSeeCalendar(me)) {
+    const { data } = await db().from("brands").select("id, name, stage").order("name");
+    const list = (data || []).filter((b) => b.stage === "active" || canSeeBrands(me));
+    const unread = canSeeBrands(me) ? await unreadCounts(list.map((b) => b.id), me.id).catch(() => ({})) : {};
+    brands = {
+      allHref: canSeeBrands(me) ? "/brands" : "/calendar",
+      items: list
+        .sort((a, b) => (b.stage === "active") - (a.stage === "active") || a.name.localeCompare(b.name))
+        .map((b) => ({ id: b.id, name: b.name, href: canSeeBrands(me) ? `/brands/${b.id}` : `/calendar?brand=${b.id}`, badge: unread[b.id] || 0, muted: b.stage !== "active" })),
+    };
+  }
+
+  const bottom = [];
+  if (feeds.length) bottom.push({ href: "/updates", label: "Updates", icon: "slack", badge: feeds.reduce((n, g) => n + g.unread, 0) });
+  if (canManageTeam(me)) bottom.push({ href: "/team", label: "Team", icon: "team" });
+  if (me.role === "admin") bottom.push({ href: "/feedback", label: "Feedback", icon: "chat", badge: await newFeedback() });
   const theme = await getTheme();
   const roleLabel = me.role === "member" ? me.groups.map((g) => g.name).join(" · ") || "Member" : ROLES.find((r) => r.id === me.role)?.label;
 
@@ -85,8 +96,11 @@ export default async function CrmLayout({ children }) {
           <Link href="/" aria-label="Home" className="px-3">
             <Logo />
           </Link>
+          <Suspense>
           <Sidebar
             groups={groups}
+            brands={brands}
+            bottom={bottom}
             top={
               canCreateLead(me) ? (
                 <Link href="/leads/new" className="btn-primary btn-sm mx-1 !justify-start">
@@ -96,10 +110,13 @@ export default async function CrmLayout({ children }) {
             }
             footer={<SidebarProfile {...profile} />}
           />
+          </Suspense>
         </aside>
         <main className="relative z-[1] min-w-0 flex-1 pb-[calc(env(safe-area-inset-bottom)+96px)] md:pb-6">{children}</main>
       </div>
-      <PhoneTabs groups={groups} />
+      <Suspense>
+        <PhoneTabs groups={groups} brands={brands} bottom={bottom} />
+      </Suspense>
       {me.role !== "admin" && <FeedbackNote />}
       <Celebration initial={await unseenCelebrations(me).catch(() => [])} />
     </div>

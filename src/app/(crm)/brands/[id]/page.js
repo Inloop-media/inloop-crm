@@ -1,9 +1,11 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import Icon from "@/components/Icon";
-import { Avatar, Empty, PageHeader, Panel, StatStrip } from "@/components/ui";
-import { Progress, TaskList } from "@/components/Tasks";
-import { NewTaskForm } from "@/components/TaskForms";
+import { BrandMark, Empty, Panel } from "@/components/ui";
+import TaskBoard from "@/components/TaskBoard";
+import QuickAssign from "@/components/QuickAssign";
+import ContentCalendar from "@/components/ContentCalendar";
+import { loadItems, loadPlans, monthLabel, planProgress, shiftMonth, validMonth } from "@/lib/calendar";
 import BrandChat from "@/components/BrandChat";
 import { brandChat, brandChatUpload, markBrandRead, sendBrandMessage } from "../actions";
 import { loadChat, unreadCounts } from "@/lib/chat";
@@ -11,7 +13,7 @@ import { requireMember } from "@/lib/auth";
 import { getBrand } from "@/lib/brands";
 import { listMakers, listTasks } from "@/lib/tasks";
 import { db } from "@/lib/supabase/server";
-import { canAssignTasks, canOnboard, canSeeBrands } from "@/lib/permissions";
+import { canAssignTasks, canEditCalendar, canOnboard, canSeeBrands, canSetPlan } from "@/lib/permissions";
 import { OPEN_TASK, taskKindLabel } from "@/lib/constants";
 import { fmtDay } from "@/lib/format";
 
@@ -48,19 +50,31 @@ async function library(tasks) {
     .sort((a, b) => new Date(b.task.done_at) - new Date(a.task.done_at));
 }
 
+const TABS = [
+  ["tasks", "Tasks", "tasks"],
+  ["calendar", "Calendar", "calendar"],
+  ["chat", "Chat", "chat"],
+  ["files", "Files", "file"],
+  ["about", "About", "brief"],
+];
+
 export default async function BrandPage({ params, searchParams }) {
   const { id } = await params;
-  const { tab } = await searchParams;
+  const sp = await searchParams;
   const me = await requireMember(canSeeBrands);
   const brand = await getBrand(id);
   if (!brand) notFound();
+  const current = TABS.some(([k]) => k === sp.tab) ? sp.tab : sp.tab === "library" ? "files" : "tasks";
+  const month = validMonth(sp.month);
   const [tasks, people] = await Promise.all([listTasks(me, { view: "all", brandId: id }), canAssignTasks(me) ? listMakers() : []]);
   const overdue = tasks.filter(isOverdue);
   const done = tasks.filter((t) => t.status === "done");
-  const current = ["tasks", "chat", "library", "about"].includes(tab) ? tab : "tasks";
-  const files = current === "library" ? await library(tasks) : [];
+  const files = current === "files" ? await library(tasks) : [];
   const chat = current === "chat" ? await loadChat(id) : null;
   const unread = current === "chat" ? 0 : (await unreadCounts([id], me.id))[id] || 0;
+  const [items, plans] = current === "calendar" ? await Promise.all([loadItems([id], month), loadPlans([id], month)]) : [[], {}];
+  const active = brand.stage === "active";
+  const tabHref = (k) => `/brands/${id}${k === "tasks" ? "" : `?tab=${k}`}`;
 
   // Work by kind: how many posts / reels / … and how many approved
   const kinds = {};
@@ -71,95 +85,79 @@ export default async function BrandPage({ params, searchParams }) {
   }
 
   return (
-    <div className="page max-w-6xl">
-      <PageHeader back={{ href: "/brands", label: "Brands" }} />
-
-      <section className="rise card relative -mt-2 overflow-hidden p-6 sm:p-8">
-        <span className="pointer-events-none absolute -right-24 -top-28 h-72 w-72 rounded-full blur-3xl" style={{ background: "color-mix(in srgb, #8b93ff 22%, transparent)" }} />
-        <div className="relative flex flex-wrap items-start justify-between gap-6">
-          <div className="flex min-w-0 items-start gap-4">
-            <Avatar name={brand.name} size={64} />
-            <div className="min-w-0">
-              <div className="flex flex-wrap items-center gap-2 text-xs text-muted">
-                <span className="code">{brand.lead?.code}</span>
-                {brand.onboarded_at ? <span>Client since {fmtDay(brand.onboarded_at)}</span> : <span>Onboarding</span>}
-              </div>
-              <h1 className="mt-2 text-[30px] font-medium leading-tight tracking-[-0.02em] md:text-[40px]">{brand.name}</h1>
-              <div className="mt-3 flex flex-wrap gap-1.5">
-                {(brand.services || []).map((s) => (
-                  <span key={s.name} className="rounded-full bg-panel-2 px-2.5 py-1 text-xs text-muted">
-                    {s.name}
-                  </span>
-                ))}
-              </div>
-            </div>
+    <div className="flex min-h-svh flex-col">
+      {/* Workspace header */}
+      <header className="sticky top-0 z-20 border-b border-line bg-bg/80 px-4 pt-5 backdrop-blur-xl md:px-8">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
+          <BrandMark name={brand.name} size={40} />
+          <div className="min-w-0 flex-1">
+            <h1 className="truncate text-[22px] font-medium leading-tight tracking-[-0.015em] md:text-[26px]">{brand.name}</h1>
+            <p className="truncate text-xs text-muted">
+              {active ? `Client since ${fmtDay(brand.onboarded_at)}` : "Onboarding — MOU not signed yet"}
+              {tasks.length > 0 && ` · ${tasks.length - done.length} tasks in progress · ${done.length} approved`}
+              {overdue.length > 0 && <span className="text-rose-400"> · {overdue.length} late</span>}
+            </p>
           </div>
-          <div className="w-full sm:w-64">
-            <Progress done={done.length} total={tasks.length} />
+          <div className="flex items-center gap-2">
+            {canOnboard(me) && (
+              <Link href={`/leads/${brand.lead_id}#onboarding`} className="btn-ghost btn-sm">
+                <Icon name="file" size={13} /> Lead & MOU
+              </Link>
+            )}
+            {canAssignTasks(me) && active && <QuickAssign brands={[{ id, name: brand.name }]} people={people} defaultBrand={id} label="New task" />}
           </div>
         </div>
-      </section>
-
-      <StatStrip
-        className="rise rise-1 mt-5"
-        items={[
-          { label: "Tasks", value: tasks.length, icon: "tasks" },
-          { label: "In work", value: tasks.filter((t) => OPEN_TASK.includes(t.status)).length, icon: "clock", tint: "amber" },
-          { label: "With client", value: tasks.filter((t) => t.status === "sent_to_client").length, icon: "arrow", tint: "blue" },
-          { label: "Overdue", value: overdue.length, icon: "alert", tint: "pink" },
-        ]}
-      />
-
-      <div className="rise rise-2 mt-5 flex flex-wrap items-center justify-between gap-3">
-        <nav className="seg flex p-1.5">
-          {[
-            ["tasks", "Tasks"],
-            ["chat", unread ? `Chat · ${unread}` : "Chat"],
-            ["calendar", "Calendar"],
-            ["library", "Library"],
-            ["about", "Scope"],
-          ].map(([k, l]) => (
-            <Link key={k} href={k === "calendar" ? `/calendar?brand=${id}` : `/brands/${id}?tab=${k}`} data-on={current === k} className="seg-item">
+        <nav className="-mb-px mt-4 flex gap-1 overflow-x-auto">
+          {TABS.map(([k, l, icon]) => (
+            <Link key={k} href={tabHref(k)} className={`relative flex shrink-0 items-center gap-2 px-3 pb-3 pt-1 text-sm transition ${current === k ? "font-medium text-ink" : "text-muted hover:text-ink"}`}>
+              <Icon name={icon} size={14} />
               {l}
+              {k === "chat" && unread > 0 && <span className="rounded-full bg-brand px-1.5 text-[10px] font-semibold leading-4 text-on-brand">{unread}</span>}
+              {k === "tasks" && tasks.length - done.length > 0 && <span className="rounded-full bg-panel-2 px-1.5 text-[10px] leading-4 text-muted">{tasks.length - done.length}</span>}
+              {current === k && <span className="absolute inset-x-2 bottom-0 h-[2px] rounded-full bg-brand" />}
             </Link>
           ))}
         </nav>
-        {canOnboard(me) && (
-          <Link href={`/leads/${brand.lead_id}#onboarding`} className="btn-ghost btn-sm">
-            <Icon name="file" size={13} /> Lead & MOU
-          </Link>
-        )}
-      </div>
+      </header>
 
-      <div className="rise rise-3 mt-5 flex flex-col gap-5">
-        {current === "tasks" && (
-          <>
-            {canAssignTasks(me) && brand.stage === "active" && (
-              <div className="flex">
-                <NewTaskForm brandId={id} people={people} />
+      <div className="rise flex-1 px-4 py-6 md:px-8">
+        {current === "tasks" &&
+          (active ? (
+            tasks.length ? (
+              <TaskBoard tasks={tasks} showBrand={false} />
+            ) : (
+              <div className="card">
+                <Empty icon="tasks">No tasks for {brand.name} yet. {canAssignTasks(me) ? "Use New task, or assign posts from the Calendar tab." : ""}</Empty>
               </div>
-            )}
-            {brand.stage !== "active" && <p className="well p-4 text-sm text-muted">Tasks open up once the MOU is signed.</p>}
-            {overdue.length > 0 && (
-              <Panel title="Overdue">
-                <TaskList tasks={overdue} showBrand={false} />
-              </Panel>
-            )}
-            <Panel title="Needs review" sub="Completed by the team, or changes the client asked for">
-              <TaskList tasks={tasks.filter((t) => ["completed", "client_rejected"].includes(t.status))} showBrand={false} empty="Nothing to review." />
-            </Panel>
-            <div className="grid gap-5 lg:grid-cols-2">
-              <Panel title="In work">
-                <TaskList tasks={tasks.filter((t) => OPEN_TASK.includes(t.status) && !overdue.includes(t))} showBrand={false} empty="No open tasks." />
-              </Panel>
-              <Panel title="With the client">
-                <TaskList tasks={tasks.filter((t) => t.status === "sent_to_client")} showBrand={false} empty="Nothing waiting on the client." />
-              </Panel>
+            )
+          ) : (
+            <p className="well p-5 text-sm text-muted">Tasks open up once the MOU is signed.</p>
+          ))}
+
+        {current === "calendar" && (
+          <div className="flex flex-col gap-4">
+            <div className="flex items-center justify-end gap-1">
+              <Link href={`/brands/${id}?tab=calendar&month=${shiftMonth(month, -1)}`} className="icon-btn !h-9 !w-9" aria-label="Previous month">
+                <Icon name="chevron" size={14} className="rotate-90" />
+              </Link>
+              <span className="min-w-[9.5rem] text-center text-sm font-medium">{monthLabel(month)}</span>
+              <Link href={`/brands/${id}?tab=calendar&month=${shiftMonth(month, 1)}`} className="icon-btn !h-9 !w-9" aria-label="Next month">
+                <Icon name="chevron" size={14} className="-rotate-90" />
+              </Link>
             </div>
-            <Panel title="Approved" sub={`${done.length} done`}>
-              <TaskList tasks={[...done].reverse()} showBrand={false} empty="Nothing approved yet." />
-            </Panel>
-          </>
+            <ContentCalendar
+              brand={{ id, name: brand.name }}
+              month={month}
+              monthName={monthLabel(month)}
+              items={items}
+              plan={plans[id] || null}
+              progress={planProgress(plans[id], items)}
+              people={people}
+              canEdit={canEditCalendar(me)}
+              canAssign={canAssignTasks(me)}
+              canPlan={canSetPlan(me)}
+            />
+          </div>
         )}
 
         {current === "chat" && (
@@ -175,61 +173,64 @@ export default async function BrandPage({ params, searchParams }) {
             send={sendBrandMessage.bind(null, id)}
             upload={brandChatUpload.bind(null, id)}
             markRead={markBrandRead.bind(null, id)}
-            className="h-[calc(100svh-14rem)] min-h-[480px]"
+            className="h-[calc(100svh-15rem)] min-h-[480px]"
           />
         )}
 
-        {current === "library" && (
-          <Panel title="Library" sub="Final versions of everything approved for this brand">
-            {files.length ? (
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-                {files.map((f) => (
-                  <a key={f.id} href={f.href} target="_blank" rel="noreferrer" className="group overflow-hidden rounded-2xl bg-panel-2">
-                    {isImg(f.name) && f.href ? (
-                      // eslint-disable-next-line @next/next/no-img-element -- signed storage URL
-                      <img src={f.href} alt={f.task.title} loading="lazy" className="aspect-square w-full object-cover transition duration-300 group-hover:scale-105" />
-                    ) : isVid(f.name) && f.href ? (
-                      <video src={f.href} className="aspect-square w-full bg-black object-cover" muted playsInline preload="metadata" />
-                    ) : (
-                      <div className="grid aspect-square place-items-center text-muted">
-                        <Icon name={f.storage_path ? "file" : "link"} size={24} />
-                      </div>
-                    )}
-                    <div className="px-3 py-2">
-                      <div className="truncate text-xs font-medium">{f.task.title}</div>
-                      <div className="text-[11px] text-muted">
-                        {taskKindLabel(f.task.kind)} · {fmtDay(f.task.done_at)}
-                      </div>
+        {current === "files" &&
+          (files.length ? (
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+              {files.map((f) => (
+                <a key={f.id} href={f.href} target="_blank" rel="noreferrer" className="group overflow-hidden rounded-2xl bg-panel-2">
+                  {isImg(f.name) && f.href ? (
+                    // eslint-disable-next-line @next/next/no-img-element -- signed storage URL
+                    <img src={f.href} alt={f.task.title} loading="lazy" className="aspect-square w-full object-cover transition duration-300 group-hover:scale-105" />
+                  ) : isVid(f.name) && f.href ? (
+                    <video src={f.href} className="aspect-square w-full bg-black object-cover" muted playsInline preload="metadata" />
+                  ) : (
+                    <div className="grid aspect-square place-items-center text-muted">
+                      <Icon name={f.storage_path ? "file" : "link"} size={24} />
                     </div>
-                  </a>
-                ))}
-              </div>
-            ) : (
-              <Empty icon="file">Approved posts, reels and videos collect here.</Empty>
-            )}
-          </Panel>
-        )}
+                  )}
+                  <div className="px-3 py-2">
+                    <div className="truncate text-xs font-medium">{f.task.title}</div>
+                    <div className="text-[11px] text-muted">
+                      {taskKindLabel(f.task.kind)} · {fmtDay(f.task.done_at)}
+                    </div>
+                  </div>
+                </a>
+              ))}
+            </div>
+          ) : (
+            <div className="card">
+              <Empty icon="file">Final files of every approved post, reel and video collect here.</Empty>
+            </div>
+          ))}
 
         {current === "about" && (
           <div className="grid gap-5 lg:grid-cols-2">
             <Panel title="Services (from the MOU)">
-              <ul className="flex flex-col gap-2">
-                {(brand.services || []).map((s) => (
-                  <li key={s.name} className="well p-4">
-                    <div className="flex items-baseline justify-between gap-3">
-                      <span className="text-sm font-medium">{s.name}</span>
-                      {canOnboard(me) && s.fee && (
-                        <span className="shrink-0 text-xs text-muted">
-                          {s.fee} · {s.billing}
-                        </span>
-                      )}
-                    </div>
-                    {s.scope && <p className="mt-1 text-xs text-muted">{s.scope}</p>}
-                  </li>
-                ))}
-              </ul>
+              {(brand.services || []).length ? (
+                <ul className="flex flex-col gap-2">
+                  {(brand.services || []).map((s) => (
+                    <li key={s.name} className="well p-4">
+                      <div className="flex items-baseline justify-between gap-3">
+                        <span className="text-sm font-medium">{s.name}</span>
+                        {canOnboard(me) && s.fee && (
+                          <span className="shrink-0 text-xs text-muted">
+                            {s.fee} · {s.billing}
+                          </span>
+                        )}
+                      </div>
+                      {s.scope && <p className="mt-1 text-xs text-muted">{s.scope}</p>}
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <Empty icon="brief">No services recorded.</Empty>
+              )}
             </Panel>
-            <Panel title="Work by type">
+            <Panel title="Work so far">
               {Object.keys(kinds).length ? (
                 <ul className="flex flex-col gap-3">
                   {Object.entries(kinds).map(([k, v]) => (
@@ -237,7 +238,7 @@ export default async function BrandPage({ params, searchParams }) {
                       <div className="flex justify-between text-sm">
                         <span>{taskKindLabel(k)}</span>
                         <span className="text-muted">
-                          {v.done} / {v.total}
+                          {v.done} / {v.total} approved
                         </span>
                       </div>
                       <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-panel-2">
