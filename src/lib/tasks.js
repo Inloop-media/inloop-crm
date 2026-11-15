@@ -96,3 +96,21 @@ export async function taskBadge(me) {
   if (a.error) return 0; // before migration 009
   return (a.count || 0) + (b?.count || 0);
 }
+
+/** The current version's deliverable files (signed links) for tasks waiting on review: { taskId: [{ name, href }] }. */
+export async function reviewFiles(tasks) {
+  const review = tasks.filter((t) => ["completed", "client_rejected"].includes(t.status));
+  if (!review.length) return {};
+  const { data } = await db().from("task_files").select("task_id, revision, name, storage_path, url, created_at").in("task_id", review.map((t) => t.id)).eq("role", "deliverable").order("created_at");
+  const rev = Object.fromEntries(review.map((t) => [t.id, t.revision]));
+  const files = (data || []).filter((f) => f.revision === rev[f.task_id]);
+  const paths = files.filter((f) => f.storage_path).map((f) => f.storage_path);
+  let signed = {};
+  if (paths.length) {
+    const { data: s } = await db().storage.from("lead-docs").createSignedUrls(paths, 3600);
+    signed = Object.fromEntries((s || []).filter((x) => x.signedUrl).map((x) => [x.path, x.signedUrl]));
+  }
+  const out = {};
+  for (const f of files) (out[f.task_id] ||= []).push({ name: f.name, href: f.storage_path ? signed[f.storage_path] || "" : f.url });
+  return out;
+}

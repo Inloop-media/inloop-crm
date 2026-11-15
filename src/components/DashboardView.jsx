@@ -126,7 +126,7 @@ function TeamScores({ team, showWon }) {
   );
 }
 
-function MeetingAgenda({ meetings, now }) {
+export function MeetingAgenda({ meetings, now }) {
   if (!meetings.length) return <Empty icon="calendar">No meetings booked.</Empty>;
   const today = dayKey(now);
   const tomorrow = dayKey(now + DAY);

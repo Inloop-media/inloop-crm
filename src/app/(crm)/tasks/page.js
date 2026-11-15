@@ -1,7 +1,8 @@
 import Link from "next/link";
-import { Avatar, PageHeader, Panel, StatStrip } from "@/components/ui";
-import { TaskList } from "@/components/Tasks";
-import TaskOverview from "@/components/TaskOverview";
+import { Avatar, Panel } from "@/components/ui";
+import TaskBoard from "@/components/TaskBoard";
+import QuickAssign from "@/components/QuickAssign";
+import { listBrands } from "@/lib/brands";
 import MyWork from "@/components/MyWork";
 import { requireMember } from "@/lib/auth";
 import { listMakers, listTasks } from "@/lib/tasks";
@@ -10,7 +11,6 @@ import { OPEN_TASK } from "@/lib/constants";
 
 export const metadata = { title: "Tasks" };
 
-const keep = (sp, view) => ({ view, ...Object.fromEntries(["brand", "bsort", "tsort", "show", "lay", "month"].filter((k) => typeof sp?.[k] === "string").map((k) => [k, sp[k]])) });
 
 const overdue = (t) => OPEN_TASK.includes(t.status) && t.due_at && new Date(t.due_at).getTime() < Date.now();
 const KIND_LABEL = { design: "Designer", development: "Developer", video: "Video editor", execution: "Execution head" };
@@ -83,60 +83,52 @@ export default async function TasksPage({ searchParams }) {
     );
   }
 
-  const [all, people] = await Promise.all([listTasks(me, { view: "all" }), listMakers()]);
-  const byMe = all.filter((t) => t.assigned_by === me.id);
-  const review = all.filter((t) => ["completed", "client_rejected"].includes(t.status));
+  const [all, people, brands] = await Promise.all([listTasks(me, { view: "all" }), listMakers(), listBrands()]);
+  const active = brands.filter((b) => b.stage === "active").map((b) => ({ id: b.id, name: b.name }));
+  const myOpen = mine.filter((t) => t.status !== "done").length;
   const tabs = [
-    { id: "review", label: "To review", count: review.length },
-    { id: "assigned", label: "Assigned by me", count: byMe.filter((t) => t.status !== "done").length },
-    { id: "brands", label: "By brand", count: new Set(all.map((t) => t.brand_id)).size },
-    { id: "open", label: "All open", count: all.filter((t) => t.status !== "done").length },
-    { id: "team", label: "Team", count: people.length },
-    { id: "mine", label: "Assigned to me", count: mine.filter((t) => t.status !== "done").length },
+    { id: "board", label: "Board" },
+    { id: "team", label: "Team" },
+    ...(mine.length ? [{ id: "mine", label: myOpen ? `My tasks · ${myOpen}` : "My tasks" }] : []),
   ];
-  const current = tabs.find((t) => t.id === view)?.id || "review";
+  const current = tabs.find((t) => t.id === view)?.id || "board";
+  const brand = active.find((b) => b.id === sp.brand)?.id || "";
+  const shown = brand ? all.filter((t) => t.brand_id === brand) : all;
 
   return (
     <div className="page">
-      <PageHeader kicker="Execution" title="Tasks">
-        <StatStrip
-          className="mt-5"
-          items={[
-            { label: "Open", value: all.filter((t) => OPEN_TASK.includes(t.status)).length, icon: "tasks" },
-            { label: "To review", value: review.length, icon: "check", tint: "lavender" },
-            { label: "With clients", value: all.filter((t) => t.status === "sent_to_client").length, icon: "arrow", tint: "blue" },
-            { label: "Overdue", value: all.filter(overdue).length, icon: "clock", tint: "pink" },
-          ]}
-        />
-      </PageHeader>
+      <header className="rise mb-5 flex flex-wrap items-end justify-between gap-4">
+        <h1 className="text-[30px] font-medium leading-tight tracking-[-0.02em] md:text-[36px]">Tasks</h1>
+        <div className="flex flex-wrap items-center gap-2">
+          <nav className="seg flex p-1">
+            {tabs.map((t) => (
+              <Link key={t.id} href={`/tasks?view=${t.id}`} data-on={current === t.id} className="seg-item text-xs">
+                {t.label}
+              </Link>
+            ))}
+          </nav>
+          <QuickAssign brands={active} people={people} defaultBrand={brand} />
+        </div>
+      </header>
 
-      <nav className="seg rise rise-1 mb-5 flex w-full overflow-x-auto p-1.5 sm:w-fit">
-        {tabs.map((t) => (
-          <Link key={t.id} href={`/tasks?view=${t.id}`} data-on={current === t.id} className="seg-item flex flex-1 items-center justify-center gap-2 whitespace-nowrap sm:flex-none">
-            {t.label}
-            <span className="rounded-full bg-panel-2 px-1.5 text-[11px] tabular-nums text-muted">{t.count}</span>
-          </Link>
-        ))}
-      </nav>
-
-      <div className="rise rise-2">
-        {current === "review" && (
-          <Panel title="Waiting for you" sub="Completed work to check, and client changes to reassign">
-            <TaskList tasks={review} empty="All caught up." />
-          </Panel>
-        )}
-        {current === "open" && (
-          <div className="flex flex-col gap-5">
-            <Panel title="Overdue">
-              <TaskList tasks={all.filter(overdue)} empty="Nothing overdue." />
-            </Panel>
-            <Panel title="In the works">
-              <TaskList tasks={all.filter((t) => OPEN_TASK.includes(t.status) && !overdue(t))} empty="No open tasks." />
-            </Panel>
-            <Panel title="With clients">
-              <TaskList tasks={all.filter((t) => t.status === "sent_to_client")} empty="Nothing with clients." />
-            </Panel>
-          </div>
+      <div className="rise rise-1">
+        {current === "board" && (
+          <>
+            <p className="mb-3 text-sm text-muted">Drag a card to the next column when its stage changes. Click a card to open it.</p>
+            {active.length > 1 && (
+              <nav className="-mx-1 mb-4 flex gap-1.5 overflow-x-auto px-1 pb-1">
+                <Link href="/tasks" className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-medium ${!brand ? "solid" : "bg-panel text-muted hover:text-ink"}`}>
+                  All brands
+                </Link>
+                {active.map((b) => (
+                  <Link key={b.id} href={`/tasks?brand=${b.id}`} className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-medium ${brand === b.id ? "solid" : "bg-panel text-muted hover:text-ink"}`}>
+                    {b.name}
+                  </Link>
+                ))}
+              </nav>
+            )}
+            <TaskBoard tasks={shown} showBrand={!brand} />
+          </>
         )}
         {current === "team" &&
           (people.length ? (
@@ -147,8 +139,6 @@ export default async function TasksPage({ searchParams }) {
             </Panel>
           ))}
         {current === "mine" && <MyWork me={me} tasks={mine} />}
-        {current === "assigned" && <TaskOverview tasks={byMe} base="/tasks" params={keep(sp, "assigned")} showAssigners={false} people={people} />}
-        {current === "brands" && <TaskOverview tasks={all} base="/tasks" params={keep(sp, "brands")} people={people} />}
       </div>
     </div>
   );

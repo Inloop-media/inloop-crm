@@ -123,3 +123,28 @@ export default function MobileHeader(props) {
     </>
   );
 }
+
+/** Desktop sidebar foot: who's signed in; opens the same profile menu upward. */
+export function SidebarProfile(props) {
+  const [open, setOpen] = useOpen();
+  return (
+    <div className="relative">
+      <button onClick={() => setOpen((o) => !o)} className="flex w-full items-center gap-3 rounded-2xl px-2 py-2 text-left transition hover:bg-panel-2">
+        <Me initials={props.initials} size="h-9 w-9 text-xs" />
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-sm font-medium">{props.name}</span>
+          <span className="block truncate text-[11px] text-muted">{props.roleLabel}</span>
+        </span>
+        <Icon name="chevron" size={14} className="rotate-180 text-faint" />
+      </button>
+      {open && (
+        <>
+          <button aria-label="Close" onClick={() => setOpen(false)} className="fixed inset-0 z-30 cursor-default" />
+          <div className="rise pop absolute bottom-14 left-0 z-40 w-80 p-5">
+            <ProfileBody {...props} showTheme />
+          </div>
+        </>
+      )}
+    </div>
+  );
+}

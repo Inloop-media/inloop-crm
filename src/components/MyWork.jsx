@@ -99,47 +99,27 @@ export default function MyWork({ me, tasks }) {
     .filter((t) => t.status === "done")
     .sort((a, b) => (b.done_at || "").localeCompare(a.done_at || ""))
     .slice(0, 8);
-  const focus = fix.length + overdue.length + dueToday.length;
+  const now_ = [...fix, ...overdue, ...dueToday];
+  const coming = [...week, ...later];
   const first = me.name.split(" ")[0];
 
   return (
     <div className="flex flex-col gap-4">
-      <section className="card relative overflow-hidden !rounded-3xl p-6">
-        <span className="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full blur-3xl" style={{ background: "color-mix(in srgb, #8b93ff 20%, transparent)" }} />
-        <div className="relative flex flex-wrap items-end justify-between gap-6">
-          <div>
-            <p className="text-sm text-muted">Hi {first} 👋</p>
-            <h2 className="mt-1 text-2xl font-medium tracking-[-0.02em] sm:text-[28px]">{focus ? `${focus} thing${focus > 1 ? "s" : ""} need you today` : open.length ? "You're on track today" : "All clear — nothing assigned right now"}</h2>
-            <p className="mt-1 text-sm text-muted">Start a task when you pick it up, then upload the file and submit it for review.</p>
-          </div>
-          <dl className="grid grid-cols-4 gap-2 text-center">
-            {[
-              ["To fix", fix.length, fix.length ? "text-rose-400" : ""],
-              ["Late", overdue.length, overdue.length ? "text-rose-400" : ""],
-              ["Open", open.length, ""],
-              ["Approved", tasks.filter((t) => t.status === "done").length, "text-emerald-400"],
-            ].map(([l, v, c]) => (
-              <div key={l} className="well min-w-[64px] px-3 py-2.5">
-                <dd className={`text-xl font-medium tabular-nums ${c}`}>{v}</dd>
-                <dt className="text-[10px] text-muted">{l}</dt>
-              </div>
-            ))}
-          </dl>
-        </div>
-      </section>
+      <header className="px-1">
+        <p className="text-sm text-muted">Hi {first} 👋</p>
+        <h1 className="mt-1 text-[28px] font-medium leading-tight tracking-[-0.02em] sm:text-[32px]">{now_.length ? `${now_.length} task${now_.length > 1 ? "s" : ""} to do today` : open.length ? "Nothing urgent today" : "No tasks right now"}</h1>
+        <p className="mt-1 text-sm text-muted">Press Start when you begin. When it&apos;s ready, open the task, upload the file and submit.</p>
+      </header>
 
       {!tasks.length && (
         <div className="card">
-          <Empty icon="tasks">No tasks yet. When a head assigns you something, it shows up here and on your phone.</Empty>
+          <Empty icon="tasks">No tasks yet. When someone assigns you work, it shows up here and on your phone.</Empty>
         </div>
       )}
-      <Section title="Fix these first" sub="Sent back with feedback" tasks={fix} tone="#fb7185" />
-      <Section title="Late" sub="Past the due date" tasks={overdue} tone="#fb7185" />
-      <Section title="Due today" tasks={dueToday} tone="#fbbf24" empty={open.length ? "Nothing else due today." : ""} />
-      <Section title="This week" tasks={week} tone="#60a5fa" />
-      <Section title="Later" tasks={later} tone="#94a3b8" />
-      <Section title="Waiting on others" sub="With your head or the client — nothing to do" tasks={waiting} tone="#a78bfa" />
-      <Section title="Recently approved" tasks={done} tone="#4ade80" />
+      <Section title="Do today" sub="Fixes, late work and anything due today" tasks={now_} tone="#fb7185" empty={open.length ? "Nothing for today — pick something from Coming up." : ""} />
+      <Section title="Coming up" tasks={coming} tone="#60a5fa" />
+      <Section title="Waiting on others" sub="Nothing to do — your head or the client has it" tasks={waiting} tone="#a78bfa" />
+      <Section title="Done" tasks={done} tone="#4ade80" />
     </div>
   );
 }

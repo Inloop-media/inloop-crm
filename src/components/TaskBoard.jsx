@@ -11,9 +11,9 @@ import { OPEN_TASK, TASK_STATUSES, taskKindLabel } from "@/lib/constants";
 
 const COLS = [
   { id: "todo", label: "To do", statuses: ["assigned"], color: TASK_STATUSES.assigned.color },
-  { id: "doing", label: "In progress", statuses: ["in_progress"], color: TASK_STATUSES.in_progress.color },
-  { id: "revision", label: "Revision", statuses: ["revision"], color: TASK_STATUSES.revision.color },
-  { id: "review", label: "In review", statuses: ["completed", "client_rejected"], color: TASK_STATUSES.completed.color, hint: "Check it, then share or approve" },
+  { id: "doing", label: "Working on it", statuses: ["in_progress"], color: TASK_STATUSES.in_progress.color },
+  { id: "revision", label: "Fix needed", statuses: ["revision"], color: TASK_STATUSES.revision.color },
+  { id: "review", label: "To check", statuses: ["completed", "client_rejected"], color: TASK_STATUSES.completed.color, hint: "Finished work lands here" },
   { id: "client", label: "With client", statuses: ["sent_to_client"], color: TASK_STATUSES.sent_to_client.color },
   { id: "done", label: "Approved", statuses: ["done"], color: TASK_STATUSES.done.color },
 ];

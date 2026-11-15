@@ -1,9 +1,8 @@
 import Logo from "@/components/Logo";
 import Link from "next/link";
-import { Suspense } from "react";
-import Nav, { Rail, TabBar } from "@/components/Nav";
-import MobileHeader, { ProfileMenu } from "@/components/MobileHeader";
-import ThemeToggle from "@/components/ThemeToggle";
+import { PhoneTabs, Sidebar } from "@/components/Nav";
+import Icon from "@/components/Icon";
+import MobileHeader, { SidebarProfile } from "@/components/MobileHeader";
 import FeedbackNote from "@/components/FeedbackNote";
 import Celebration from "@/components/Celebration";
 import { unseenCelebrations } from "@/lib/brands";
@@ -42,30 +41,30 @@ const initials = (name) =>
 
 export default async function CrmLayout({ children }) {
   const me = await requireMember();
-  const items = [{ href: "/", label: "Dashboard", icon: "home" }];
-  if (canSeeLeads(me)) items.push({ href: "/leads", label: "Leads", icon: "leads" });
-  if (canSeeBriefs(me)) items.push({ href: "/briefs", label: "Briefs", icon: "brief", badge: await briefsBadge(me) });
-  if (canSeeBrands(me)) items.push({ href: "/brands", label: "Brands", icon: "brand" });
-  if (canSeeCalendar(me)) items.push({ href: "/calendar", label: "Calendar", icon: "calendar" });
+  // The sidebar, grouped the way the agency works: sales → clients → work → team
   const tasksCount = await taskBadge(me).catch(() => 0);
-  if (canAssignTasks(me) || isMaker(me) || tasksCount) items.push({ href: "/tasks", label: "Tasks", icon: "tasks", badge: tasksCount });
   const feeds = await listFeeds(me);
-  if (feeds.length) items.push({ href: "/updates", label: "Updates", icon: "slack", badge: feeds.reduce((n, g) => n + g.unread, 0) });
-  if (canManageTeam(me)) items.push({ href: "/team", label: "Team", icon: "team" });
-  if (me.role === "admin") items.push({ href: "/feedback", label: "Feedback", icon: "chat", badge: await newFeedback() });
+  const sales = [];
+  if (canSeeLeads(me)) sales.push({ href: "/leads", label: "Leads", icon: "leads" });
+  if (canSeeBriefs(me)) sales.push({ href: "/briefs", label: "Proposals", icon: "brief", badge: await briefsBadge(me) });
+  const clients = [];
+  if (canSeeBrands(me)) clients.push({ href: "/brands", label: "Brands", icon: "brand" });
+  if (canSeeCalendar(me)) clients.push({ href: "/calendar", label: "Content calendar", icon: "calendar" });
+  const work = [];
+  if (canAssignTasks(me) || isMaker(me) || tasksCount) work.push({ href: "/tasks", label: canAssignTasks(me) ? "Tasks" : "My tasks", icon: "tasks", badge: tasksCount });
+  const team = [];
+  if (feeds.length) team.push({ href: "/updates", label: "Updates", icon: "slack", badge: feeds.reduce((n, g) => n + g.unread, 0) });
+  if (canManageTeam(me)) team.push({ href: "/team", label: "Team", icon: "team" });
+  if (me.role === "admin") team.push({ href: "/feedback", label: "Feedback", icon: "chat", badge: await newFeedback() });
+  const groups = [
+    { title: "", items: [{ href: "/", label: "Home", icon: "home" }] },
+    { title: "Sales", items: sales },
+    { title: "Clients", items: clients },
+    { title: "Work", items: work },
+    { title: "Team", items: team },
+  ].filter((g) => g.items.length);
   const theme = await getTheme();
   const roleLabel = me.role === "member" ? me.groups.map((g) => g.name).join(" · ") || "Member" : ROLES.find((r) => r.id === me.role)?.label;
-
-  // Quick actions on the left rail
-  const rail = [{ href: "/", label: "Home", icon: "home" }];
-  if (canCreateLead(me)) rail.push({ href: "/leads/new", label: "New lead", icon: "plus" });
-  if (canSeeLeads(me)) {
-    rail.push({ href: "/leads?view=board", label: "Pipeline board", icon: "board" });
-    rail.push({ href: "/leads?view=list", label: "Lead list", icon: "list" });
-  }
-  if (canSeeBriefs(me)) rail.push({ href: "/briefs", label: "Briefs", icon: "brief" });
-  if (canAssignTasks(me) || isMaker(me)) rail.push({ href: "/tasks", label: "My tasks", icon: "tasks" });
-  if (feeds.length) rail.push({ href: "/updates", label: "Updates", icon: "bell" });
 
   const profile = {
     name: me.name,
@@ -77,35 +76,30 @@ export default async function CrmLayout({ children }) {
   };
 
   return (
-    <div className="min-h-svh md:p-4 lg:p-5">
+    <div className="min-h-svh">
       <MobileHeader {...profile} />
 
-      <div className="md:frame md:flex md:min-h-[calc(100svh-2.5rem)] md:flex-col">
-        {/* Desktop top bar: logo · sections · search / bell / profile */}
-        <header className="relative z-20 hidden items-center gap-4 px-6 pt-5 md:flex">
-          <div className="flex flex-1 items-center">
-            <Link href="/" aria-label="Dashboard">
-              <Logo compact />
-            </Link>
-          </div>
-          <Nav items={items} />
-          <div className="flex flex-1 justify-end">
-            <ProfileMenu {...profile} />
-          </div>
-        </header>
-
-        <div className="md:flex md:flex-1">
-          {/* Desktop left rail: quick actions on top, theme switch at the bottom */}
-          <aside className="sticky top-5 z-20 hidden h-[calc(100svh-7rem)] shrink-0 flex-col items-center justify-between py-6 pl-6 md:flex">
-            <Suspense>
-              <Rail actions={rail} />
-            </Suspense>
-            <ThemeToggle initial={theme} />
-          </aside>
-          <main className="relative z-[1] min-w-0 flex-1 pb-[calc(env(safe-area-inset-bottom)+96px)] md:pb-2">{children}</main>
-        </div>
+      <div className="md:flex">
+        {/* Desktop sidebar */}
+        <aside className="sticky top-0 hidden h-svh w-[248px] shrink-0 flex-col gap-6 border-r border-line bg-panel/40 px-3 py-5 backdrop-blur-xl md:flex">
+          <Link href="/" aria-label="Home" className="px-3">
+            <Logo />
+          </Link>
+          <Sidebar
+            groups={groups}
+            top={
+              canCreateLead(me) ? (
+                <Link href="/leads/new" className="btn-primary btn-sm mx-1 !justify-start">
+                  <Icon name="plus" size={14} /> New lead
+                </Link>
+              ) : null
+            }
+            footer={<SidebarProfile {...profile} />}
+          />
+        </aside>
+        <main className="relative z-[1] min-w-0 flex-1 pb-[calc(env(safe-area-inset-bottom)+96px)] md:pb-6">{children}</main>
       </div>
-      <TabBar items={items} />
+      <PhoneTabs groups={groups} />
       {me.role !== "admin" && <FeedbackNote />}
       <Celebration initial={await unseenCelebrations(me).catch(() => [])} />
     </div>
