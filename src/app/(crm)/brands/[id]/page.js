@@ -8,7 +8,7 @@ import ContentCalendar from "@/components/ContentCalendar";
 import { loadItems, loadPlans, monthLabel, planProgress, shiftMonth, validMonth } from "@/lib/calendar";
 import BrandChat from "@/components/BrandChat";
 import { brandChat, brandChatUpload, markBrandRead, sendBrandMessage } from "../actions";
-import { loadChat, unreadCounts } from "@/lib/chat";
+import { chatMembers, loadChat, unreadCounts } from "@/lib/chat";
 import { requireMember } from "@/lib/auth";
 import { getBrand } from "@/lib/brands";
 import { listMakers, listTasks } from "@/lib/tasks";
@@ -70,7 +70,7 @@ export default async function BrandPage({ params, searchParams }) {
   const overdue = tasks.filter(isOverdue);
   const done = tasks.filter((t) => t.status === "done");
   const files = current === "files" ? await library(tasks) : [];
-  const chat = current === "chat" ? await loadChat(id) : null;
+  const [chat, members] = current === "chat" ? await Promise.all([loadChat(id), chatMembers()]) : [null, []];
   const unread = current === "chat" ? 0 : (await unreadCounts([id], me.id))[id] || 0;
   const [items, plans] = current === "calendar" ? await Promise.all([loadItems([id], month), loadPlans([id], month)]) : [[], {}];
   const active = brand.stage === "active";
@@ -174,6 +174,7 @@ export default async function BrandPage({ params, searchParams }) {
             upload={brandChatUpload.bind(null, id)}
             markRead={markBrandRead.bind(null, id)}
             className="h-[calc(100svh-15rem)] min-h-[480px]"
+            members={members}
           />
         )}
 

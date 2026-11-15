@@ -95,7 +95,9 @@ function Attachments({ files, onOpen }) {
   );
 }
 
-export default function BrandChat({ brandId, brandName, side, meId, meName, initial, lastReadAt, load, send, upload, markRead, className = "h-[600px]", subtitle }) {
+export default function BrandChat({ brandId, brandName, side, meId, meName, initial, lastReadAt, load, send, upload, markRead, className = "h-[600px]", subtitle, members = [] }) {
+  const [showMembers, setShowMembers] = useState(false);
+  const roleOf = Object.fromEntries(members.map((m) => [m.id, m.role]));
   const [messages, setMessages] = useState(initial?.messages || []);
   const [reads, setReads] = useState(initial?.reads || {});
   const [pending, setPending] = useState([]); // optimistic messages
@@ -302,16 +304,57 @@ export default function BrandChat({ brandId, brandName, side, meId, meName, init
         addFiles(e.dataTransfer?.files);
       }}
     >
-      {/* Header */}
-      <div className="flex items-center gap-3 border-b border-line px-4 py-3">
-        <Avatar name={side === "client" ? "Inloop" : brandName} size={38} />
+      {/* Header: a WhatsApp-style group — the brand and everyone on the Inloop side */}
+      <button type="button" onClick={() => setShowMembers((v) => !v)} className="flex w-full items-center gap-3 border-b border-line px-4 py-3 text-left transition hover:bg-panel-2/60">
+        <span className="relative shrink-0">
+          <Avatar name={brandName} size={40} />
+          <span className="absolute -bottom-1 -right-1 grid h-5 w-5 place-items-center rounded-full bg-brand text-[9px] font-bold text-white ring-2 ring-panel">in</span>
+        </span>
         <div className="min-w-0 flex-1">
-          <div className="truncate text-[15px] font-medium">{side === "client" ? "Inloop Media" : brandName}</div>
+          <div className="truncate text-[15px] font-medium">{brandName} × Inloop</div>
           <div className={`truncate text-xs ${typing ? "font-medium text-emerald-500" : "text-muted"}`}>
-            {typing ? `${typing} is typing…` : subtitle || (side === "client" ? "Your account team" : "Client chat · they see this on their dashboard")}
+            {typing
+              ? `${typing} is typing…`
+              : members.length
+                ? `${[side === "client" ? "You" : brandName, ...members.map((m) => (m.id === meId ? "You" : m.name.split(" ")[0]))].join(", ")}`
+                : subtitle || (side === "client" ? "Your account team" : "Client chat · they see this on their dashboard")}
           </div>
         </div>
-      </div>
+        {members.length > 0 && (
+          <span className="hidden shrink-0 -space-x-2 sm:flex">
+            {members.slice(0, 4).map((m) => (
+              <Avatar key={m.id} name={m.name} size={26} />
+            ))}
+          </span>
+        )}
+        <Icon name="chevron" size={14} className={`shrink-0 text-faint transition ${showMembers ? "rotate-180" : ""}`} />
+      </button>
+      {showMembers && (
+        <div className="border-b border-line bg-panel-2/40 px-4 py-3">
+          <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-faint">Group · {members.length + 1} members</div>
+          <ul className="flex flex-col gap-2">
+            <li className="flex items-center gap-3">
+              <Avatar name={brandName} size={30} />
+              <span className="min-w-0 flex-1 truncate text-[13px] font-medium">
+                {brandName}
+                {side === "client" && <span className="text-muted"> (you)</span>}
+              </span>
+              <span className="rounded-full bg-amber-400/15 px-2 py-0.5 text-[10px] font-medium text-amber-400">Client</span>
+            </li>
+            {members.map((m) => (
+              <li key={m.id} className="flex items-center gap-3">
+                <Avatar name={m.name} size={30} />
+                <span className="min-w-0 flex-1 truncate text-[13px] font-medium">
+                  {m.name}
+                  {m.id === meId && <span className="text-muted"> (you)</span>}
+                </span>
+                <span className="rounded-full bg-brand/12 px-2 py-0.5 text-[10px] font-medium text-brand">{m.role}</span>
+              </li>
+            ))}
+          </ul>
+          <p className="mt-3 text-[11px] text-muted">Everyone here sees every message, and gets a notification when something new comes in.</p>
+        </div>
+      )}
 
       {/* Messages */}
       <div
@@ -355,7 +398,12 @@ export default function BrandChat({ brandId, brandName, side, meId, meName, init
                       own ? `chat-own ${sameRun ? "" : "rounded-tr-[4px]"}` : `bg-panel ${sameRun ? "" : "rounded-tl-[4px]"}`
                     } ${hasFiles ? "min-w-[220px]" : ""}`}
                   >
-                    {showName && <div className="px-1 pb-0.5 text-[12.5px] font-semibold" style={{ color: m.from_client ? "#e5793b" : "var(--color-brand)" }}>{who(m)}</div>}
+                    {showName && (
+                      <div className="flex items-baseline gap-1.5 px-1 pb-0.5">
+                        <span className="text-[12.5px] font-semibold" style={{ color: m.from_client ? "#f59e0b" : "var(--color-brand)" }}>{who(m)}</span>
+                        <span className="text-[10px] text-muted">{m.from_client ? "Client" : roleOf[m.member?.id] || "Inloop"}</span>
+                      </div>
+                    )}
                     {hasFiles && <Attachments files={m.attachments} onOpen={setLightbox} />}
                     {m.body ? (
                       <div className={`whitespace-pre-wrap break-words px-1 ${hasFiles ? "pt-1.5" : ""}`}>

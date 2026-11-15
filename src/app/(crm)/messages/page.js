@@ -6,7 +6,7 @@ import Icon from "@/components/Icon";
 import { FilterPills, PageTop } from "@/components/Desk";
 import { BrandMark, Empty } from "@/components/ui";
 import { brandChat, brandChatUpload, markBrandRead, sendBrandMessage } from "@/app/(crm)/brands/actions";
-import { loadChat, unreadCounts } from "@/lib/chat";
+import { chatMembers, loadChat, unreadCounts } from "@/lib/chat";
 import { requireMember } from "@/lib/auth";
 import { listBrands } from "@/lib/brands";
 import { db } from "@/lib/supabase/server";
@@ -45,7 +45,7 @@ export default async function MessagesPage({ searchParams }) {
   const shown = onlyUnread ? list.filter((b) => unread[b.id]) : list;
   const totalUnread = Object.values(unread).reduce((n, c) => n + c, 0);
   const brand = list.find((b) => b.id === sp.brand) || shown[0] || list[0];
-  const chat = brand ? await loadChat(brand.id) : null;
+  const [chat, members] = brand ? await Promise.all([loadChat(brand.id), chatMembers()]) : [null, []];
   const href = (o) => {
     const q = new URLSearchParams(Object.entries({ show: sp.show, brand: brand?.id, ...o }).filter(([, v]) => v));
     return `/messages${q.size ? `?${q}` : ""}`;
@@ -129,6 +129,7 @@ export default async function MessagesPage({ searchParams }) {
               upload={brandChatUpload.bind(null, brand.id)}
               markRead={markBrandRead.bind(null, brand.id)}
               className="h-[70svh] !rounded-none !border-0 !shadow-none lg:h-full"
+              members={members}
             />
           </div>
 

@@ -119,3 +119,16 @@ export async function unreadCounts(brandIds, reader) {
   }
   return out;
 }
+
+/** Who is in every brand's group chat on the Inloop side: admin / ops and the execution heads. */
+export async function chatMembers() {
+  const [{ data: staff }, heads] = await Promise.all([
+    db().from("members").select("id, name, role").in("role", ["admin", "ops"]).eq("active", true),
+    groupMemberIds({ kind: "execution" }),
+  ]);
+  const { data: headRows } = heads.length ? await db().from("members").select("id, name, role").in("id", heads).eq("active", true) : { data: [] };
+  const byId = new Map();
+  for (const m of headRows || []) byId.set(m.id, { id: m.id, name: m.name, role: "Execution head" });
+  for (const m of staff || []) if (!byId.has(m.id)) byId.set(m.id, { id: m.id, name: m.name, role: m.role === "admin" ? "Admin" : "Ops" });
+  return [...byId.values()].sort((a, b) => (a.role === "Execution head" ? 0 : 1) - (b.role === "Execution head" ? 0 : 1) || a.name.localeCompare(b.name));
+}

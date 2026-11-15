@@ -1,16 +1,18 @@
-// Home for sales executives and creative strategists, laid out like the admin dashboard:
-//   [ My month (hero)                 ] [ Today      ]
-//   [ My pipeline / proposals ] [ red ] [ (agenda)   ]
-//   [ Recent activity ] [ Latest leads / briefs ] [ Meetings ]
+// Home for everyone who isn't admin / ops / an execution head. Same look as the admin home, but every
+// section is about this person's own work, and only the parts of the job they actually do show up:
+//   maker (designer / editor / developer) → their tasks
+//   sales executive with leads            → their pipeline and follow-ups
+//   strategist with briefs                → their proposals and open briefs
+// The hero and the red card follow their main job (tasks first, then leads, then briefs).
 import Link from "next/link";
 import Icon from "@/components/Icon";
-import StatusBadge from "@/components/StatusBadge";
+import MyWork from "@/components/MyWork";
 import { RoundLink, Ring } from "@/components/AdminHome";
 import { Activity, MeetingAgenda, ProposalProgress } from "@/components/DashboardView";
-import { BrandMark, Empty } from "@/components/ui";
-import { CLOSED_STATUSES, PROPOSAL_STAGES } from "@/lib/constants";
+import { Empty } from "@/components/ui";
+import { CLOSED_STATUSES, OPEN_TASK } from "@/lib/constants";
 import { ago, fullName } from "@/lib/format";
-import { isStrategist } from "@/lib/permissions";
+import { isMaker, isSales, isStrategist } from "@/lib/permissions";
 
 const DAY = 864e5;
 const IST = "Asia/Kolkata";
@@ -37,64 +39,278 @@ function Title({ title, sub, action }) {
     </div>
   );
 }
+function Tile({ icon, label, value, note, href }) {
+  return (
+    <Link href={href} className="flex items-center gap-3 rounded-2xl bg-panel-2 p-3 transition hover:bg-panel-3">
+      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-panel text-brand shadow-[var(--card-shadow)]">
+        <Icon name={icon} size={15} />
+      </span>
+      <span className="min-w-0">
+        <span className="block truncate text-[11px] text-muted">{label}</span>
+        <span className="block text-lg font-medium leading-tight tabular-nums">{value}</span>
+        <span className="block truncate text-[11px] text-muted">{note}</span>
+      </span>
+    </Link>
+  );
+}
+function Bar({ pct, label }) {
+  return (
+    <>
+      <div className="mt-6 flex h-3 gap-1">
+        <span className="rounded-full bg-gradient-to-r from-brand-soft to-brand" style={{ width: `${Math.max(3, Math.min(100, pct))}%` }} />
+        <span className="hatch flex-1 rounded-full" />
+      </div>
+      <p className="mt-2 text-[11px] text-muted">{label}</p>
+    </>
+  );
+}
+function RedCard({ title, value, unit, note, href, items }) {
+  return (
+    <section className="card-coral rise flex flex-col p-5">
+      <div className="flex items-start justify-between">
+        <h2 className="text-xl font-normal tracking-[-0.01em]">{title}</h2>
+        <RoundLink href={href} label={title} light />
+      </div>
+      <div className="mt-5 flex items-end gap-2">
+        <span className="text-[64px] font-light leading-none tabular-nums">{value}</span>
+        <span className="mb-2 text-xs leading-tight text-white/80">{unit}</span>
+      </div>
+      <p className="mt-1 text-[11px] text-white/75">{note}</p>
+      <ul className="mt-auto flex flex-col gap-1.5 pt-4 text-[12px]">
+        {items.slice(0, 3).map(([id, label, to]) => (
+          <li key={id}>
+            <Link href={to} className="flex items-center justify-between rounded-lg bg-white/15 px-2.5 py-1.5 hover:bg-white/25">
+              <span className="truncate">{label}</span>
+              <Icon name="arrow" size={12} />
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
 
-/** data: dashboardData(me) — leads, upcoming, meetings, proposals, activity, now */
-export default function UserHome({ me, data }) {
-  const { leads, upcoming, meetings, proposals, activity, now } = data;
-  const strategist = isStrategist(me) && !leads.length;
+function PipelineCard({ stages, top, max, open, className = "xl:col-span-9" }) {
+  return (
+    <Card className={`rise flex flex-col ${className}`}>
+      <Title title="My pipeline" sub={`${open} open leads`} action={<RoundLink href="/leads" label="Open the board" />} />
+      <div className="mt-8 flex flex-1 items-end justify-between gap-3">
+        {stages.map((s) => {
+          const on = s === top && s.n > 0;
+          return (
+            <Link key={s.label} href={`/leads?view=list&status=${encodeURIComponent(s.q)}`} className="group flex flex-1 flex-col items-center gap-2">
+              <span className="relative flex h-32 w-full max-w-[46px] items-end">
+                <span className={`relative w-full rounded-full transition group-hover:brightness-110 ${on ? "bg-gradient-to-b from-brand-soft to-brand" : "hatch border border-line-strong bg-panel"}`} style={{ height: `${Math.max(26, (s.n / max) * 100)}%` }}>
+                  {on && (
+                    <span className="absolute -top-11 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-lg bg-solid px-2 py-1 text-center text-[10px] leading-tight text-on-solid">
+                      <b className="block text-[12px] font-medium">{s.n}</b>
+                      leads
+                    </span>
+                  )}
+                </span>
+              </span>
+              <span className={`text-[11px] ${on ? "font-medium text-ink" : "text-muted"}`}>{s.label}</span>
+            </Link>
+          );
+        })}
+      </div>
+    </Card>
+  );
+}
+
+
+/**
+ *   data   dashboardData(me) — leads, upcoming, meetings, proposals, activity, now
+ *   tasks  this person's tasks
+ */
+export default function UserHome({ me, data, tasks = [] }) {
+  const { leads, upcoming, proposals, activity, now } = data;
   const today = dayKey(now);
   const d0 = new Date(now);
-  const monthStart = new Date(d0.getFullYear(), d0.getMonth(), 1).getTime();
-  const lastMonthStart = new Date(d0.getFullYear(), d0.getMonth() - 1, 1).getTime();
-  const at = (l) => new Date(l.created_at).getTime();
+  const isLate = (t) => OPEN_TASK.includes(t.status) && t.due_at && new Date(t.due_at).getTime() < now;
 
-  // Sales numbers (my leads)
-  const open = leads.filter((l) => !CLOSED_STATUSES.includes(l.status));
-  const thisMonth = leads.filter((l) => at(l) >= monthStart);
-  const lastMonth = leads.filter((l) => at(l) >= lastMonthStart && at(l) < monthStart);
-  const newWeek = leads.filter((l) => now - at(l) < 7 * DAY);
+  // ---- Tasks (makers) ----
+  const openTasks = tasks.filter((t) => OPEN_TASK.includes(t.status));
+  const lateTasks = openTasks.filter(isLate);
+  const fixTasks = openTasks.filter((t) => t.status === "revision");
+  const dueToday = openTasks.filter((t) => t.due_at && dayKey(t.due_at) === today && !isLate(t));
+  const doToday = [...new Set([...fixTasks, ...lateTasks, ...dueToday])];
+  const waiting = tasks.filter((t) => ["completed", "client_rejected", "sent_to_client"].includes(t.status));
+  const approved = tasks.filter((t) => t.status === "done");
+  const approvedWeek = approved.filter((t) => t.done_at && now - new Date(t.done_at).getTime() < 7 * DAY);
+  const doesTasks = isMaker(me) || tasks.length > 0;
+
+  // ---- Leads (sales) ----
+  const openLeads = leads.filter((l) => !CLOSED_STATUSES.includes(l.status));
+  const newWeek = leads.filter((l) => now - new Date(l.created_at).getTime() < 7 * DAY);
   const won = leads.filter((l) => l.status === "Won");
   const lost = leads.filter((l) => l.status === "Lost");
   const winRate = won.length + lost.length ? Math.round((won.length / (won.length + lost.length)) * 100) : null;
-  const stale = open
+  const stale = openLeads
     .filter((l) => now - new Date(l.updated_at).getTime() > (l.status === "New Lead" ? 2 : 5) * DAY)
     .sort((a, b) => new Date(a.updated_at) - new Date(b.updated_at));
-  const target = Math.max(5, Math.ceil(lastMonth.length * 1.2));
-  const callsDone = meetings.filter((m) => new Date(m.starts_at).getTime() < now).length;
+  const doesSales = isSales(me) && (openLeads.length > 0 || newWeek.length > 0);
 
-  // Strategist numbers
+  // ---- Briefs (strategists) ----
   const pool = proposals.filter((p) => !p.strategist_id);
   const mine = proposals.filter((p) => p.strategist_id === me.id);
   const mineLive = mine.filter((p) => p.stage !== "done");
   const delivered = mine.filter((p) => p.stage === "done");
-  const withBots = mine.filter((p) => /queued|running|awaiting/.test(p.stage));
   const needsDocs = mine.filter((p) => ["picked_up", "crl_failed"].includes(p.stage));
+  const doesBriefs = isStrategist(me) && (mine.length > 0 || pool.length > 0);
 
-  // To-do list for the Today card
-  const todo = strategist
-    ? [
-        ...pool.map((p) => ({ key: `b${p.id}`, icon: "brief", href: `/briefs/${p.lead.id}`, title: `New brief — ${brandOf(p.lead)}`, sub: `Shared ${ago(p.shared_at)} · pick it up` })),
-        ...needsDocs.map((p) => ({ key: `d${p.id}`, icon: p.stage === "crl_failed" ? "alert" : "upload", href: `/briefs/${p.lead.id}`, title: `Upload documents — ${brandOf(p.lead)}`, sub: p.stage === "crl_failed" ? "The CRL bot failed — check the documents" : "References, creatives, strategy, identity", tone: p.stage === "crl_failed" ? "rose" : "" })),
-      ]
-    : stale.map((l) => ({ key: l.id, icon: "clock", href: `/leads/${l.id}`, title: `Follow up with ${brandOf(l)}`, sub: `${l.status} · no update for ${ago(l.updated_at).replace(" ago", "")}` }));
+  // The main job decides the hero and the red card
+  const main = doesTasks && (tasks.length || !doesSales) ? "tasks" : doesSales ? "sales" : doesBriefs ? "briefs" : "tasks";
 
-  // Week strip
+  // Today: one to-do list across everything this person does
+  const todo = [
+    ...(doesTasks ? doToday.map((t) => ({ key: `t${t.id}`, icon: t.status === "revision" ? "refresh" : isLate(t) ? "alert" : "tasks", href: `/tasks/${t.id}`, title: t.title, sub: `${t.brand?.name || ""} · ${t.status === "revision" ? "Fix needed" : isLate(t) ? "Late" : "Due today"}`, tone: isLate(t) || t.status === "revision" ? "rose" : "" })) : []),
+    ...(doesSales ? stale.map((l) => ({ key: `l${l.id}`, icon: "clock", href: `/leads/${l.id}`, title: `Follow up with ${brandOf(l)}`, sub: `${l.status} · no update for ${ago(l.updated_at).replace(" ago", "")}` })) : []),
+    ...(doesBriefs ? [...pool.map((p) => ({ key: `b${p.id}`, icon: "brief", href: `/briefs/${p.lead.id}`, title: `New brief — ${brandOf(p.lead)}`, sub: `Shared ${ago(p.shared_at)} · pick it up` })), ...needsDocs.map((p) => ({ key: `d${p.id}`, icon: "upload", href: `/briefs/${p.lead.id}`, title: `Upload documents — ${brandOf(p.lead)}`, sub: "References, creatives, strategy, identity" }))] : []),
+  ];
+
+  // Week strip: dots for my meetings and my task due dates
   const monday = new Date(now - ((d0.getDay() + 6) % 7) * DAY);
   const week = Array.from({ length: 7 }, (_, i) => new Date(monday.getTime() + i * DAY));
-  const meetingsOn = (k) => upcoming.filter((m) => dayKey(m.starts_at) === k).length;
+  const dotsOn = (k) => upcoming.filter((m) => dayKey(m.starts_at) === k).length + openTasks.filter((t) => t.due_at && dayKey(t.due_at) === k).length;
   const agenda = upcoming.filter((m) => new Date(m.starts_at).getTime() < now + 2 * DAY).slice(0, 3);
   const weekMeetings = upcoming.filter((m) => new Date(m.starts_at).getTime() < week[6].getTime() + DAY).length;
 
-  // My pipeline by stage
+  // My pipeline by stage (sales)
   const STAGES = [
     ["New", ["New Lead"]],
     ["Touchbase", ["First Call / Touchbase", "Follow-up Scheduled", "DNP"]],
     ["Discovery", ["Discovery Call"]],
     ["Proposal", ["Proposal Meeting Scheduled"]],
     ["Negotiation", ["Negotiation", "Waiting Client Decision"]],
-  ].map(([label, st]) => ({ label, n: open.filter((l) => st.includes(l.status)).length, q: st[0] }));
+  ].map(([label, st]) => ({ label, n: openLeads.filter((l) => st.includes(l.status)).length, q: st[0] }));
   const maxStage = Math.max(1, ...STAGES.map((s) => s.n));
   const top = STAGES.reduce((a, b) => (b.n > a.n ? b : a), STAGES[0]);
+
+  const hero = {
+    tasks: (
+      <>
+        <p className="text-xs text-muted">Your work</p>
+        <h2 className="mt-1 text-[26px] font-normal leading-tight tracking-[-0.02em]">
+          {doToday.length ? (
+            <>
+              {doToday.length} thing{doToday.length > 1 ? "s" : ""} to finish <span className="text-brand">today</span>
+            </>
+          ) : (
+            <>
+              You&apos;re <span className="text-brand">on track</span>
+            </>
+          )}
+        </h2>
+        <div className="mt-3 flex items-end gap-3">
+          <span className="text-[52px] font-normal leading-none tracking-[-0.03em] tabular-nums">{openTasks.length}</span>
+          <span className="mb-1.5 text-sm text-muted">open tasks</span>
+          {lateTasks.length > 0 && <span className="mb-2 rounded-full bg-rose-400/15 px-2 py-0.5 text-[11px] font-medium text-rose-400">{lateTasks.length} late</span>}
+        </div>
+        <Bar pct={tasks.length ? (approved.length / tasks.length) * 100 : 0} label={`${approved.length} of ${tasks.length} tasks approved so far`} />
+        <div className="mt-4 grid gap-2.5 sm:grid-cols-3">
+          <Tile icon="refresh" label="Fix needed" value={fixTasks.length} note={fixTasks.length ? "Sent back to you" : "Nothing to fix"} href="/tasks" />
+          <Tile icon="clock" label="Waiting on others" value={waiting.length} note="With your head or the client" href="/tasks" />
+          <Tile icon="check" label="Approved this week" value={approvedWeek.length} note={`${approved.length} in total`} href="/tasks" />
+        </div>
+      </>
+    ),
+    sales: (
+      <>
+        <p className="text-xs text-muted">Your leads</p>
+        <h2 className="mt-1 text-[26px] font-normal leading-tight tracking-[-0.02em]">
+          Close more deals <span className="text-brand">this month</span>
+        </h2>
+        <div className="mt-3 flex items-end gap-3">
+          <span className="text-[52px] font-normal leading-none tracking-[-0.03em] tabular-nums">{openLeads.length}</span>
+          <span className="mb-1.5 text-sm text-muted">open leads</span>
+        </div>
+        <Bar pct={openLeads.length ? ((openLeads.length - stale.length) / openLeads.length) * 100 : 0} label={`${openLeads.length - stale.length} of ${openLeads.length} leads updated recently`} />
+        <div className="mt-4 grid gap-2.5 sm:grid-cols-3">
+          <Tile icon="leads" label="New this week" value={newWeek.length} note="Assigned to you" href="/leads" />
+          <Tile icon="video" label="Meetings this week" value={weekMeetings} note="Discovery calls" href="/leads?view=list" />
+          <Tile icon="check" label="Won" value={won.length} note={winRate === null ? "No deals closed yet" : `${winRate}% win rate`} href="/leads?view=list&status=Won" />
+        </div>
+      </>
+    ),
+    briefs: (
+      <>
+        <p className="text-xs text-muted">Your proposals</p>
+        <h2 className="mt-1 text-[26px] font-normal leading-tight tracking-[-0.02em]">
+          Make every pitch <span className="text-brand">a win</span>
+        </h2>
+        <div className="mt-3 flex items-end gap-3">
+          <span className="text-[52px] font-normal leading-none tracking-[-0.03em] tabular-nums">{mineLive.length}</span>
+          <span className="mb-1.5 text-sm text-muted">briefs in progress</span>
+        </div>
+        <Bar pct={mine.length ? (delivered.length / mine.length) * 100 : 0} label={`${delivered.length} of ${mine.length} delivered`} />
+        <div className="mt-4 grid gap-2.5 sm:grid-cols-3">
+          <Tile icon="brief" label="Open briefs" value={pool.length} note={pool.length ? "Waiting to be picked up" : "Nothing new"} href="/briefs" />
+          <Tile icon="upload" label="Need documents" value={needsDocs.length} note="Upload to start the CRL" href="/briefs?tab=mine" />
+          <Tile icon="check" label="Delivered" value={delivered.length} note="Proposals ready" href="/briefs?tab=done" />
+        </div>
+      </>
+    ),
+  }[main];
+
+  const red = {
+    tasks: <RedCard title={lateTasks.length ? "Late" : "Do today"} value={lateTasks.length || doToday.length} unit={<>of {openTasks.length}<br />open tasks</>} note={lateTasks.length ? "Past the due date — finish these first" : "Fixes and work due today"} href="/tasks" items={(lateTasks.length ? lateTasks : doToday).map((t) => [t.id, t.title, `/tasks/${t.id}`])} />,
+    sales: <RedCard title="Follow up" value={stale.length} unit={<>of {openLeads.length}<br />open leads</>} note="No update for a few days — call them today" href="/leads?view=list" items={stale.map((l) => [l.id, brandOf(l), `/leads/${l.id}`])} />,
+    briefs: <RedCard title="Open briefs" value={pool.length} unit={<>waiting to be<br />picked up</>} note="Pick one up from Proposals" href="/briefs" items={pool.map((p) => [p.id, brandOf(p.lead), `/briefs/${p.lead.id}`])} />,
+  }[main];
+
+  // The second module next to the red card: the main job's detail
+  const detail = {
+    tasks: (
+      <Card className="rise xl:col-span-9">
+        <Title title="My tasks" sub="Press Start when you begin; open the task to upload and submit" action={<RoundLink href="/tasks" label="All my tasks" />} />
+        {tasks.length ? <MyWork me={me} tasks={tasks} embedded /> : <Empty icon="tasks">No tasks yet. When someone assigns you work, it shows up here and on your phone.</Empty>}
+      </Card>
+    ),
+    sales: <PipelineCard stages={STAGES} top={top} max={maxStage} open={openLeads.length} />,
+    briefs: (
+      <Card className="rise xl:col-span-9">
+        <Title title="My proposals" sub="Brief → documents → CRL → commercials → deck" action={<RoundLink href="/briefs" label="Briefs" />} />
+        <ProposalProgress proposals={[...mine, ...pool]} hrefFor={(p) => `/briefs/${p.lead.id}`} />
+      </Card>
+    ),
+  };
+  // Other jobs this person also does, as smaller cards under the main ones
+  const extras = [
+    ...(main !== "sales" && doesSales ? [<PipelineCard key="pipe" stages={STAGES} top={top} max={maxStage} open={openLeads.length} className="xl:col-span-6" />] : []),
+    ...(main !== "briefs" && doesBriefs
+      ? [
+          <Card key="briefs" className="rise xl:col-span-6">
+            <Title title="My proposals" sub={`${mineLive.length} in progress · ${pool.length} open briefs`} action={<RoundLink href="/briefs" label="Briefs" />} />
+            <ProposalProgress proposals={[...mine, ...pool]} hrefFor={(p) => `/briefs/${p.lead.id}`} />
+          </Card>,
+        ]
+      : []),
+    ...(main !== "tasks" && doesTasks
+      ? [
+          <Card key="tasks" className="rise xl:col-span-6">
+            <Title title="My tasks" sub={`${openTasks.length} open · ${lateTasks.length} late`} action={<RoundLink href="/tasks" label="My tasks" />} />
+            <MyWork me={me} tasks={tasks} embedded />
+          </Card>,
+        ]
+      : []),
+    ...((doesSales || doesBriefs) && activity.length
+      ? [
+          <Card key="act" className="rise xl:col-span-6">
+            <Title title="Recent activity" sub={doesSales ? "On your leads" : "On your briefs"} />
+            <Activity events={activity} />
+          </Card>,
+        ]
+      : []),
+    ...(upcoming.length
+      ? [
+          <Card key="meet" className="rise xl:col-span-6">
+            <Title title="Meetings" sub="Coming up" />
+            <MeetingAgenda meetings={upcoming} now={now} />
+          </Card>,
+        ]
+      : []),
+  ];
 
   return (
     <div className="page">
@@ -103,89 +319,21 @@ export default function UserHome({ me, data }) {
       </h1>
 
       <div className="mt-4 grid gap-4 xl:grid-cols-12">
-        {/* Hero */}
-        <Card className="rise xl:col-span-8">
-          {strategist ? (
-            <>
-              <p className="text-xs text-muted">Your proposals</p>
-              <h2 className="mt-1 text-[26px] font-normal leading-tight tracking-[-0.02em]">
-                Make every pitch <span className="text-brand">a win</span>
-              </h2>
-              <div className="mt-3 flex items-end gap-3">
-                <span className="text-[52px] font-normal leading-none tracking-[-0.03em] tabular-nums">{mineLive.length}</span>
-                <span className="mb-1.5 text-sm text-muted">briefs in progress</span>
-              </div>
-              <div className="mt-6 flex h-3 gap-1">
-                <span className="rounded-full bg-gradient-to-r from-brand-soft to-brand" style={{ width: `${Math.max(3, mine.length ? (delivered.length / mine.length) * 100 : 0)}%` }} />
-                <span className="hatch flex-1 rounded-full" />
-              </div>
-              <p className="mt-2 text-[11px] text-muted">
-                {delivered.length} of {mine.length} delivered
-              </p>
-            </>
-          ) : (
-            <>
-              <p className="text-xs text-muted">My leads this month · target {target}</p>
-              <h2 className="mt-1 text-[26px] font-normal leading-tight tracking-[-0.02em]">
-                Close more deals <span className="text-brand">this month</span>
-              </h2>
-              <div className="mt-3 flex items-end gap-3">
-                <span className="text-[52px] font-normal leading-none tracking-[-0.03em] tabular-nums">{thisMonth.length}</span>
-                <span className="mb-1.5 text-sm text-muted">new leads assigned</span>
-              </div>
-              <div className="relative mt-8">
-                <div className="flex h-3 gap-1">
-                  <span className="rounded-full bg-gradient-to-r from-brand-soft to-brand" style={{ width: `${Math.max(3, Math.min(100, (thisMonth.length / target) * 100))}%` }} />
-                  <span className="hatch flex-1 rounded-full" />
-                </div>
-                <span className="absolute -top-7 right-[6%] flex flex-col items-center">
-                  <span className="rounded-md bg-solid px-1.5 py-0.5 text-[10px] font-medium text-on-solid">Target {target}</span>
-                  <span className="h-6 w-px bg-ink" />
-                </span>
-              </div>
-            </>
-          )}
-          <div className="mt-4 grid gap-2.5 sm:grid-cols-3">
-            {(strategist
-              ? [
-                  ["brief", "Open briefs", pool.length, pool.length ? "Waiting to be picked up" : "Nothing new", "/briefs"],
-                  ["sparkle", "With the bots", withBots.length, "CRL and deck being made", "/briefs?tab=mine"],
-                  ["check", "Delivered", delivered.length, "Proposals ready", "/briefs?tab=done"],
-                ]
-              : [
-                  ["leads", "New this week", newWeek.length, `${open.length} open in total`, "/leads"],
-                  ["video", "Meetings this week", weekMeetings, `${callsDone} calls done (90 days)`, "/leads?view=list"],
-                  ["check", "Won", won.length, winRate === null ? "No deals closed yet" : `${winRate}% win rate`, "/leads?view=list&status=Won"],
-                ]
-            ).map(([icon, label, value, note, href]) => (
-              <Link key={label} href={href} className="flex items-center gap-3 rounded-2xl bg-panel-2 p-3 transition hover:bg-panel-3">
-                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-panel text-brand shadow-[var(--card-shadow)]">
-                  <Icon name={icon} size={15} />
-                </span>
-                <span className="min-w-0">
-                  <span className="block truncate text-[11px] text-muted">{label}</span>
-                  <span className="block text-lg font-medium leading-tight tabular-nums">{value}</span>
-                  <span className="block truncate text-[11px] text-muted">{note}</span>
-                </span>
-              </Link>
-            ))}
-          </div>
-        </Card>
+        <Card className="rise xl:col-span-8">{hero}</Card>
 
         {/* Today */}
-        <Card className="rise flex flex-col xl:col-span-4 xl:row-span-2">
+        <Card className="rise flex flex-col xl:col-span-4">
           <div className="flex items-start justify-between">
             <div>
               <h2 className="text-xl font-normal tracking-[-0.01em]">Today</h2>
               <p className="text-xs text-muted">{dateLine.format(d0)}</p>
             </div>
-            <RoundLink href={strategist ? "/briefs" : "/leads"} icon={strategist ? "brief" : "leads"} label="Open" />
           </div>
           <div className="mt-4 grid grid-cols-7 gap-1.5">
             {week.map((d) => {
               const k = dayKey(d);
               const on = k === today;
-              const n = meetingsOn(k);
+              const n = dotsOn(k);
               return (
                 <div key={k} className={`flex flex-col items-center gap-0.5 rounded-2xl py-2 ${on ? "bg-solid text-on-solid" : "bg-panel-2"}`}>
                   <span className={`text-[10px] ${on ? "opacity-80" : "text-muted"}`}>{d.toLocaleDateString("en-IN", { timeZone: IST, weekday: "short" })}</span>
@@ -236,159 +384,34 @@ export default function UserHome({ me, data }) {
             ))}
             {!agenda.length && !todo.length && <li className="py-6 text-center text-sm text-muted">All clear for today ✓</li>}
           </ul>
-          <div className="mt-auto pt-4">
-            <div className="text-[13px] font-medium">This week</div>
-            <div className="mt-3 grid grid-cols-3 gap-2">
-              {strategist ? (
-                <>
-                  <Ring value={mineLive.length} total={Math.max(mineLive.length, mine.length)} label="In work" icon="brief" />
-                  <Ring value={withBots.length} total={Math.max(withBots.length, mineLive.length)} label="Bots" icon="sparkle" />
-                  <Ring value={delivered.length} total={Math.max(delivered.length, mine.length)} label="Done" icon="check" />
-                </>
-              ) : (
-                <>
-                  <Ring value={newWeek.length} total={Math.max(newWeek.length, Math.ceil(target / 4))} label="Leads" icon="leads" />
-                  <Ring value={weekMeetings} total={Math.max(weekMeetings, 5)} label="Meetings" icon="video" />
-                  <Ring value={open.length - stale.length} total={Math.max(1, open.length)} label="On track" icon="check" />
-                </>
-              )}
-            </div>
+          <div className="mt-auto grid grid-cols-3 gap-2 pt-4">
+            {main === "tasks" ? (
+              <>
+                <Ring value={doToday.length} total={Math.max(doToday.length, openTasks.length)} label="Today" icon="tasks" />
+                <Ring value={waiting.length} total={Math.max(waiting.length, tasks.length)} label="Waiting" icon="clock" />
+                <Ring value={approvedWeek.length} total={Math.max(approvedWeek.length, approvedWeek.length + openTasks.length)} label="Approved" icon="check" />
+              </>
+            ) : main === "sales" ? (
+              <>
+                <Ring value={newWeek.length} total={Math.max(newWeek.length, 5)} label="New" icon="leads" />
+                <Ring value={weekMeetings} total={Math.max(weekMeetings, 5)} label="Meetings" icon="video" />
+                <Ring value={openLeads.length - stale.length} total={Math.max(1, openLeads.length)} label="On track" icon="check" />
+              </>
+            ) : (
+              <>
+                <Ring value={mineLive.length} total={Math.max(mineLive.length, mine.length)} label="In work" icon="brief" />
+                <Ring value={needsDocs.length} total={Math.max(needsDocs.length, mineLive.length)} label="Docs" icon="upload" />
+                <Ring value={delivered.length} total={Math.max(delivered.length, mine.length)} label="Done" icon="check" />
+              </>
+            )}
           </div>
         </Card>
 
-        {/* Pipeline / proposals */}
-        <Card className="rise flex flex-col xl:col-span-5">
-          {strategist ? (
-            <>
-              <Title title="My proposals" sub="Brief → documents → CRL → commercials → deck" action={<RoundLink href="/briefs" label="Briefs" />} />
-              <ProposalProgress proposals={[...mine, ...pool]} hrefFor={(p) => `/briefs/${p.lead.id}`} />
-            </>
-          ) : (
-            <>
-              <Title
-                title="My pipeline"
-                sub={`${open.length} open leads`}
-                action={<RoundLink href="/leads" label="Open the board" />}
-              />
-              <div className="mt-8 flex flex-1 items-end justify-between gap-3">
-                {STAGES.map((s) => {
-                  const on = s === top && s.n > 0;
-                  return (
-                    <Link key={s.label} href={`/leads?view=list&status=${encodeURIComponent(s.q)}`} className="group flex flex-1 flex-col items-center gap-2">
-                      <span className="relative flex h-32 w-full max-w-[46px] items-end">
-                        <span
-                          className={`relative w-full rounded-full transition group-hover:brightness-110 ${on ? "bg-gradient-to-b from-brand-soft to-brand shadow-[0_10px_24px_-10px_rgb(225_29_46/0.8)]" : "hatch border border-line-strong bg-panel"}`}
-                          style={{ height: `${Math.max(26, (s.n / maxStage) * 100)}%` }}
-                        >
-                          {on && (
-                            <span className="absolute -top-11 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-lg bg-solid px-2 py-1 text-center text-[10px] leading-tight text-on-solid">
-                              <b className="block text-[12px] font-medium">{s.n}</b>
-                              leads
-                            </span>
-                          )}
-                        </span>
-                      </span>
-                      <span className={`text-[11px] ${on ? "font-medium text-ink" : "text-muted"}`}>{s.label}</span>
-                    </Link>
-                  );
-                })}
-              </div>
-            </>
-          )}
-        </Card>
+        {/* The main job in detail, with its red card */}
+        {detail[main]}
+        <div className="xl:col-span-3">{red}</div>
 
-        {/* The red card */}
-        <section className="card-coral rise flex flex-col p-5 xl:col-span-3">
-          <div className="flex items-start justify-between">
-            <h2 className="text-xl font-normal tracking-[-0.01em]">{strategist ? "Open briefs" : "Follow up"}</h2>
-            <RoundLink href={strategist ? "/briefs" : "/leads?view=list"} label="Open" light />
-          </div>
-          <div className="mt-5 flex items-end gap-2">
-            <span className="text-[64px] font-light leading-none tabular-nums">{strategist ? pool.length : stale.length}</span>
-            <span className="mb-2 text-xs leading-tight text-white/80">
-              {strategist ? (
-                <>
-                  waiting to be
-                  <br />
-                  picked up
-                </>
-              ) : (
-                <>
-                  of {open.length}
-                  <br />
-                  open leads
-                </>
-              )}
-            </span>
-          </div>
-          <p className="mt-1 text-[11px] text-white/75">{strategist ? "Pick one up from Proposals" : "No update for a few days — call them today"}</p>
-          <ul className="mt-auto flex flex-col gap-1.5 pt-4 text-[12px]">
-            {(strategist ? pool.map((p) => [p.id, brandOf(p.lead), `/briefs/${p.lead.id}`]) : stale.map((l) => [l.id, brandOf(l), `/leads/${l.id}`]))
-              .slice(0, 3)
-              .map(([id, label, href]) => (
-                <li key={id}>
-                  <Link href={href} className="flex items-center justify-between rounded-lg bg-white/15 px-2.5 py-1.5 hover:bg-white/25">
-                    <span className="truncate">{label}</span>
-                    <Icon name="arrow" size={12} />
-                  </Link>
-                </li>
-              ))}
-          </ul>
-        </section>
-
-        {/* Bottom row */}
-        <Card className="rise xl:col-span-4">
-          <Title title="Recent activity" sub={strategist ? "Your briefs" : "Across your leads"} />
-          <Activity events={activity} />
-        </Card>
-        <Card className="rise xl:col-span-4">
-          {strategist ? (
-            <>
-              <Title title="Delivered" sub="Proposals you finished" action={<RoundLink href="/briefs?tab=done" label="Delivered" />} />
-              {delivered.length ? (
-                <ul className="flex flex-col">
-                  {delivered.slice(0, 6).map((p) => (
-                    <li key={p.id} className="border-b border-line last:border-0">
-                      <Link href={`/briefs/${p.lead.id}`} className="flex items-center gap-3 py-2.5 hover:text-brand">
-                        <BrandMark name={brandOf(p.lead)} size={30} />
-                        <span className="min-w-0 flex-1 truncate text-[13px] font-medium">{brandOf(p.lead)}</span>
-                        <span className="text-[11px] text-muted">{PROPOSAL_STAGES[p.stage]?.label}</span>
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <Empty icon="check">Nothing delivered yet.</Empty>
-              )}
-            </>
-          ) : (
-            <>
-              <Title title="Latest leads" sub="Assigned to you" action={<RoundLink href="/leads?view=list" label="All leads" />} />
-              {leads.length ? (
-                <ul className="flex flex-col">
-                  {leads.slice(0, 6).map((l) => (
-                    <li key={l.id} className="border-b border-line last:border-0">
-                      <Link href={`/leads/${l.id}`} className="flex items-center gap-3 py-2.5">
-                        <BrandMark name={brandOf(l)} size={30} />
-                        <span className="min-w-0 flex-1">
-                          <span className="block truncate text-[13px] font-medium hover:text-brand">{brandOf(l)}</span>
-                          <span className="block text-[11px] text-muted">{l.code}</span>
-                        </span>
-                        <StatusBadge status={l.status} />
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <Empty icon="leads">No leads yet.</Empty>
-              )}
-            </>
-          )}
-        </Card>
-        <Card className="rise xl:col-span-4">
-          <Title title="Meetings" sub="Coming up" />
-          <MeetingAgenda meetings={upcoming} now={now} />
-        </Card>
+        {extras}
       </div>
     </div>
   );

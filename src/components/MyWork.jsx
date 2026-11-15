@@ -40,7 +40,8 @@ function List({ title, sub, tasks, tone, empty }) {
   );
 }
 
-export default function MyWork({ me, tasks }) {
+/** embedded: only the task sections (the Home shows its own header and numbers) */
+export default function MyWork({ me, tasks, embedded = false }) {
   const today = dayKey(now());
   const weekEnd = dayKey(now() + 7 * 86400000);
   const open = tasks.filter((t) => OPEN_TASK.includes(t.status));
@@ -62,16 +63,18 @@ export default function MyWork({ me, tasks }) {
 
   return (
     <div className="flex flex-col gap-4">
-      <PageTop title={`Hi ${first} 👋`} sub="Press Start when you begin. When it’s ready, open the task, upload the file and submit." />
+      {!embedded && <PageTop title={`Hi ${first} 👋`} sub="Press Start when you begin. When it’s ready, open the task, upload the file and submit." />}
 
+      {!embedded && (
       <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
         <StatCard coral label="Do today" value={now_.length} note={now_.length ? "Fixes, late & due today" : "Nothing urgent"} />
         <StatCard label="Late" value={overdue.length} tone="#e11d48" note={overdue.length ? "Past the due date" : "Nothing late"} />
         <StatCard label="Coming up" value={coming.length} note="This week & later" />
         <StatCard label="Done" value={tasks.filter((t) => t.status === "done").length} bar={tasks.length ? Math.round((tasks.filter((t) => t.status === "done").length / tasks.length) * 100) : 0} />
       </div>
+      )}
 
-      {!tasks.length && (
+      {!tasks.length && !embedded && (
         <div className="card">
           <Empty icon="tasks">No tasks yet. When someone assigns you work, it shows up here and on your phone.</Empty>
         </div>

@@ -1,6 +1,5 @@
 import Link from "next/link";
 import UserHome from "@/components/UserHome";
-import MyWork from "@/components/MyWork";
 import HeadHome from "@/components/HeadHome";
 import AdminHome from "@/components/AdminHome";
 import Icon from "@/components/Icon";
@@ -10,7 +9,7 @@ import { listBrands } from "@/lib/brands";
 import { listMakers, listTasks, reviewFiles } from "@/lib/tasks";
 import QuickAssign from "@/components/QuickAssign";
 import { PageTop } from "@/components/Desk";
-import { canSeeAllLeads, canSeeLeads, isExecHead, isMaker, isStrategist } from "@/lib/permissions";
+import { canSeeAllLeads, canSeeLeads, isExecHead, isStrategist } from "@/lib/permissions";
 
 export const metadata = { title: "Dashboard" };
 
@@ -69,17 +68,7 @@ export default async function Dashboard() {
     );
   }
 
-  // Designers, video editors, developers: their own work, front and centre
-  if (isMaker(me) && !canSeeLeads(me) && !isStrategist(me)) {
-    return (
-      <div className="page">
-        <div className="rise">
-          <MyWork me={me} tasks={await listTasks(me, { view: "mine" })} />
-        </div>
-      </div>
-    );
-  }
-
-  // Sales executives and strategists: the same look as the admin home, about their own work
-  return <UserHome me={me} data={await dashboardData(me)} />;
+  // Everyone else: the admin look, about their own work (tasks, leads and/or briefs — whatever they do)
+  const [data, tasks] = await Promise.all([dashboardData(me), listTasks(me, { view: "mine" })]);
+  return <UserHome me={me} data={data} tasks={tasks} />;
 }
