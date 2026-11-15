@@ -123,7 +123,7 @@ function PipelineCard({ stages, top, max, open, className = "xl:col-span-9" }) {
  *   data   dashboardData(me) — leads, upcoming, meetings, proposals, activity, now
  *   tasks  this person's tasks
  */
-export default function UserHome({ me, data, tasks = [] }) {
+export default function UserHome({ me, data, tasks = [], followUps = [] }) {
   const { leads, upcoming, proposals, activity, now } = data;
   const today = dayKey(now);
   const d0 = new Date(now);
@@ -163,9 +163,11 @@ export default function UserHome({ me, data, tasks = [] }) {
   const main = doesTasks && (tasks.length || !doesSales) ? "tasks" : doesSales ? "sales" : doesBriefs ? "briefs" : "tasks";
 
   // Today: one to-do list across everything this person does
+  const clock = new Intl.DateTimeFormat("en-IN", { timeZone: IST, hour: "numeric", minute: "2-digit" });
   const todo = [
+    ...followUps.map((l) => ({ key: `f${l.id}`, icon: "bell", href: `/leads/${l.id}`, title: `Call ${brandOf(l)}`, sub: `${new Date(l.follow_up_at).getTime() < now ? "Follow-up due" : `Follow up at ${clock.format(new Date(l.follow_up_at))}`}${l.follow_up_note ? ` · ${l.follow_up_note}` : ""}`, tone: "rose" })),
     ...(doesTasks ? doToday.map((t) => ({ key: `t${t.id}`, icon: t.status === "revision" ? "refresh" : isLate(t) ? "alert" : "tasks", href: `/tasks/${t.id}`, title: t.title, sub: `${t.brand?.name || ""} · ${t.status === "revision" ? "Fix needed" : isLate(t) ? "Late" : "Due today"}`, tone: isLate(t) || t.status === "revision" ? "rose" : "" })) : []),
-    ...(doesSales ? stale.map((l) => ({ key: `l${l.id}`, icon: "clock", href: `/leads/${l.id}`, title: `Follow up with ${brandOf(l)}`, sub: `${l.status} · no update for ${ago(l.updated_at).replace(" ago", "")}` })) : []),
+    ...(doesSales ? stale.filter((l) => !followUps.some((f) => f.id === l.id)).map((l) => ({ key: `l${l.id}`, icon: "clock", href: `/leads/${l.id}`, title: `Follow up with ${brandOf(l)}`, sub: `${l.status} · no update for ${ago(l.updated_at).replace(" ago", "")}` })) : []),
     ...(doesBriefs ? [...pool.map((p) => ({ key: `b${p.id}`, icon: "brief", href: `/briefs/${p.lead.id}`, title: `New brief — ${brandOf(p.lead)}`, sub: `Shared ${ago(p.shared_at)} · pick it up` })), ...needsDocs.map((p) => ({ key: `d${p.id}`, icon: "upload", href: `/briefs/${p.lead.id}`, title: `Upload documents — ${brandOf(p.lead)}`, sub: "References, creatives, strategy, identity" }))] : []),
   ];
 

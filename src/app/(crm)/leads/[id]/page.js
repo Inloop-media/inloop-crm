@@ -10,6 +10,7 @@ import { getClientAccount } from "@/lib/clients";
 import { Avatar, PageHeader, Panel, StagePill, StepTrack } from "@/components/ui";
 import StatusBadge from "@/components/StatusBadge";
 import Timeline from "@/components/Timeline";
+import FollowUp from "@/components/FollowUp";
 import { requireMember } from "@/lib/auth";
 import { getLead, listAssignees, listGuests, listMembers, openLeadCounts } from "@/lib/leads";
 import { canAssign, canBookDiscovery, canBookProposal, canEnterCommercials, canOnboard, canSeeLeads, isStrategist, statusOptions } from "@/lib/permissions";
@@ -190,6 +191,12 @@ export default async function LeadPage({ params }) {
           <Section title="Status" sub="Click a stage to move the lead">
             <StatusPicker lead={lead} statuses={statusOptions(me)} />
           </Section>
+
+          {!["Won", "Lost"].includes(lead.status) && (
+            <Section title="Follow-up reminder" sub="When should you call them next? You'll get a notification on your phone.">
+              <FollowUp leadId={lead.id} at={lead.follow_up_at || null} note={lead.follow_up_note || ""} />
+            </Section>
+          )}
 
           <Section title="Notes">
             <Notes lead={lead} />

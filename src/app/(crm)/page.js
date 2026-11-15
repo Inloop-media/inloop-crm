@@ -4,7 +4,7 @@ import HeadHome from "@/components/HeadHome";
 import AdminHome from "@/components/AdminHome";
 import Icon from "@/components/Icon";
 import { requireMember } from "@/lib/auth";
-import { dashboardData } from "@/lib/leads";
+import { dashboardData, myFollowUps } from "@/lib/leads";
 import { listBrands } from "@/lib/brands";
 import { listMakers, listTasks, reviewFiles } from "@/lib/tasks";
 import QuickAssign from "@/components/QuickAssign";
@@ -69,6 +69,6 @@ export default async function Dashboard() {
   }
 
   // Everyone else: the admin look, about their own work (tasks, leads and/or briefs — whatever they do)
-  const [data, tasks] = await Promise.all([dashboardData(me), listTasks(me, { view: "mine" })]);
-  return <UserHome me={me} data={data} tasks={tasks} />;
+  const [data, tasks, followUps] = await Promise.all([dashboardData(me), listTasks(me, { view: "mine" }), myFollowUps(me)]);
+  return <UserHome me={me} data={data} tasks={tasks} followUps={followUps} />;
 }

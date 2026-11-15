@@ -261,3 +261,17 @@ export async function listGuests({ activeOnly = true } = {}) {
   if (error) return []; // before supabase/migrations/005_meeting_guests.sql
   return data || [];
 }
+
+/** My leads with a follow-up due by the end of today (India time). Empty until migration 014 is run. */
+export async function myFollowUps(me) {
+  const end = new Date(`${new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" })}T23:59:59+05:30`).toISOString();
+  const { data, error } = await db()
+    .from("leads")
+    .select("id, code, brand, first_name, last_name, status, follow_up_at, follow_up_note")
+    .eq("assigned_to", me.id)
+    .not("follow_up_at", "is", null)
+    .lte("follow_up_at", end)
+    .order("follow_up_at")
+    .limit(20);
+  return error ? [] : data || [];
+}

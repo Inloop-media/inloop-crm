@@ -98,6 +98,31 @@ export async function updateLead(id, patch) {
   return { ok: true };
 }
 
+/**
+ * Set (or clear, with at = "") a follow-up reminder on a lead. `at` is India time "YYYY-MM-DDTHH:MM".
+ * The owner gets a phone notification at that time (lib/reminders.js).
+ */
+export async function setFollowUp(id, at, note = "") {
+  const me = await requireMember();
+  if (!isUuid(id)) return { ok: false, error: "Lead not found." };
+  const { data: lead } = await db().from("leads").select("id, assigned_to").eq("id", id).maybeSingle();
+  if (!lead || !canSeeLead(me, lead)) return { ok: false, error: "You can't edit this lead." };
+  let when = null;
+  if (at) {
+    const d = new Date(`${String(at).slice(0, 16)}:00+05:30`);
+    if (Number.isNaN(d.getTime())) return { ok: false, error: "Pick a valid date and time." };
+    when = d.toISOString();
+  }
+  const { error } = await db()
+    .from("leads")
+    .update({ follow_up_at: when, follow_up_note: when ? str(note, 300) : "", follow_up_notified_at: null })
+    .eq("id", id);
+  if (error) return { ok: false, error: /follow_up/.test(error.message) ? "Reminders need migration 014 — ask the admin to run it." : error.message };
+  revalidatePath(`/leads/${id}`);
+  revalidatePath("/");
+  return { ok: true };
+}
+
 /** Phone notification about a lead, e.g. to the executive it was just assigned to. */
 async function pushNewLead(memberIds, lead, title) {
   const { data } = await db().from("leads").select("id, code, brand, first_name, last_name, service").eq("id", lead.id).single();
