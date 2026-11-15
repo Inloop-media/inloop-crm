@@ -16,9 +16,9 @@
   --color-ink: #141416;
   --color-muted: #7d7d86;
   --color-faint: #b2b2ba;
-  --color-brand: #e8654f;
-  --color-brand-soft: #f4a596;
-  --color-brand-strong: #d4513b;
+  --color-brand: #e11d2e;
+  --color-brand-soft: #f87171;
+  --color-brand-strong: #b91c1c;
   --color-on-brand: #ffffff;
   /* The "selected" colour: active pills, primary buttons */
   --color-solid: #141416;
@@ -64,30 +64,30 @@
   --solid-shadow: inset 0 1px 0 rgb(255 255 255 / 0.14), 0 0 0 1px #0b0b0c, 0 6px 14px -6px rgb(20 20 22 / 0.55);
   --field-bg: #ffffff;
   --field-border: rgb(20 20 22 / 0.09);
-  --brand-grad: linear-gradient(90deg, #f4a596, #e8654f);
-  --coral-grad: radial-gradient(90% 120% at 100% 0%, rgb(255 255 255 / 0.14), transparent 60%), linear-gradient(180deg, #ec7763 0%, #e5654f 100%);
-  --coral-glow: 0 18px 40px -16px rgb(232 101 79 / 0.55);
+  --brand-grad: linear-gradient(90deg, #f87171, #e11d2e);
+  --coral-grad: radial-gradient(90% 120% at 100% 0%, rgb(255 255 255 / 0.14), transparent 60%), linear-gradient(160deg, #ef4444 0%, #b91c1c 100%);
+  --coral-glow: 0 18px 40px -16px rgb(225 29 46 / 0.55);
 }
 
 :root[data-theme="dark"] {
   color-scheme: dark;
   /* Charcoal console, like the reference video: near-black surround, panels a step lighter,
      hairline borders, white primary buttons, coral-red only for charts and alerts */
-  --color-bg: #121212;
-  --color-panel: #181818;
-  --color-panel-2: #1f1f1f;
-  --color-panel-3: #2a2a2a;
-  --color-line: #262626;
-  --color-line-strong: #333333;
+  --color-bg: #0b0b0b;
+  --color-panel: #131313;
+  --color-panel-2: #1a1a1a;
+  --color-panel-3: #242424;
+  --color-line: #222222;
+  --color-line-strong: #303030;
   --color-ink: #ededed;
   --color-muted: #9b9b9b;
   --color-faint: #616161;
-  --color-brand: #ef6b57;
-  --color-brand-soft: #f4a596;
-  --color-brand-strong: #e5543f;
+  --color-brand: #ef3340;
+  --color-brand-soft: #f87171;
+  --color-brand-strong: #c81e2a;
   --color-on-brand: #ffffff;
-  --color-solid: #f2f2f2;
-  --color-on-solid: #111111;
+  --color-solid: #e5303c;
+  --color-on-solid: #ffffff;
   --color-tint-lavender: #2a1f1d;
   --color-tint-blue: #1b2230;
   --color-tint-green: #1a2a20;
@@ -111,21 +111,21 @@
   --color-violet-300: #c4b5fd;
   --color-violet-400: #a78bfa;
 
-  --wash: #121212;
-  --outer: #0b0b0b;
-  --rail: #0b0b0b;
-  --card-sheen: #181818;
-  --card-border: #262626;
+  --wash: #0b0b0b;
+  --outer: #050505;
+  --rail: #050505;
+  --card-sheen: #131313;
+  --card-border: #222222;
   --card-shadow: 0 1px 2px rgb(0 0 0 / 0.35);
   --card-shadow-hover: 0 1px 2px rgb(0 0 0 / 0.4), 0 12px 30px -16px rgb(0 0 0 / 0.9);
   --pop-shadow: 0 0 0 1px #2a2a2a, 0 24px 64px -16px rgb(0 0 0 / 0.8);
-  --solid-grad: #f2f2f2;
-  --solid-shadow: none;
-  --field-bg: #1c1c1c;
-  --field-border: #2c2c2c;
-  --brand-grad: linear-gradient(90deg, #e5543f, #f4a596);
-  --coral-grad: linear-gradient(180deg, #1f1f1f 0%, #1a1a1a 100%);
-  --coral-glow: inset 0 0 0 1px #2e2e2e;
+  --solid-grad: linear-gradient(180deg, #ef3a46 0%, #c81e2a 100%);
+  --solid-shadow: inset 0 1px 0 rgb(255 255 255 / 0.18), 0 6px 16px -8px rgb(229 48 60 / 0.7);
+  --field-bg: #171717;
+  --field-border: #2a2a2a;
+  --brand-grad: linear-gradient(90deg, #c81e2a, #f87171);
+  --coral-grad: radial-gradient(120% 100% at 100% 0%, rgb(255 255 255 / 0.12), transparent 55%), linear-gradient(160deg, #e5303c 0%, #8f1220 100%);
+  --coral-glow: 0 18px 40px -18px rgb(229 48 60 / 0.6);
 }
 
 html {
@@ -267,8 +267,8 @@ html.theme-switching * {
   /* Coral call-to-action, for the one thing on the screen you want pressed */
   .btn-brand {
     @apply inline-flex items-center justify-center gap-2 rounded-full px-4.5 py-2.5 text-[13px] font-medium whitespace-nowrap text-white transition duration-200 hover:-translate-y-0.5 hover:brightness-105 active:scale-[0.97] disabled:opacity-50;
-    background: linear-gradient(180deg, #f07c67 0%, #e05a44 100%);
-    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.25), 0 0 0 1px #d4513b, 0 8px 18px -8px rgb(232 101 79 / 0.8);
+    background: linear-gradient(180deg, #ef4444 0%, #c81e2a 100%);
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.25), 0 0 0 1px #b91c1c, 0 8px 18px -8px rgb(225 29 46 / 0.8);
   }
   .label {
     @apply mb-1.5 block text-[12px] font-medium text-ink/70;
@@ -375,7 +375,7 @@ html.theme-switching * {
   background: color-mix(in srgb, var(--color-panel-2) 60%, var(--color-panel));
 }
 .chat-own {
-  background: linear-gradient(180deg, #ee7c68 0%, #e5654f 100%);
+  background: linear-gradient(180deg, #ef4444 0%, #b91c1c 100%);
   color: #fff;
 }
 .chat-own .text-muted,
@@ -406,9 +406,9 @@ html.theme-switching * {
   }
 }
 .amigo-orb {
-  background: conic-gradient(from 0deg, #ef6b57, #f4a596, #60a5fa, #22d3ee, #a78bfa, #ef6b57);
+  background: conic-gradient(from 0deg, #ef3340, #f87171, #60a5fa, #22d3ee, #a78bfa, #ef3340);
   filter: blur(0.5px);
-  box-shadow: 0 0 40px -6px rgb(239 107 87 / 0.55), 0 0 60px -10px rgb(96 165 250 / 0.45);
+  box-shadow: 0 0 40px -6px rgb(239 51 64 / 0.55), 0 0 60px -10px rgb(96 165 250 / 0.45);
   animation: amigo-spin 6s linear infinite;
 }
 @media (prefers-reduced-motion: reduce) {
@@ -424,18 +424,7 @@ html.theme-switching * {
   background-size: 44px 44px;
 }
 
-/* Dark console: highlight cards are neutral panels (as in the reference), white text stays readable */
-:root[data-theme="dark"] .card-coral {
-  color: var(--color-ink);
-}
-:root[data-theme="dark"] .card-coral .text-muted,
-:root[data-theme="dark"] .card-coral .text-faint {
-  color: var(--color-muted);
-}
-:root[data-theme="dark"] .chat-own {
-  background: #2a2a2a;
-  color: var(--color-ink);
-}
+/* Dark console: red highlight cards, own chat bubbles in red */
 :root[data-theme="dark"] .card-hover:hover {
   border-color: #3a3a3a;
 }
@@ -454,5 +443,5 @@ html.theme-switching * {
   border-radius: 16px;
 }
 :root[data-theme="dark"] .card-coral {
-  border: 1px solid #2a2a2a;
+  border: 1px solid rgb(255 255 255 / 0.08);
 }

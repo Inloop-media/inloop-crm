@@ -69,7 +69,7 @@ function AttentionCards({ items }) {
 }
 
 /** Each live proposal as a progress row: dark tile, name + stage, bar, big percentage. */
-function ProposalProgress({ proposals, hrefFor }) {
+export function ProposalProgress({ proposals, hrefFor }) {
   const live = proposals.filter((p) => p.stage !== "done");
   if (!live.length) return <Empty icon="sparkle">No proposals in progress.</Empty>;
   return (
@@ -163,7 +163,7 @@ export function MeetingAgenda({ meetings, now }) {
   );
 }
 
-function Activity({ events }) {
+export function Activity({ events }) {
   if (!events.length) return <Empty icon="clock">No activity yet.</Empty>;
   return (
     <ol className="flex flex-col gap-4">

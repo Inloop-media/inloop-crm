@@ -7,7 +7,7 @@ import Link from "next/link";
 import Icon from "@/components/Icon";
 import QuickAssign from "@/components/QuickAssign";
 
-const COLORS = ["#60a5fa", "#ef6b57", "#4ade80", "#fbbf24", "#a78bfa", "#22d3ee", "#f472b6", "#94a3b8"];
+const COLORS = ["#60a5fa", "#ef3340", "#4ade80", "#fbbf24", "#a78bfa", "#22d3ee", "#f472b6", "#94a3b8"];
 // "Late" is always red, so it reads the same in every chart
 const colorOf = (d, k) => (/late|overdue/i.test(d?.label || "") ? "#f2555a" : COLORS[k % COLORS.length]);
 

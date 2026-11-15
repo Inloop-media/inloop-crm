@@ -1,5 +1,6 @@
 import Link from "next/link";
-import DashboardView from "@/components/DashboardView";
+import UserHome from "@/components/UserHome";
+import MyWork from "@/components/MyWork";
 import HeadHome from "@/components/HeadHome";
 import AdminHome from "@/components/AdminHome";
 import Icon from "@/components/Icon";
@@ -9,7 +10,7 @@ import { listBrands } from "@/lib/brands";
 import { listMakers, listTasks, reviewFiles } from "@/lib/tasks";
 import QuickAssign from "@/components/QuickAssign";
 import { PageTop } from "@/components/Desk";
-import { canSeeAllLeads, canSeeLeads, isExecHead, isStrategist } from "@/lib/permissions";
+import { canSeeAllLeads, canSeeLeads, isExecHead, isMaker, isStrategist } from "@/lib/permissions";
 
 export const metadata = { title: "Dashboard" };
 
@@ -68,6 +69,17 @@ export default async function Dashboard() {
     );
   }
 
-  // Sales executives and strategists keep their own dashboard
-  return <DashboardView me={me} data={await dashboardData(me)} />;
+  // Designers, video editors, developers: their own work, front and centre
+  if (isMaker(me) && !canSeeLeads(me) && !isStrategist(me)) {
+    return (
+      <div className="page">
+        <div className="rise">
+          <MyWork me={me} tasks={await listTasks(me, { view: "mine" })} />
+        </div>
+      </div>
+    );
+  }
+
+  // Sales executives and strategists: the same look as the admin home, about their own work
+  return <UserHome me={me} data={await dashboardData(me)} />;
 }

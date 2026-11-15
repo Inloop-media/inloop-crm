@@ -1,6 +1,8 @@
 import Link from "next/link";
 import Icon from "@/components/Icon";
 import ContentCalendar from "@/components/ContentCalendar";
+import MasterCalendar from "@/components/MasterCalendar";
+import { FilterPills } from "@/components/Desk";
 import { Avatar, Empty } from "@/components/ui";
 import { requireMember } from "@/lib/auth";
 import { listBrands } from "@/lib/brands";
@@ -17,14 +19,14 @@ const href = (p) => {
   return `/calendar${s ? `?${s}` : ""}`;
 };
 
-function MonthNav({ month, brand }) {
+function MonthNav({ month, brand, view }) {
   return (
     <div className="flex items-center gap-1">
-      <Link href={href({ brand, month: shiftMonth(month, -1) })} className="icon-btn !h-9 !w-9" aria-label="Previous month">
+      <Link href={href({ brand, view, month: shiftMonth(month, -1) })} className="icon-btn !h-9 !w-9" aria-label="Previous month">
         <Icon name="chevron" size={14} className="rotate-90" />
       </Link>
       <span className="min-w-[9.5rem] text-center text-sm font-medium">{monthLabel(month)}</span>
-      <Link href={href({ brand, month: shiftMonth(month, 1) })} className="icon-btn !h-9 !w-9" aria-label="Next month">
+      <Link href={href({ brand, view, month: shiftMonth(month, 1) })} className="icon-btn !h-9 !w-9" aria-label="Next month">
         <Icon name="chevron" size={14} className="-rotate-90" />
       </Link>
     </div>
@@ -93,6 +95,7 @@ export default async function CalendarPage({ searchParams }) {
   const month = validMonth(sp.month);
   const brands = (await listBrands()).filter((b) => b.stage === "active");
   const brand = brands.find((b) => b.id === sp.brand) || null;
+  const view = !brand && sp.view === "plans" ? "plans" : "";
   const ids = brand ? [brand.id] : brands.map((b) => b.id);
   const [items, plans, people] = await Promise.all([loadItems(ids, month), loadPlans(ids, month), brand && canAssignTasks(me) ? listMakers() : []]);
 
@@ -111,7 +114,7 @@ export default async function CalendarPage({ searchParams }) {
             {brand && <Avatar name={brand.name} size={40} />}
             <h1 className="text-[30px] font-medium leading-tight tracking-[-0.02em] md:text-[36px]">{brand ? brand.name : "Content calendar"}</h1>
           </div>
-          {!brand && <p className="mt-1 text-sm text-muted">Pick a brand to plan its month. Strategists build the calendar, heads assign each post as a task.</p>}
+          {!brand && <p className="mt-1 text-sm text-muted">{view ? "Each brand's monthly plan. Pick a brand to plan its posts." : "Every brand's posts in one calendar. Click a day to see what's going out."}</p>}
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {brand && (
@@ -119,7 +122,15 @@ export default async function CalendarPage({ searchParams }) {
               <Icon name="brand" size={13} /> Brand
             </Link>
           )}
-          <MonthNav month={month} brand={brand?.id} />
+          {!brand && (
+            <FilterPills
+              items={[
+                { label: "All brands calendar", href: href({ month }), on: !view },
+                { label: "Brand plans", href: href({ month, view: "plans" }), on: view === "plans" },
+              ]}
+            />
+          )}
+          <MonthNav month={month} brand={brand?.id} view={view} />
         </div>
       </header>
 
@@ -147,8 +158,14 @@ export default async function CalendarPage({ searchParams }) {
             canAssign={canAssignTasks(me)}
             canPlan={canSetPlan(me)}
           />
-        ) : (
+        ) : view === "plans" ? (
           <Overview brands={brands} plans={plans} items={items} month={month} />
+        ) : brands.length ? (
+          <MasterCalendar month={month} brands={brands.map((b) => ({ id: b.id, name: b.name }))} items={items} />
+        ) : (
+          <div className="card">
+            <Empty icon="calendar">No onboarded brands yet — the calendar fills up once brands sign and posts are planned.</Empty>
+          </div>
         )}
       </div>
     </div>

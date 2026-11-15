@@ -77,7 +77,7 @@ export default function MyWork({ me, tasks }) {
         </div>
       )}
       <div className="grid items-start gap-4 lg:grid-cols-2">
-        <List title="Do today" sub="Fixes, late work, due today" tasks={now_} tone="#e8654f" empty={open.length ? "Nothing for today — pick something from Coming up." : ""} />
+        <List title="Do today" sub="Fixes, late work, due today" tasks={now_} tone="#e11d2e" empty={open.length ? "Nothing for today — pick something from Coming up." : ""} />
         <List title="Coming up" tasks={coming} tone="#3b82f6" empty={open.length ? "Nothing else planned." : ""} />
         <List title="Waiting on others" sub="Your head or the client has it" tasks={waiting} tone="#8b5cf6" />
         <List title="Done" tasks={done} tone="#10b981" />

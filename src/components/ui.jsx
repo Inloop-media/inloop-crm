@@ -12,7 +12,7 @@ export const initials = (name) =>
     .toUpperCase();
 
 // Stable colour per person, so the same teammate always gets the same avatar
-const AVATAR_TINTS = ["#e8654f", "#3b82f6", "#10b981", "#f59e0b", "#8b5cf6", "#ec4899", "#06b6d4", "#64748b"];
+const AVATAR_TINTS = ["#e11d2e", "#3b82f6", "#10b981", "#f59e0b", "#8b5cf6", "#ec4899", "#06b6d4", "#64748b"];
 const tint = (s) => AVATAR_TINTS[[...String(s || "")].reduce((n, c) => n + c.charCodeAt(0), 0) % AVATAR_TINTS.length];
 
 export function Avatar({ name, size = 28 }) {

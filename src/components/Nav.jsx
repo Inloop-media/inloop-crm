@@ -62,10 +62,10 @@ export function Sidebar({ groups, bottom }) {
                   href={it.href}
                   title={fold ? it.label : undefined}
                   className={`group relative flex items-center gap-2.5 rounded-lg py-2 text-[13px] transition ${fold ? "justify-center px-0" : "px-2.5"} ${
-                    on ? "bg-panel-3 font-medium text-ink" : "text-muted hover:bg-panel-2 hover:text-ink"
+                    on ? "bg-brand/12 font-medium text-ink before:absolute before:inset-y-1.5 before:left-0 before:w-[3px] before:rounded-full before:bg-brand" : "text-muted hover:bg-panel-2 hover:text-ink"
                   }`}
                 >
-                  <Icon name={it.icon} size={16} className={on ? "text-ink" : ""} />
+                  <Icon name={it.icon} size={16} className={on ? "text-brand" : ""} />
                   {!fold && <span className="min-w-0 flex-1 truncate">{it.label}</span>}
                   {!fold && it.tag && <span className="rounded-md border border-brand/40 px-1.5 text-[9px] font-semibold uppercase tracking-wide text-brand">{it.tag}</span>}
                   {it.badge > 0 && (fold ? <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-brand" /> : <Badge n={it.badge} />)}

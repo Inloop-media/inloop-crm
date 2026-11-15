@@ -46,7 +46,7 @@ export function FilterPills({ items, className = "" }) {
   );
 }
 
-export function Section({ title, count, tone = "#e8654f", action, children, empty, className = "" }) {
+export function Section({ title, count, tone = "#e11d2e", action, children, empty, className = "" }) {
   return (
     <section className={`card min-w-0 p-4 sm:p-5 ${className}`}>
       <header className="mb-2 flex items-center gap-2">
