@@ -227,7 +227,7 @@ function PipelineBars({ leads }) {
 /* ------------------------------------------------------------------ */
 
 /** The dashboard for one member — admin / ops, sales executive or creative strategist. */
-export default function DashboardView({ me, data, clientLogins }) {
+export default function DashboardView({ me, data, clientLogins, taskWork }) {
   const staff = canSeeAllLeads(me);
   const sales = !staff && canSeeLeads(me);
   const strategist = !staff && isStrategist(me);
@@ -434,6 +434,8 @@ export default function DashboardView({ me, data, clientLogins }) {
           {bottomRight.length > 0 && <div className={`grid gap-5 ${bottomRight.length > 1 ? "xl:grid-cols-2" : ""}`}>{bottomRight.map((el, i) => <Fragment key={i}>{el}</Fragment>)}</div>}
         </div>
       </div>
+
+      {taskWork && <div className="rise mt-5 [animation-delay:120ms]">{taskWork}</div>}
 
       {lowerRow.length > 0 && (
         <div className={`rise mt-5 grid gap-5 [animation-delay:160ms] ${lowerRow.length === 3 ? "lg:grid-cols-3" : ""}`}>{lowerRow.map((el, i) => <Fragment key={i}>{el}</Fragment>)}</div>

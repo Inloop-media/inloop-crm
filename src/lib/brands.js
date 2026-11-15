@@ -57,12 +57,14 @@ export async function getBrandForLead(leadId) {
 /** Task counts per brand: { [brandId]: { total, done, open, review, client, overdue } } */
 async function taskCounts(brandIds) {
   if (!brandIds.length) return {};
-  const { data } = await db().from("tasks").select("brand_id, status, due_at").in("brand_id", brandIds).limit(10000);
+  const { data } = await db().from("tasks").select("brand_id, status, due_at, assigner:members!tasks_assigned_by_fkey(name)").in("brand_id", brandIds).limit(10000);
   const now = Date.now();
   const out = {};
   for (const t of data || []) {
-    const c = (out[t.brand_id] ||= { total: 0, done: 0, open: 0, review: 0, client: 0, overdue: 0 });
+    const c = (out[t.brand_id] ||= { total: 0, done: 0, open: 0, review: 0, client: 0, overdue: 0, by: {} });
     c.total += 1;
+    const who = t.assigner?.name || "—";
+    c.by[who] = (c.by[who] || 0) + 1;
     if (t.status === "done") c.done += 1;
     else if (t.status === "sent_to_client") c.client += 1;
     else if (t.status === "completed" || t.status === "client_rejected") c.review += 1;
@@ -81,7 +83,10 @@ export async function listBrands() {
     .order("created_at", { ascending: false });
   if (error) return [];
   const counts = await taskCounts((data || []).map((b) => b.id));
-  return (data || []).map((b) => ({ ...b, counts: counts[b.id] || { total: 0, done: 0, open: 0, review: 0, client: 0, overdue: 0 } }));
+  return (data || []).map((b) => {
+    const c = counts[b.id] || { total: 0, done: 0, open: 0, review: 0, client: 0, overdue: 0, by: {} };
+    return { ...b, counts: c, assigners: Object.entries(c.by).sort((x, y) => y[1] - x[1]) };
+  });
 }
 
 export async function getBrand(id) {

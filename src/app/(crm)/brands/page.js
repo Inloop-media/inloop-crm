@@ -47,6 +47,17 @@ function BrandCard({ b, unread = 0 }) {
               </div>
             ))}
           </div>
+          {b.assigners?.length > 0 && (
+            <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-muted">
+              <span>Assigned by</span>
+              {b.assigners.map(([name, n]) => (
+                <span key={name} className="inline-flex items-center gap-1 rounded-full bg-panel-2 py-0.5 pl-0.5 pr-2">
+                  <Avatar name={name} size={16} />
+                  {name.split(" ")[0]} <b className="font-semibold text-ink">{n}</b>
+                </span>
+              ))}
+            </div>
+          )}
           <div className="flex items-center justify-between text-xs text-muted">
             <span>Onboarded {fmtDay(b.onboarded_at)}</span>
             <Icon name="arrow" size={14} className="transition group-hover:translate-x-1" />

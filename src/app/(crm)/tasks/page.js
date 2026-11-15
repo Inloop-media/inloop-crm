@@ -1,12 +1,15 @@
 import Link from "next/link";
 import { Avatar, PageHeader, Panel, StatStrip } from "@/components/ui";
 import { TaskList } from "@/components/Tasks";
+import TaskOverview from "@/components/TaskOverview";
 import { requireMember } from "@/lib/auth";
 import { listMakers, listTasks } from "@/lib/tasks";
 import { canAssignTasks } from "@/lib/permissions";
 import { OPEN_TASK } from "@/lib/constants";
 
 export const metadata = { title: "Tasks" };
+
+const keep = (sp, view) => ({ view, ...Object.fromEntries(["brand", "bsort", "tsort", "show"].filter((k) => typeof sp?.[k] === "string").map((k) => [k, sp[k]])) });
 
 const overdue = (t) => OPEN_TASK.includes(t.status) && t.due_at && new Date(t.due_at).getTime() < Date.now();
 const KIND_LABEL = { design: "Designer", development: "Developer", video: "Video editor", execution: "Execution head" };
@@ -98,7 +101,8 @@ function Workload({ people, tasks }) {
 export default async function TasksPage({ searchParams }) {
   const me = await requireMember();
   const head = canAssignTasks(me);
-  const { view } = await searchParams;
+  const sp = await searchParams;
+  const { view } = sp;
   const mine = await listTasks(me, { view: "mine" });
 
   if (!head) {
@@ -124,9 +128,12 @@ export default async function TasksPage({ searchParams }) {
   }
 
   const [all, people] = await Promise.all([listTasks(me, { view: "all" }), listMakers()]);
+  const byMe = all.filter((t) => t.assigned_by === me.id);
   const review = all.filter((t) => ["completed", "client_rejected"].includes(t.status));
   const tabs = [
     { id: "review", label: "To review", count: review.length },
+    { id: "assigned", label: "Assigned by me", count: byMe.filter((t) => t.status !== "done").length },
+    { id: "brands", label: "By brand", count: new Set(all.map((t) => t.brand_id)).size },
     { id: "open", label: "All open", count: all.filter((t) => t.status !== "done").length },
     { id: "team", label: "Team", count: people.length },
     { id: "mine", label: "Assigned to me", count: mine.filter((t) => t.status !== "done").length },
@@ -184,6 +191,8 @@ export default async function TasksPage({ searchParams }) {
             </Panel>
           ))}
         {current === "mine" && <MyTasks tasks={mine} />}
+        {current === "assigned" && <TaskOverview tasks={byMe} base="/tasks" params={keep(sp, "assigned")} showAssigners={false} sub="Work you assigned, brand by brand · tap one to see its tasks" />}
+        {current === "brands" && <TaskOverview tasks={all} base="/tasks" params={keep(sp, "brands")} />}
       </div>
     </div>
   );
