@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import Icon from "@/components/Icon";
 import { Avatar } from "@/components/ui";
 import { reviewTask, setTaskStatus } from "@/app/(crm)/tasks/actions";
-import { OPEN_TASK, TASK_STATUSES, taskKindLabel } from "@/lib/constants";
+import { KIND_COLOR, OPEN_TASK, TASK_STATUSES, taskKindLabel } from "@/lib/constants";
 
 const COLS = [
   { id: "todo", label: "To do", statuses: ["assigned"], color: TASK_STATUSES.assigned.color },
@@ -104,12 +104,14 @@ export default function TaskBoard({ tasks: initial, showBrand = true }) {
               }}
               onDragLeave={() => over === c.id && setOver("")}
               onDrop={drop(c.id)}
-              className={`flex w-[250px] shrink-0 snap-start xl:w-auto xl:min-w-0 xl:flex-1 flex-col rounded-3xl bg-panel-2/50 p-2 transition ${over === c.id ? (valid ? "bg-brand/10 ring-1 ring-brand/50" : "ring-1 ring-rose-400/40") : ""} ${drag && !valid && colOf(tasks.find((x) => x.id === drag)?.status) !== c.id ? "opacity-50" : ""}`}
+              className={`flex w-[250px] shrink-0 snap-start xl:w-auto xl:min-w-0 xl:flex-1 flex-col rounded-[24px] bg-ink/[0.025] p-2 ring-1 ring-inset ring-ink/[0.04] transition ${over === c.id ? (valid ? "bg-brand/10 ring-1 ring-brand/50" : "ring-1 ring-rose-400/40") : ""} ${drag && !valid && colOf(tasks.find((x) => x.id === drag)?.status) !== c.id ? "opacity-50" : ""}`}
             >
-              <header className="flex items-center gap-2 px-2 pb-2 pt-1.5">
-                <span className="h-2 w-2 rounded-full" style={{ background: c.color }} />
-                <span className="text-xs font-medium">{c.label}</span>
-                <span className="rounded-full bg-panel px-1.5 text-[11px] tabular-nums text-muted">{list.length}</span>
+              <header className="flex items-center gap-2 px-1 pb-2.5 pt-1">
+                <span className="flex min-w-0 items-center gap-2 rounded-full bg-panel py-1 pl-2 pr-3 shadow-[var(--card-shadow)]">
+                  <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: c.color, boxShadow: `0 0 0 3px color-mix(in srgb, ${c.color} 22%, transparent)` }} />
+                  <span className="truncate text-[12.5px] font-medium">{c.label}</span>
+                </span>
+                <span className="ml-auto pr-1.5 text-[11px] font-semibold tabular-nums text-muted">{list.length}</span>
               </header>
               <div className="flex min-h-[120px] flex-col gap-2">
                 {shown.map((t) => (
@@ -126,10 +128,10 @@ export default function TaskBoard({ tasks: initial, showBrand = true }) {
                       setDrag("");
                       setOver("");
                     }}
-                    className={`card group flex cursor-grab flex-col gap-2 !rounded-2xl p-3 transition hover:-translate-y-0.5 active:cursor-grabbing ${drag === t.id ? "opacity-40" : ""}`}
+                    className={`card card-hover group flex cursor-grab flex-col gap-2.5 !rounded-[18px] p-3.5 active:cursor-grabbing ${drag === t.id ? "opacity-40" : ""}`}
                   >
                     <div className="flex items-center gap-1.5 text-[10px] text-muted">
-                      <span className="font-semibold uppercase tracking-wide">{taskKindLabel(t.kind)}</span>
+                      <span className="rounded-md px-1.5 py-px font-semibold uppercase tracking-wide" style={{ background: `color-mix(in srgb, ${KIND_COLOR[t.kind] || "#94a3b8"} 16%, transparent)`, color: `color-mix(in oklab, ${KIND_COLOR[t.kind] || "#94a3b8"} 60%, var(--color-ink))` }}>{taskKindLabel(t.kind)}</span>
                       {showBrand && t.brand && <span className="truncate">· {t.brand.name}</span>}
                       {t.status === "client_rejected" && <span className="ml-auto shrink-0 rounded-full bg-orange-400/15 px-1.5 font-medium text-orange-400">Client changes</span>}
                     </div>
@@ -137,7 +139,7 @@ export default function TaskBoard({ tasks: initial, showBrand = true }) {
                       {t.title}
                       {t.revision > 0 && <span className="ml-1.5 rounded-full bg-rose-400/15 px-1.5 text-[10px] font-semibold text-rose-400">R{t.revision}</span>}
                     </div>
-                    <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center justify-between gap-2 border-t border-dashed border-line-strong/70 pt-2.5">
                       <span className="flex min-w-0 items-center gap-1.5 text-[11px] text-muted">
                         {t.assignee && <Avatar name={t.assignee.name} size={18} />}
                         <span className="truncate">{t.assignee?.name.split(" ")[0]}</span>
@@ -146,7 +148,7 @@ export default function TaskBoard({ tasks: initial, showBrand = true }) {
                     </div>
                   </Link>
                 ))}
-                {!list.length && <div className="grid flex-1 place-items-center rounded-2xl border border-dashed border-line px-3 py-6 text-center text-[11px] text-faint">{c.hint || "Nothing here"}</div>}
+                {!list.length && <div className="grid flex-1 place-items-center rounded-2xl border border-dashed border-line-strong px-3 py-6 text-center text-[11px] text-faint">{c.hint || "Nothing here"}</div>}
                 {list.length > shown.length && <p className="px-2 text-center text-[11px] text-muted">+{list.length - shown.length} older</p>}
               </div>
             </section>

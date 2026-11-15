@@ -1,41 +1,12 @@
 import Link from "next/link";
 import Icon from "@/components/Icon";
-import { Avatar, Empty, PageHeader, StagePill, StepTrack } from "@/components/ui";
+import BriefCard from "@/components/BriefCard";
+import { Empty, PageHeader } from "@/components/ui";
 import { requireMember } from "@/lib/auth";
 import { listProposals } from "@/lib/leads";
 import { canSeeAllLeads, canSeeBriefs } from "@/lib/permissions";
-import { ago, fullName } from "@/lib/format";
 
 export const metadata = { title: "Briefs" };
-
-function BriefCard({ p, href }) {
-  return (
-    <Link href={href} className="card card-hover group flex flex-col gap-4 p-6">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <span className="code">{p.lead.code}</span>
-          <div className="mt-2.5 truncate text-lg font-medium tracking-[-0.01em]">{p.lead.brand || fullName(p.lead)}</div>
-          <div className="truncate text-xs text-muted">{[p.lead.service, p.lead.budget].filter(Boolean).join(" · ") || "—"}</div>
-        </div>
-        <StagePill stage={p.stage} />
-      </div>
-      <p className="well line-clamp-3 min-h-[5.5em] whitespace-pre-line p-3.5 text-sm leading-relaxed text-ink/75">{p.lead.brief || "No brief text."}</p>
-      <StepTrack stage={p.stage} compact />
-      <div className="flex items-center justify-between pt-1 text-xs text-muted">
-        <span className="flex items-center gap-2">
-          {p.strategist ? (
-            <>
-              <Avatar name={p.strategist.name} size={22} /> {p.strategist.name}
-            </>
-          ) : (
-            <span className="rounded-full bg-brand px-2.5 py-1 font-medium text-on-brand">Open — pick it up</span>
-          )}
-        </span>
-        <span>Shared {ago(p.shared_at)}</span>
-      </div>
-    </Link>
-  );
-}
 
 export default async function BriefsPage({ searchParams }) {
   const me = await requireMember(canSeeBriefs);

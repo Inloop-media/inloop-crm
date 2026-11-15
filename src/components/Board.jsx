@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { useState, useTransition } from "react";
+import Icon from "@/components/Icon";
 import { STATUSES } from "@/lib/constants";
-import { Avatar } from "@/components/ui";
+import { Avatar, BrandMark } from "@/components/ui";
 import { fmtDay, fullName } from "@/lib/format";
 import { updateLead } from "@/app/(crm)/actions";
 
@@ -71,12 +72,14 @@ export default function Board({ leads: initial, owners, allowed, columns }) {
             <section
               key={s.name}
               {...drop}
-              className={`flex max-h-[calc(100svh-300px)] w-[82vw] shrink-0 snap-start flex-col rounded-[24px] transition ${fit ? "md:w-auto md:min-w-0 md:flex-1 md:shrink" : "sm:w-[290px]"} ${over === s.name ? "bg-brand/10 ring-2 ring-brand/40" : "bg-panel/50 ring-1 ring-inset ring-line/70"}`}
+              className={`flex max-h-[calc(100svh-300px)] w-[82vw] shrink-0 snap-start flex-col rounded-[24px] transition ${fit ? "md:w-auto md:min-w-0 md:flex-1 md:shrink" : "sm:w-[290px]"} ${over === s.name ? "bg-brand/10 ring-2 ring-brand/40" : "bg-ink/[0.025] ring-1 ring-inset ring-ink/[0.04]"}`}
             >
-              <header className="flex items-center gap-2 px-4 pb-3 pt-4">
-                <span className="h-2 w-2 rounded-full" style={{ background: s.color, boxShadow: `0 0 0 3px color-mix(in srgb, ${s.color} 22%, transparent)` }} />
-                <h2 className="truncate text-sm font-medium">{s.name}</h2>
-                <span className="ml-auto rounded-full bg-panel px-2 py-0.5 text-[11px] font-medium tabular-nums text-muted shadow-[var(--card-shadow)]">{items.length}</span>
+              <header className="flex items-center gap-2 px-3 pb-2.5 pt-3">
+                <span className="flex min-w-0 items-center gap-2 rounded-full bg-panel py-1 pl-2 pr-3 shadow-[var(--card-shadow)]">
+                  <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: s.color, boxShadow: `0 0 0 3px color-mix(in srgb, ${s.color} 22%, transparent)` }} />
+                  <h2 className="truncate text-[13px] font-medium">{s.name}</h2>
+                </span>
+                <span className="ml-auto grid h-6 min-w-6 place-items-center rounded-full px-1.5 text-[11px] font-semibold tabular-nums text-muted">{items.length}</span>
               </header>
               <div className="flex flex-col gap-2.5 overflow-y-auto p-2.5 pt-0">
                 {!items.length && (
@@ -93,24 +96,32 @@ export default function Board({ leads: initial, owners, allowed, columns }) {
                       e.dataTransfer.setData("text/plain", l.id);
                       e.dataTransfer.effectAllowed = "move";
                     }}
-                    className="card card-hover block !rounded-[20px] p-4 active:cursor-grabbing"
+                    className="card card-hover group block !rounded-[18px] p-3.5 active:cursor-grabbing"
                   >
-                    <div className="flex items-center justify-between gap-2 text-[11px] text-faint">
-                      <span className="code">{l.code}</span>
-                      <span>{fmtDay(l.created_at)}</span>
+                    <div className="flex items-start gap-3">
+                      <BrandMark name={l.brand || fullName(l)} size={34} />
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate text-[14px] font-medium leading-tight tracking-[-0.01em] group-hover:text-brand">{l.brand || fullName(l)}</div>
+                        <div className="mt-0.5 truncate text-xs text-muted">{l.brand ? fullName(l) : l.email}</div>
+                      </div>
+                      <span className="code shrink-0">{l.code}</span>
                     </div>
-                    <div className="mt-2.5 truncate text-[15px] font-medium tracking-[-0.01em]">{l.brand || fullName(l)}</div>
-                    <div className="truncate text-xs text-muted">{l.brand ? fullName(l) : l.email}</div>
-                    {l.service && <div className="chip mt-3 max-w-full truncate text-[11px]">{l.service}</div>}
-                    <div className="mt-3.5 flex items-center gap-2 border-t border-line pt-3 text-xs">
+                    {l.service && <div className="chip mt-3 max-w-full truncate !py-0.5 text-[11px]">{l.service}</div>}
+                    <div className="mt-3 flex items-center gap-2 border-t border-dashed border-line-strong/70 pt-2.5 text-xs">
                       {l.assigned_to ? (
                         <>
                           <Avatar name={owners[l.assigned_to] || "?"} size={20} />
-                          <span className="truncate text-ink/75">{owners[l.assigned_to] || "—"}</span>
+                          <span className="min-w-0 flex-1 truncate text-ink/75">{owners[l.assigned_to] || "—"}</span>
                         </>
                       ) : (
-                        <span className="rounded-full bg-amber-400/15 px-2 py-0.5 font-medium text-amber-300">Unassigned</span>
+                        <span className="flex-1">
+                          <span className="rounded-full bg-amber-400/15 px-2 py-0.5 font-medium text-amber-300">Unassigned</span>
+                        </span>
                       )}
+                      <span className="flex shrink-0 items-center gap-1 text-[11px] text-faint">
+                        <Icon name="clock" size={11} />
+                        {fmtDay(l.created_at)}
+                      </span>
                     </div>
                   </Link>
                 ))}

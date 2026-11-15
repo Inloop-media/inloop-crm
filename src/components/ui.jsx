@@ -12,7 +12,7 @@ export const initials = (name) =>
     .toUpperCase();
 
 // Stable colour per person, so the same teammate always gets the same avatar
-const AVATAR_TINTS = ["#8b93ff", "#22d3ee", "#f472b6", "#fbbf24", "#4ade80", "#fb923c", "#a78bfa", "#38bdf8"];
+const AVATAR_TINTS = ["#e8654f", "#3b82f6", "#10b981", "#f59e0b", "#8b5cf6", "#ec4899", "#06b6d4", "#64748b"];
 const tint = (s) => AVATAR_TINTS[[...String(s || "")].reduce((n, c) => n + c.charCodeAt(0), 0) % AVATAR_TINTS.length];
 
 export function Avatar({ name, size = 28 }) {
@@ -28,14 +28,21 @@ export function Avatar({ name, size = 28 }) {
   );
 }
 
-export function Panel({ title, sub, action, children, className = "", bodyClass = "", id }) {
+export function Panel({ title, sub, action, children, className = "", bodyClass = "", id, icon }) {
   return (
     <section id={id} className={`card flex min-w-0 flex-col p-5 sm:p-6 ${className}`}>
       {(title || action) && (
         <header className="mb-5 flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <h2 className="text-lg font-medium tracking-[-0.015em] sm:text-[21px]">{title}</h2>
-            {sub && <p className="mt-0.5 text-xs text-muted">{sub}</p>}
+          <div className="flex min-w-0 items-center gap-3">
+            {icon && (
+              <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-line bg-panel-2 text-ink/70">
+                <Icon name={icon} size={16} />
+              </span>
+            )}
+            <div className="min-w-0">
+              <h2 className="text-[17px] font-medium leading-tight tracking-[-0.02em] sm:text-lg">{title}</h2>
+              {sub && <p className="mt-1 text-[12.5px] leading-snug text-muted">{sub}</p>}
+            </div>
           </div>
           {action}
         </header>
@@ -48,17 +55,25 @@ export function Panel({ title, sub, action, children, className = "", bodyClass 
 /** The top of every page: optional back link, a small kicker, the title, a line of context, actions. */
 export function PageHeader({ back, kicker, title, sub, actions, children }) {
   return (
-    <header className="rise mb-6">
+    <header className="rise mb-7">
       {back && (
-        <Link href={back.href} className="mb-4 inline-flex items-center gap-1.5 rounded-full bg-panel px-3 py-1.5 text-xs font-medium text-muted shadow-[var(--card-shadow)] transition hover:text-ink">
-          <Icon name="back" size={13} /> {back.label}
+        <Link href={back.href} className="group mb-5 inline-flex items-center gap-1.5 rounded-full border border-line bg-panel py-1.5 pl-2 pr-3.5 text-xs font-medium text-muted shadow-[var(--card-shadow)] transition hover:text-ink">
+          <span className="grid h-5 w-5 place-items-center rounded-full bg-panel-2 transition group-hover:-translate-x-0.5">
+            <Icon name="back" size={11} />
+          </span>
+          {back.label}
         </Link>
       )}
       <div className="flex flex-wrap items-end justify-between gap-x-8 gap-y-4">
         <div className="min-w-0">
-          {kicker && <p className="text-sm text-muted">{kicker}</p>}
-          {title && <h1 className="page-title mt-1">{title}</h1>}
-          {sub && <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted">{sub}</p>}
+          {kicker && (
+            <p className="mb-2.5 inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted">
+              <span className="h-1.5 w-1.5 rounded-full bg-brand shadow-[0_0_0_3px_rgb(232_101_79/0.18)]" />
+              {kicker}
+            </p>
+          )}
+          {title && <h1 className="page-title">{title}</h1>}
+          {sub && <p className="mt-2.5 max-w-2xl text-[14px] leading-relaxed text-muted">{sub}</p>}
         </div>
         {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
       </div>
@@ -104,11 +119,14 @@ export function StatStrip({ items, className = "" }) {
 
 export function Empty({ icon = "check", children }) {
   return (
-    <div className="flex flex-col items-center justify-center gap-3 py-8 text-center text-sm text-muted">
-      <span className="grid h-11 w-11 place-items-center rounded-2xl bg-panel-2 text-faint">
-        <Icon name={icon} size={17} />
+    <div className="flex flex-col items-center justify-center gap-3.5 px-6 py-10 text-center text-[13px] leading-relaxed text-muted">
+      <span className="relative grid h-14 w-14 place-items-center">
+        <span className="absolute inset-0 rounded-full border border-dashed border-line-strong" />
+        <span className="grid h-10 w-10 place-items-center rounded-full bg-panel-2 text-ink/50 shadow-[inset_0_1px_0_rgb(255_255_255/0.6)]">
+          <Icon name={icon} size={17} />
+        </span>
       </span>
-      {children}
+      <div className="max-w-xs">{children}</div>
     </div>
   );
 }
@@ -157,7 +175,15 @@ export function BrandMark({ name, size = 20 }) {
   return (
     <span
       className="grid shrink-0 place-items-center font-semibold"
-      style={{ width: size, height: size, borderRadius: Math.max(5, size * 0.28), fontSize: size * 0.5, background: c, color: "#13121a" }}
+      style={{
+        width: size,
+        height: size,
+        borderRadius: Math.max(6, size * 0.3),
+        fontSize: size * 0.44,
+        background: `linear-gradient(160deg, color-mix(in srgb, ${c} 30%, white), color-mix(in srgb, ${c} 55%, white))`,
+        color: `color-mix(in oklab, ${c} 45%, #141416)`,
+        boxShadow: `inset 0 1px 0 rgb(255 255 255 / 0.6), 0 0 0 1px color-mix(in srgb, ${c} 30%, transparent)`,
+      }}
     >
       {String(name || "?").trim()[0]?.toUpperCase()}
     </span>

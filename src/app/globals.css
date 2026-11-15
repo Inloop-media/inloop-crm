@@ -52,15 +52,20 @@
 
 :root {
   color-scheme: light;
-  --wash: #ebebed;
+  --wash:
+    radial-gradient(1100px 520px at 85% -10%, rgb(244 165 150 / 0.22), transparent 60%),
+    radial-gradient(900px 500px at -10% 110%, rgb(255 255 255 / 0.7), transparent 60%),
+    #ebebed;
   --rail: #141416;
-  --card-sheen: #ffffff;
-  --card-border: transparent;
-  --card-shadow: 0 1px 2px rgb(20 20 22 / 0.03), 0 10px 30px -18px rgb(20 20 22 / 0.12);
-  --card-shadow-hover: 0 2px 4px rgb(20 20 22 / 0.04), 0 18px 40px -18px rgb(20 20 22 / 0.2);
-  --pop-shadow: 0 0 0 1px rgb(20 20 22 / 0.05), 0 24px 64px -16px rgb(20 20 22 / 0.25);
-  --solid-grad: #141416;
-  --solid-shadow: 0 6px 14px -8px rgb(20 20 22 / 0.6);
+  --card-sheen: linear-gradient(180deg, #ffffff 0%, #fdfdfd 100%);
+  --card-border: rgb(20 20 22 / 0.045);
+  --card-shadow: 0 0 0 0.5px rgb(20 20 22 / 0.03), 0 1px 1px rgb(20 20 22 / 0.03), 0 4px 10px -4px rgb(20 20 22 / 0.05), 0 18px 36px -24px rgb(20 20 22 / 0.14);
+  --card-shadow-hover: 0 0 0 0.5px rgb(20 20 22 / 0.04), 0 2px 3px rgb(20 20 22 / 0.04), 0 10px 20px -8px rgb(20 20 22 / 0.08), 0 30px 54px -28px rgb(20 20 22 / 0.24);
+  --pop-shadow: 0 0 0 1px rgb(20 20 22 / 0.06), 0 12px 24px -12px rgb(20 20 22 / 0.18), 0 40px 80px -24px rgb(20 20 22 / 0.28);
+  --solid-grad: linear-gradient(180deg, #2c2c31 0%, #141416 100%);
+  --solid-shadow: inset 0 1px 0 rgb(255 255 255 / 0.14), 0 0 0 1px #0b0b0c, 0 6px 14px -6px rgb(20 20 22 / 0.55);
+  --field-bg: #ffffff;
+  --field-border: rgb(20 20 22 / 0.09);
   --brand-grad: linear-gradient(90deg, #f4a596, #e8654f);
   --coral-grad: radial-gradient(120% 100% at 100% 0%, rgb(255 255 255 / 0.22), transparent 55%), linear-gradient(160deg, #f19582 0%, #e5644f 100%);
   --coral-glow: 0 18px 40px -16px rgb(232 101 79 / 0.55);
@@ -106,21 +111,31 @@
   --color-violet-300: #c4b5fd;
   --color-violet-400: #a78bfa;
 
-  --wash: #0e0e10;
+  --wash:
+    radial-gradient(1100px 520px at 85% -10%, rgb(232 101 79 / 0.12), transparent 60%),
+    #0e0e10;
   --rail: #000000;
-  --card-sheen: #18181b;
-  --card-border: rgb(255 255 255 / 0.05);
+  --card-sheen: linear-gradient(180deg, #1b1b1f 0%, #17171a 100%);
+  --card-border: rgb(255 255 255 / 0.06);
+  --field-bg: #1d1d21;
+  --field-border: rgb(255 255 255 / 0.08);
   --card-shadow: 0 1px 2px rgb(0 0 0 / 0.4), 0 20px 40px -28px rgb(0 0 0 / 0.8);
   --card-shadow-hover: 0 2px 4px rgb(0 0 0 / 0.4), 0 28px 56px -28px rgb(0 0 0 / 0.95);
   --pop-shadow: 0 24px 64px -16px rgb(0 0 0 / 0.7), 0 0 0 1px rgb(255 255 255 / 0.07);
-  --solid-grad: #f4f4f5;
-  --solid-shadow: 0 6px 14px -8px rgb(0 0 0 / 0.6);
+  --solid-grad: linear-gradient(180deg, #ffffff 0%, #e4e4e7 100%);
+  --solid-shadow: inset 0 1px 0 rgb(255 255 255 / 0.8), 0 6px 14px -8px rgb(0 0 0 / 0.6);
   --brand-grad: linear-gradient(90deg, #e8654f, #f6aa9b);
   --coral-glow: 0 18px 40px -16px rgb(232 101 79 / 0.4);
 }
 
+html {
+  font-feature-settings: "cv11", "ss01", "ss03", "cv05";
+  text-rendering: optimizeLegibility;
+}
 body {
   background: var(--wash);
+  background-attachment: fixed;
+  letter-spacing: -0.006em;
   color: var(--color-ink);
   -webkit-tap-highlight-color: transparent;
 }
@@ -169,7 +184,8 @@ html.theme-switching * {
     @apply transition duration-300 ease-out;
   }
   .card-hover:hover {
-    transform: translateY(-4px);
+    transform: translateY(-3px);
+    border-color: color-mix(in srgb, var(--color-brand) 18%, var(--card-border));
     box-shadow: var(--card-shadow-hover);
   }
   .pop {
@@ -197,8 +213,9 @@ html.theme-switching * {
 
   /* Round icon button with a hairline, like the expand / filter buttons on each card */
   .icon-btn {
-    @apply grid h-10 w-10 shrink-0 place-items-center rounded-full border border-line bg-panel text-muted transition duration-200 hover:-translate-y-0.5 hover:border-line-strong hover:text-ink active:scale-95;
-    box-shadow: 0 1px 2px rgb(23 22 29 / 0.05);
+    @apply grid h-10 w-10 shrink-0 place-items-center rounded-full border bg-panel text-muted transition duration-200 hover:-translate-y-0.5 hover:text-ink active:scale-95;
+    border-color: var(--field-border);
+    box-shadow: 0 1px 2px rgb(20 20 22 / 0.05);
   }
   .icon-tile {
     @apply grid h-10 w-10 shrink-0 place-items-center rounded-xl text-on-solid;
@@ -206,11 +223,11 @@ html.theme-switching * {
     box-shadow: var(--solid-shadow);
   }
   .pill-group {
-    @apply inline-flex items-center gap-1 rounded-full bg-panel p-1.5;
+    @apply inline-flex items-center gap-1 rounded-full bg-panel p-1;
     box-shadow: var(--card-shadow);
   }
   .pill {
-    @apply relative inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm text-muted transition duration-200 hover:bg-panel-2 hover:text-ink;
+    @apply relative inline-flex items-center gap-2 rounded-full px-3.5 py-1.5 text-[13px] font-medium text-muted transition duration-200 hover:bg-panel-2 hover:text-ink;
   }
   .pill[data-on="true"] {
     @apply text-on-solid;
@@ -218,7 +235,10 @@ html.theme-switching * {
     box-shadow: var(--solid-shadow);
   }
   .field {
-    @apply w-full rounded-2xl border border-transparent bg-panel-2 px-4 py-2.5 text-sm text-ink outline-none transition placeholder:text-faint hover:border-line-strong focus:border-brand/50 focus:bg-panel focus:ring-4 focus:ring-brand/15 disabled:opacity-60;
+    @apply w-full rounded-xl border px-3.5 py-2.5 text-sm text-ink outline-none transition placeholder:text-faint focus:border-brand/60 focus:ring-4 focus:ring-brand/12 disabled:opacity-60;
+    background: var(--field-bg);
+    border-color: var(--field-border);
+    box-shadow: 0 1px 2px rgb(20 20 22 / 0.04);
   }
   select.field {
     @apply cursor-pointer appearance-none pr-10;
@@ -228,25 +248,33 @@ html.theme-switching * {
   }
   /* A nested surface inside a card: soft fill, no border */
   .well {
-    @apply rounded-2xl bg-panel-2;
+    @apply rounded-2xl border border-line bg-panel-2;
   }
   .well-empty {
     @apply rounded-2xl border border-dashed border-line-strong;
   }
   /* Lead codes like IM-42 */
   .code {
-    @apply inline-flex items-center rounded-full bg-panel-2 px-2 py-0.5 text-[11px] font-medium tabular-nums text-muted;
+    @apply inline-flex items-center rounded-md border border-line bg-panel-2 px-1.5 py-px font-mono text-[10.5px] font-medium tabular-nums text-muted;
   }
   .btn-primary {
-    @apply inline-flex items-center justify-center gap-2 rounded-full px-5 py-2.5 text-sm font-medium text-on-solid transition duration-200 hover:-translate-y-0.5 hover:brightness-110 active:translate-y-0 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50;
+    @apply inline-flex items-center justify-center gap-2 rounded-full px-4.5 py-2.5 text-[13px] font-medium whitespace-nowrap text-on-solid transition duration-200 hover:-translate-y-0.5 hover:brightness-125 active:translate-y-0 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50;
     background: var(--solid-grad);
     box-shadow: var(--solid-shadow);
   }
   .btn-ghost {
-    @apply inline-flex items-center justify-center gap-2 rounded-full border border-line bg-panel px-5 py-2.5 text-sm font-medium text-ink transition duration-200 hover:border-line-strong active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50;
+    @apply inline-flex items-center justify-center gap-2 rounded-full border bg-panel px-4.5 py-2.5 text-[13px] font-medium whitespace-nowrap text-ink transition duration-200 hover:-translate-y-0.5 hover:bg-panel-2 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50;
+    border-color: var(--field-border);
+    box-shadow: 0 1px 2px rgb(20 20 22 / 0.05);
+  }
+  /* Coral call-to-action, for the one thing on the screen you want pressed */
+  .btn-brand {
+    @apply inline-flex items-center justify-center gap-2 rounded-full px-4.5 py-2.5 text-[13px] font-medium whitespace-nowrap text-white transition duration-200 hover:-translate-y-0.5 hover:brightness-105 active:scale-[0.97] disabled:opacity-50;
+    background: linear-gradient(180deg, #f07c67 0%, #e05a44 100%);
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.25), 0 0 0 1px #d4513b, 0 8px 18px -8px rgb(232 101 79 / 0.8);
   }
   .label {
-    @apply mb-2 block text-xs font-medium text-muted;
+    @apply mb-1.5 block text-[12px] font-medium text-ink/70;
   }
   .btn-sm {
     @apply px-3.5 py-1.5 text-xs;
@@ -258,16 +286,16 @@ html.theme-switching * {
     @apply text-xs font-medium text-muted;
   }
   .chip {
-    @apply inline-flex items-center gap-1.5 rounded-full bg-panel-2 px-2.5 py-1 text-xs text-ink/80;
+    @apply inline-flex items-center gap-1.5 rounded-full border border-line bg-panel-2 px-2.5 py-1 text-xs font-medium text-ink/75;
   }
   .page {
     @apply relative z-[1] mx-auto w-full max-w-[1400px] px-4 py-5 md:px-6 md:py-6;
   }
   .page-title {
-    @apply text-[34px] font-medium leading-tight tracking-[-0.02em] md:text-[46px];
+    @apply text-[32px] font-medium leading-[1.05] tracking-[-0.035em] md:text-[44px];
   }
   .seg {
-    @apply inline-flex rounded-full bg-panel p-1 text-sm;
+    @apply inline-flex rounded-full bg-panel p-1 text-[13px] font-medium;
     box-shadow: var(--card-shadow);
   }
   .seg-item {

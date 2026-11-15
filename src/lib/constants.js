@@ -151,3 +151,6 @@ export const PLATFORMS = [
   { id: "other", label: "Other", short: "•" },
 ];
 export const kindPlural = (id) => ({ story: "Stories", other: "Other" })[id] || `${taskKindLabel(id)}s`;
+
+/** One colour per kind of content (calendar chips, task tags) */
+export const KIND_COLOR = { post: "#3b82f6", carousel: "#8b5cf6", story: "#ec4899", reel: "#f59e0b", video: "#06b6d4", design: "#10b981", website: "#64748b", other: "#64748b" };

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import Icon from "@/components/Icon";
 import StatusBadge from "@/components/StatusBadge";
-import { Avatar, Empty } from "@/components/ui";
+import { Avatar, BrandMark, Empty } from "@/components/ui";
 import { fmtDateTime, fullName } from "@/lib/format";
 
 export default function LeadList({ leads, owners }) {
@@ -12,27 +12,27 @@ export default function LeadList({ leads, owners }) {
       </div>
     );
   return (
-    <div className="card overflow-hidden p-2">
+    <div className="card overflow-hidden">
       <table className="w-full border-separate border-spacing-0 text-left text-sm">
-        <thead className="hidden text-xs text-muted md:table-header-group">
+        <thead className="hidden bg-panel-2/70 text-[11px] uppercase tracking-[0.08em] text-muted md:table-header-group">
           <tr>
-            <th className="px-4 pb-2 pt-3 font-medium">Lead</th>
-            <th className="px-4 pb-2 pt-3 font-medium">Service</th>
-            <th className="px-4 pb-2 pt-3 font-medium">Status</th>
-            <th className="px-4 pb-2 pt-3 font-medium">Owner</th>
-            <th className="px-4 pb-2 pt-3 font-medium">Registered</th>
-            <th className="w-10" />
+            <th className="border-b border-line px-5 py-3 font-semibold">Lead</th>
+            <th className="border-b border-line px-5 py-3 font-semibold">Service</th>
+            <th className="border-b border-line px-5 py-3 font-semibold">Status</th>
+            <th className="border-b border-line px-5 py-3 font-semibold">Owner</th>
+            <th className="border-b border-line px-5 py-3 font-semibold">Registered</th>
+            <th className="w-10 border-b border-line" />
           </tr>
         </thead>
         <tbody>
           {leads.map((l) => (
-            <tr key={l.id} className="group relative block rounded-2xl transition hover:bg-panel-2 md:table-row">
-              <td className="block px-3 pt-3 md:table-cell md:rounded-l-2xl md:px-4 md:py-3.5">
+            <tr key={l.id} className="group relative block border-b border-line transition last:border-0 hover:bg-panel-2/60 md:table-row [&>td]:md:border-b [&>td]:md:border-line [&:last-child>td]:md:border-0">
+              <td className="block px-3 pt-3 md:table-cell md:px-5 md:py-3.5">
                 <Link href={`/leads/${l.id}`} className="flex items-center gap-3 after:absolute after:inset-0">
-                  <Avatar name={l.brand || fullName(l)} size={38} />
+                  <BrandMark name={l.brand || fullName(l)} size={36} />
                   <span className="min-w-0">
                     <span className="flex items-center gap-2">
-                      <span className="truncate font-medium">{l.brand || fullName(l)}</span>
+                      <span className="truncate font-medium group-hover:text-brand">{l.brand || fullName(l)}</span>
                       <span className="code">{l.code}</span>
                     </span>
                     <span className="block truncate text-xs text-muted">{l.brand ? fullName(l) : l.email}</span>
