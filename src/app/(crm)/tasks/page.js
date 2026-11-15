@@ -191,7 +191,7 @@ export default async function TasksPage({ searchParams }) {
             </Panel>
           ))}
         {current === "mine" && <MyTasks tasks={mine} />}
-        {current === "assigned" && <TaskOverview tasks={byMe} base="/tasks" params={keep(sp, "assigned")} showAssigners={false} sub="Work you assigned, brand by brand · tap one to see its tasks" />}
+        {current === "assigned" && <TaskOverview tasks={byMe} base="/tasks" params={keep(sp, "assigned")} showAssigners={false} />}
         {current === "brands" && <TaskOverview tasks={all} base="/tasks" params={keep(sp, "brands")} />}
       </div>
     </div>

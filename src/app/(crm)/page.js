@@ -2,7 +2,7 @@ import Link from "next/link";
 import DashboardView from "@/components/DashboardView";
 import TaskOverview from "@/components/TaskOverview";
 import { ClientLogin } from "@/components/ClientAccess";
-import { Avatar, CornerLink, Panel, StatStrip } from "@/components/ui";
+import { Avatar, CornerLink, Panel } from "@/components/ui";
 import Icon from "@/components/Icon";
 import { requireMember } from "@/lib/auth";
 import { dashboardData } from "@/lib/leads";
@@ -10,15 +10,12 @@ import { listClientAccounts } from "@/lib/clients";
 import { listBrands } from "@/lib/brands";
 import { listTasks } from "@/lib/tasks";
 import { canAssignTasks, canSeeAllLeads, canSeeLeads, isAdmin, isExecHead, isStrategist } from "@/lib/permissions";
-import { OPEN_TASK } from "@/lib/constants";
 import { fmtDay } from "@/lib/format";
 
 export const metadata = { title: "Dashboard" };
 
 const IST = { timeZone: "Asia/Kolkata" };
 const weekday = new Intl.DateTimeFormat("en-IN", { ...IST, weekday: "long", day: "numeric", month: "long" });
-const now = () => Date.now();
-const isOverdue = (t) => OPEN_TASK.includes(t.status) && t.due_at && new Date(t.due_at).getTime() < now();
 function greeting() {
   const h = Number(new Intl.DateTimeFormat("en-IN", { ...IST, hour: "numeric", hour12: false }).format(new Date()));
   return h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : "Good evening";
@@ -51,7 +48,6 @@ function ClientLogins({ accounts }) {
 async function ExecDashboard({ me, params }) {
   const team = params.scope === "team";
   const tasks = await listTasks(me, { view: team ? "all" : "assigned" });
-  const open = tasks.filter((t) => OPEN_TASK.includes(t.status));
   const scopeLink = (s) => {
     const q = new URLSearchParams({ ...params, scope: s });
     q.delete("brand");
@@ -59,44 +55,34 @@ async function ExecDashboard({ me, params }) {
     const str = q.toString();
     return `/${str ? `?${str}` : ""}`;
   };
+  const mine = !team;
   return (
     <div className="page">
-      <header className="rise flex flex-wrap items-end justify-between gap-x-10 gap-y-5">
+      <header className="rise flex flex-wrap items-end justify-between gap-x-8 gap-y-4">
         <div className="min-w-0">
           <p className="text-sm text-muted">
             {greeting()}, {me.name.split(" ")[0]} · {weekday.format(new Date())}
           </p>
-          <h1 className="page-title mt-1">Dashboard</h1>
+          <h1 className="mt-1 text-[30px] font-medium leading-tight tracking-[-0.02em] md:text-[36px]">Task desk</h1>
+          <p className="mt-1 text-sm text-muted">{mine ? "Everything you\u2019ve assigned, across every brand." : "Everything the execution heads have assigned."}</p>
         </div>
-        <StatStrip
-          className="w-full sm:w-auto"
-          items={[
-            { label: team ? "Team tasks" : "Assigned by me", value: tasks.length, icon: "tasks", tint: "lavender" },
-            { label: "Open", value: open.length, icon: "clock", tint: "blue" },
-            { label: "To review", value: tasks.filter((t) => ["completed", "client_rejected"].includes(t.status)).length, icon: "check", tint: "amber" },
-            { label: "Overdue", value: tasks.filter(isOverdue).length, icon: "alert", tint: "pink" },
-            { label: "Approved", value: tasks.filter((t) => t.status === "done").length, icon: "sparkle", tint: "green" },
-          ]}
-        />
+        <div className="flex flex-wrap items-center gap-2">
+          <nav className="seg flex p-1">
+            <Link href={scopeLink("mine")} data-on={mine} className="seg-item text-xs">
+              Assigned by me
+            </Link>
+            <Link href={scopeLink("team")} data-on={team} className="seg-item text-xs">
+              Whole team
+            </Link>
+          </nav>
+          <Link href="/brands" className="btn-primary btn-sm">
+            <Icon name="plus" size={13} /> Assign a task
+          </Link>
+        </div>
       </header>
 
-      <div className="rise mt-6 flex flex-wrap items-center gap-3 [animation-delay:60ms]">
-        <nav className="seg flex p-1.5">
-          <Link href={scopeLink("mine")} data-on={!team} className="seg-item">
-            Assigned by me
-          </Link>
-          <Link href={scopeLink("team")} data-on={team} className="seg-item">
-            Whole team
-          </Link>
-        </nav>
-        <span className="flex-1" />
-        <Link href="/tasks" className="btn-ghost btn-sm">
-          <Icon name="tasks" size={13} /> Review queue
-        </Link>
-      </div>
-
-      <div className="rise mt-5 [animation-delay:120ms]">
-        <TaskOverview tasks={tasks} base="/" params={params} showAssigners={team} sub={team ? "Everything the heads assigned, brand by brand" : "Work you assigned, brand by brand · tap one to see its tasks"} />
+      <div className="rise mt-6 [animation-delay:60ms]">
+        <TaskOverview tasks={tasks} base="/" params={params} showAssigners={team} />
       </div>
     </div>
   );
@@ -117,14 +103,23 @@ export default async function Dashboard({ searchParams }) {
     staff ? listBrands() : [],
   ]);
   const work = canAssignTasks(me) ? (
-    <TaskOverview
+    <section>
+      <div className="mb-4 mt-3 flex items-end justify-between gap-3">
+        <div>
+          <h2 className="text-xl font-medium tracking-[-0.015em]">Brand tasks</h2>
+          <p className="text-xs text-muted">What&apos;s assigned for each brand, by whom, and where it stands</p>
+        </div>
+        <Link href="/tasks?view=brands" className="btn-ghost btn-sm">
+          Open tasks <Icon name="arrow" size={13} />
+        </Link>
+      </div>
+      <TaskOverview
       tasks={tasks}
       brands={brands.filter((b) => b.stage === "active")}
       base="/"
       params={params}
-      title="Brands · tasks"
-      sub="What's assigned for each brand and by whom · tap a brand to see its tasks"
     />
+    </section>
   ) : null;
   return <DashboardView me={me} data={data} clientLogins={accounts.length ? <ClientLogins accounts={accounts} /> : null} taskWork={work} />;
 }
