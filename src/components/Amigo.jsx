@@ -393,7 +393,7 @@ export default function Amigo({ meId, firstName, initials, questions = [], brand
       <div className="amigo-grid relative min-h-0 flex-1 overflow-y-auto rounded-[24px] border border-line px-3 py-6 sm:px-8">
         {showAll ? (
           <div className="mx-auto max-w-5xl">
-            <p className="mb-3 text-sm text-muted">Inme se kuch bhi poocho — ya apne shabdon mein likho. Kisi bhi employee ya brand ka naam badal ke pooch sakte ho.</p>
+            <p className="mb-3 text-sm text-muted">Ask any of these, or type your own. You can swap in any person’s or brand’s name.</p>
             <Library questions={questions} onAsk={ask} />
           </div>
         ) : !messages.length && !busy ? (
@@ -401,7 +401,7 @@ export default function Amigo({ meId, firstName, initials, questions = [], brand
             <Orb size={96} />
             <div>
               <h2 className="text-[28px] font-semibold tracking-[-0.02em]">Good to see you, {firstName}</h2>
-              <p className="mt-1 text-sm text-muted">Main Amigo hoon. CRM ke baare mein kuch bhi poocho — neeche {total} sawaal hain jo main samajhta hoon, ya apne shabdon mein likho.</p>
+              <p className="mt-1 text-sm text-muted">I’m Amigo. Ask me anything about the CRM — pick one of the {total} questions below, or type your own.</p>
             </div>
             <Library questions={questions} onAsk={ask} />
           </div>
@@ -414,7 +414,7 @@ export default function Amigo({ meId, firstName, initials, questions = [], brand
               <div className="flex gap-3">
                 <Orb size={32} />
                 <div className="flex items-center gap-2 rounded-2xl rounded-tl-md border border-line bg-panel px-4 py-2.5 text-sm text-muted">
-                  <Icon name="refresh" size={13} className="animate-spin text-brand" /> CRM dekh raha hoon…
+                  <Icon name="refresh" size={13} className="animate-spin text-brand" /> Checking the CRM…
                 </div>
               </div>
             )}
@@ -434,7 +434,7 @@ export default function Amigo({ meId, firstName, initials, questions = [], brand
           value={text}
           disabled={busy}
           onChange={(e) => setText(e.target.value)}
-          placeholder="Ask me anything… e.g. Riya ka kitna kaam pending hai?"
+          placeholder="Ask me anything… e.g. How much work does Riya have pending?"
           className="h-10 min-w-0 flex-1 bg-transparent text-[14px] outline-none placeholder:text-faint"
         />
         <button disabled={busy || !text.trim()} aria-label="Send" className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-solid text-on-solid transition disabled:opacity-40">

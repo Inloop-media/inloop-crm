@@ -3,7 +3,7 @@ import "server-only";
 // Hinglish), works out what is being asked, and answers straight from the CRM database with text,
 // tables and charts. Nothing leaves the CRM.
 import { db } from "@/lib/supabase/server";
-import { CLOSED_STATUSES, OPEN_TASK, TASK_STATUSES, PROPOSAL_STAGES } from "@/lib/constants";
+import { CLOSED_STATUSES, OPEN_TASK, TASK_STATUSES, PROPOSAL_STAGES, kindPlural } from "@/lib/constants";
 import { canSeeAllLeads, inGroupKind } from "@/lib/permissions";
 
 const IST = "Asia/Kolkata";
@@ -400,12 +400,12 @@ function leadTable(leads) {
 async function workloadAnswer(me, { onlyChart } = {}) {
   const { people } = await READ.team_workload({}, me);
   const list = people.filter((p) => p.person !== "Unassigned" || p.open);
-  if (!list.length) return [text("Abhi kisi ke paas koi task nahi hai.")];
+  if (!list.length) return [text("Nobody has any tasks right now.")];
   const busiest = [...list].sort((a, b) => b.open - a.open)[0];
   const totalOpen = list.reduce((n, p) => n + p.open, 0);
   const totalLate = list.reduce((n, p) => n + p.late, 0);
   return [
-    text(`Team ke paas abhi **${plural(totalOpen, "task", "tasks")} pending** hain${totalLate ? `, jinme **${totalLate} late** hain` : ""}. Sabse zyada kaam **${first(busiest.person)}** ke paas hai (${busiest.open} open${busiest.late ? `, ${busiest.late} late` : ""}).`),
+    text(`The team has **${plural(totalOpen, "task", "tasks")} pending**${totalLate ? `, of which **${totalLate} ${totalLate === 1 ? "is" : "are"} late**` : ""}. **${first(busiest.person)}** has the most (${busiest.open} open${busiest.late ? `, ${busiest.late} late` : ""}).`),
     chart({ type: "bar", title: "Pending work per person", labels: list.map((p) => first(p.person)), datasets: [{ label: "Open", values: list.map((p) => p.open) }, { label: "Late", values: list.map((p) => p.late) }] }),
     ...(onlyChart
       ? []
@@ -422,7 +422,7 @@ async function workloadAnswer(me, { onlyChart } = {}) {
 async function tasksAnswer(me, filter, intro, { person, brand, chartBy } = {}) {
   const r = await READ.list_tasks({ filter, person: person?.name, brand: brand?.name, limit: 30 }, me);
   if (!r.total) return [text(`${intro.none}`)];
-  const out = [text(`${intro.some(r.total)}${r.total > r.shown ? ` Pehle ${r.shown} dikha raha hoon.` : ""}`)];
+  const out = [text(`${intro.some(r.total)}${r.total > r.shown ? ` Showing the first ${r.shown}.` : ""}`)];
   if (chartBy && r.total > 1) {
     const counts = {};
     for (const t of r.tasks) counts[first(t.assignee) || "—"] = (counts[first(t.assignee) || "—"] || 0) + 1;
@@ -435,10 +435,10 @@ async function tasksAnswer(me, filter, intro, { person, brand, chartBy } = {}) {
 async function brandsRanked(me) {
   const { brands } = await READ.list_brands({}, me);
   const active = brands.filter((b) => b.stage === "active client").sort((a, b) => b.tasks.open - a.tasks.open);
-  if (!active.length) return [text("Abhi koi active client nahi hai.")];
+  if (!active.length) return [text("There are no active clients yet.")];
   const top = active[0];
   return [
-    text(`Sabse zyada pending kaam **${top.name}** ka hai — ${top.tasks.open} open${top.tasks.late ? `, ${top.tasks.late} late` : ""}.`),
+    text(`**${top.name}** has the most pending work — ${top.tasks.open} open${top.tasks.late ? `, ${top.tasks.late} late` : ""}.`),
     chart({ type: "bar", title: "Pending work per brand", labels: active.map((b) => b.name), datasets: [{ label: "Open", values: active.map((b) => b.tasks.open) }, { label: "Late", values: active.map((b) => b.tasks.late) }] }),
     {
       type: "table",
@@ -454,7 +454,7 @@ async function brandAnswer(me, brand) {
   const open = await READ.list_tasks({ filter: "open", brand: brand.name, limit: 30 }, me);
   return [
     text(
-      `**${b.name}** — ${b.stage}${b.services.length ? ` (${b.services.join(", ")})` : ""}${b.client_since ? `, client since ${b.client_since}` : ""}.\nKaam: **${b.tasks.open} open**, ${b.tasks.late} late, ${b.tasks.to_check} check karne ke liye, ${b.tasks.with_client} client ke paas, ${b.tasks.approved} approved.`,
+      `**${b.name}** — ${b.stage}${b.services.length ? ` (${b.services.join(", ")})` : ""}${b.client_since ? `, client since ${b.client_since}` : ""}.\nWork: **${b.tasks.open} open**, ${b.tasks.late} late, ${b.tasks.to_check} to check, ${b.tasks.with_client} with the client, ${b.tasks.approved} approved.`,
     ),
     ...(open.total ? [taskTable(open.tasks)] : []),
     { type: "link", label: `Open ${b.name} workspace`, href: `/brands/${b.id}` },
@@ -462,12 +462,12 @@ async function brandAnswer(me, brand) {
 }
 
 async function leadsAnswer(me, q, team) {
-  if (!canSeeAllLeads(me)) return [text("Leads ka data sirf admin aur ops dekh sakte hain.")];
+  if (!canSeeAllLeads(me)) return [text("Only admin and ops can see leads.")];
   const owner = findPerson(q, team);
   const status = STATUS_WORDS.find(([w]) => q.includes(w))?.[1];
   if (has(q, W.unassigned)) {
     const r = await READ.list_leads({ owner: "unassigned", open_only: true, limit: 30 }, me);
-    return r.total ? [text(`**${plural(r.total, "lead", "leads")}** ka koi owner nahi hai.`), leadTable(r.leads)] : [text("Saare open leads kisi na kisi ko assign hain ✓")];
+    return r.total ? [text(`**${plural(r.total, "lead has", "leads have")}** no owner yet.`), leadTable(r.leads)] : [text("Every open lead has an owner ✓")];
   }
   if (has(q, W.count) && !status && !owner && !has(q, W.today) && !has(q, W.week) && !has(q, W.month) && !has(q, W.kal) && !has(q, W.yesterday) && !has(q, W.pending)) {
     const rows = await allLeadRows();
@@ -477,21 +477,21 @@ async function leadsAnswer(me, q, team) {
     const snap = await READ.crm_snapshot({}, me);
     const stages = Object.entries(snap.leads?.by_stage || {});
     return [
-      text(`Ab tak total **${plural(rows.length, "lead", "leads")}** aaye — **${open} open**, ${won} won, ${lost} lost, ${rows.length - won - lost - open} hold / no response.`),
+      text(`**${plural(rows.length, "lead", "leads")}** so far — **${open} open**, ${won} won, ${lost} lost, ${rows.length - won - lost - open} on hold / no response.`),
       ...(stages.length > 1 ? [chart({ type: "bar", title: "Leads by stage", labels: stages.map(([st]) => st.split(" ")[0]), datasets: [{ label: "Leads", values: stages.map(([, n]) => n) }] })] : []),
     ];
   }
   let days = null;
   let label = "";
-  if (has(q, W.today)) [days, label] = [1, "aaj"];
-  else if (has(q, W.yesterday) || has(q, W.kal)) [days, label] = [2, "kal se ab tak"];
-  else if (has(q, W.month)) [days, label] = [30, "pichhle 30 din mein"];
-  else if (has(q, W.week)) [days, label] = [7, "is hafte (pichhle 7 din)"];
+  if (has(q, W.today)) [days, label] = [1, "today"];
+  else if (has(q, W.yesterday) || has(q, W.kal)) [days, label] = [2, "since yesterday"];
+  else if (has(q, W.month)) [days, label] = [30, "over the last 30 days"];
+  else if (has(q, W.week)) [days, label] = [7, "over the last 7 days"];
   const r = await READ.list_leads({ status, owner: owner?.name, created_within_days: days || undefined, open_only: !status && !days ? true : undefined, limit: 30 }, me);
   const out = [];
-  const what = [status && `"${status}" status ke`, owner && `${first(owner.name)} ke`].filter(Boolean).join(", ");
-  if (days) out.push(text(`${label[0].toUpperCase()}${label.slice(1)} **${plural(r.total, "naya lead", "naye leads")}** aaye${what ? ` (${what})` : ""}.`));
-  else out.push(text(`${what ? `${what[0].toUpperCase()}${what.slice(1)} ` : "Abhi "}**${plural(r.total, "lead", "leads")}** ${status ? "hain" : "open hain"}.`));
+  const what = [status && `status "${status}"`, owner && `owned by ${first(owner.name)}`].filter(Boolean).join(", ");
+  if (days) out.push(text(`**${plural(r.total, "new lead", "new leads")}** came in ${label}${what ? ` (${what})` : ""}.`));
+  else out.push(text(`There ${r.total === 1 ? "is" : "are"} **${plural(r.total, status ? "lead" : "open lead", status ? "leads" : "open leads")}**${what ? ` (${what})` : ""}.`));
   if (days && days > 1) {
     const { days: series } = await READ.leads_by_day({ days: Math.max(7, days) }, me);
     out.push(chart({ type: "bar", title: "New leads per day", labels: series.map((d) => d.day.slice(5)), datasets: [{ label: "Leads", values: series.map((d) => d.leads) }] }));
@@ -505,27 +505,27 @@ async function leadsAnswer(me, q, team) {
 }
 
 async function meetingsAnswer(me, q) {
-  if (!canSeeAllLeads(me)) return [text("Meetings ka data sirf admin aur ops dekh sakte hain.")];
+  if (!canSeeAllLeads(me)) return [text("Only admin and ops can see meetings.")];
   let range = [0, 7];
-  let label = "agle 7 din mein";
-  if (has(q, W.today)) [range, label] = [[0, 0], "aaj"];
-  else if (has(q, W.tomorrow) || has(q, W.kal)) [range, label] = [[1, 1], "kal"];
-  else if (has(q, W.yesterday)) [range, label] = [[-1, -1], "kal (beeta hua)"];
+  let label = "in the next 7 days";
+  if (has(q, W.today)) [range, label] = [[0, 0], "today"];
+  else if (has(q, W.tomorrow) || has(q, W.kal)) [range, label] = [[1, 1], "tomorrow"];
+  else if (has(q, W.yesterday)) [range, label] = [[-1, -1], "yesterday"];
   const { meetings } = await READ.list_meetings({ from_days: range[0], to_days: range[1] }, me);
-  if (!meetings.length) return [text(`${label[0].toUpperCase()}${label.slice(1)} koi meeting nahi hai.`)];
+  if (!meetings.length) return [text(`No meetings ${label}.`)];
   return [
-    text(`${label[0].toUpperCase()}${label.slice(1)} **${plural(meetings.length, "meeting", "meetings")}** hain:`),
+    text(`**${plural(meetings.length, "meeting", "meetings")}** ${label}:`),
     { type: "table", columns: ["When", "Meeting", "Lead", "Who"], rows: meetings.map((m) => ({ cells: [m.when, m.kind, `${m.lead}${m.code ? ` (${m.code})` : ""}`, first(m.organizer) || "—"] })) },
   ];
 }
 
 async function proposalsAnswer(me) {
-  if (!canSeeAllLeads(me)) return [text("Proposals ka data sirf admin aur ops dekh sakte hain.")];
+  if (!canSeeAllLeads(me)) return [text("Only admin and ops can see proposals.")];
   const { proposals } = await READ.list_proposals({}, me);
-  if (!proposals.length) return [text("Abhi koi proposal nahi hai.")];
+  if (!proposals.length) return [text("There are no proposals yet.")];
   const live = proposals.filter((p) => p.stage !== "Proposal ready");
   return [
-    text(`**${plural(live.length, "proposal", "proposals")}** chal rahe hain, ${proposals.length - live.length} ready hain.`),
+    text(`**${plural(live.length, "proposal", "proposals")} in progress**, ${proposals.length - live.length} ready.`),
     { type: "table", columns: ["Lead", "Stage", "Strategist", "Shared"], rows: proposals.slice(0, 30).map((p) => ({ cells: [`${p.lead} (${p.code})`, p.stage, first(p.strategist), p.shared || "—"] })) },
   ];
 }
@@ -533,14 +533,14 @@ async function proposalsAnswer(me) {
 async function overviewAnswer(me) {
   const s = await READ.crm_snapshot({}, me);
   const lines = [
-    `**Kaam:** ${s.tasks.open} open, **${s.tasks.late} late**, ${s.tasks.due_today} aaj due, ${s.tasks.waiting_for_review} check karne ke liye, ${s.tasks.approved_last_7_days} is hafte approved.`,
-    `**Clients:** ${s.brands.active} active${s.brands.onboarding ? `, ${s.brands.onboarding} onboarding mein` : ""}.`,
+    `**Tasks:** ${s.tasks.open} open, **${s.tasks.late} late**, ${s.tasks.due_today} due today, ${s.tasks.waiting_for_review} to check, ${s.tasks.approved_last_7_days} approved this week.`,
+    `**Clients:** ${s.brands.active} active${s.brands.onboarding ? `, ${s.brands.onboarding} onboarding` : ""}.`,
   ];
-  if (s.leads) lines.push(`**Leads:** ${s.leads.open} open, ${s.leads.new_last_7_days} is hafte naye, ${s.leads.unassigned_open} bina owner ke.`);
-  if (s.meetings) lines.push(`**Meetings:** ${s.meetings.today} aaj, ${s.meetings.next_7_days} agle 7 din mein.`);
+  if (s.leads) lines.push(`**Leads:** ${s.leads.open} open, ${s.leads.new_last_7_days} new this week, ${s.leads.unassigned_open} without an owner.`);
+  if (s.meetings) lines.push(`**Meetings:** ${s.meetings.today} today, ${s.meetings.next_7_days} in the next 7 days.`);
   const per = Object.entries(s.tasks.open_per_person);
   return [
-    text(`Aaj ka haal (${s.today}):\n\n${lines.map((l) => `- ${l}`).join("\n")}`),
+    text(`Here's where things stand today (${s.today}):\n\n${lines.map((l) => `- ${l}`).join("\n")}`),
     ...(per.length ? [chart({ type: "bar", title: "Open tasks per person", labels: per.map(([n]) => first(n)), datasets: [{ label: "Open", values: per.map(([, v]) => v.open) }, { label: "Late", values: per.map(([, v]) => v.late) }] })] : []),
   ];
 }
@@ -561,7 +561,7 @@ async function brandsCount(me, q) {
   const { brands } = await READ.list_brands({}, me);
   const active = brands.filter((b) => b.stage === "active client").sort((a, b) => (a.client_since || "").localeCompare(b.client_since || ""));
   const onboarding = brands.filter((b) => b.stage !== "active client");
-  if (!brands.length) return [text("Abhi tak koi brand onboard nahi hua hai.")];
+  if (!brands.length) return [text("No brands have been onboarded yet.")];
   const now = nowMs();
   let within = null;
   if (has(q, W.today)) within = 1;
@@ -573,8 +573,8 @@ async function brandsCount(me, q) {
   return [
     text(
       within
-        ? `${within === 1 ? "Aaj" : within === 7 ? "Is hafte" : "Pichhle 30 din mein"} **${plural(recent.length, "brand onboard hua", "brands onboard hue")}**. Ab tak total **${plural(active.length, "active client", "active clients")}** ${active.length === 1 ? "hai" : "hain"}${onboarding.length ? `, aur ${onboarding.length} onboarding mein (MOU pending)` : ""}.`
-        : `Ab tak **${plural(active.length, "brand", "brands")} onboard** ${active.length === 1 ? "ho chuka hai" : "ho chuke hain"} (active clients)${onboarding.length ? `, aur **${onboarding.length}** abhi onboarding mein hain (MOU pending)` : ""}.`,
+        ? `**${plural(recent.length, "brand was", "brands were")} onboarded** ${within === 1 ? "today" : within === 7 ? "in the last 7 days" : "in the last 30 days"}. You have **${plural(active.length, "active client", "active clients")}** in total${onboarding.length ? `, aur ${onboarding.length} onboarding mein (MOU pending)` : ""}.`
+        : `**${plural(active.length, "brand has", "brands have")} been onboarded** so far (active clients)${onboarding.length ? `, and **${onboarding.length}** ${onboarding.length === 1 ? "is" : "are"} still onboarding (MOU pending)` : ""}.`,
     ),
     ...(active.length > 1 ? [chart({ type: "bar", title: "Brands onboarded per month", labels: months.map(monthLabel), datasets: [{ label: "Onboarded", values: perMonth }] })] : []),
     {
@@ -593,7 +593,7 @@ async function teamAnswer(me, q) {
   const open = Object.fromEntries(work.map((w) => [w.person, w.open]));
   const what = role ? `${role[2]}s` : "team members";
   return [
-    text(`**${plural(list.length, role ? role[2] : "member", what)}** ${list.length === 1 ? "hai" : "hain"}${role ? "" : " (active)"}.`),
+    text(`There ${list.length === 1 ? "is" : "are"} **${plural(list.length, role ? role[2] : "team member", what)}**${role ? "" : " (active)"}.`),
     {
       type: "table",
       columns: ["Name", "Role", "Works as", "Open tasks"],
@@ -608,10 +608,10 @@ async function performersAnswer(me, q) {
   const by = {};
   for (const t of r.tasks) by[t.assignee || "—"] = (by[t.assignee || "—"] || 0) + 1;
   const ranked = Object.entries(by).sort((a, b) => b[1] - a[1]);
-  const when = days === 1 ? "aaj" : days === 7 ? "is hafte" : "pichhle 30 din mein";
-  if (!ranked.length) return [text(`${when[0].toUpperCase()}${when.slice(1)} abhi koi task approve nahi hua.`)];
+  const when = days === 1 ? "today" : days === 7 ? "this week" : "in the last 30 days";
+  if (!ranked.length) return [text(`No tasks have been approved ${when} yet.`)];
   return [
-    text(`${when[0].toUpperCase()}${when.slice(1)} sabse zyada kaam **${ranked[0][0]}** ne kiya — **${plural(ranked[0][1], "task", "tasks")} approved**.`),
+    text(`**${ranked[0][0]}** did the most work ${when} — **${plural(ranked[0][1], "task", "tasks")} approved**.`),
     chart({ type: "bar", title: `Approved tasks (${when})`, labels: ranked.map(([n]) => first(n)), datasets: [{ label: "Approved", values: ranked.map(([, n]) => n) }] }),
   ];
 }
@@ -619,11 +619,11 @@ async function performersAnswer(me, q) {
 async function revisionsAnswer(me) {
   const r = await READ.list_tasks({ filter: "all", limit: 100 }, me);
   const withRev = r.tasks.filter((t) => t.revision > 0).sort((a, b) => b.revision - a.revision);
-  if (!withRev.length) return [text("Kisi task mein abhi tak revision nahi hua ✓")];
+  if (!withRev.length) return [text("No task has needed a revision so far ✓")];
   const by = {};
   for (const t of withRev) by[first(t.assignee) || "—"] = (by[first(t.assignee) || "—"] || 0) + t.revision;
   return [
-    text(`**${plural(withRev.length, "task", "tasks")}** mein revision hua hai (total ${withRev.reduce((n, t) => n + t.revision, 0)} baar).`),
+    text(`**${plural(withRev.length, "task has", "tasks have")}** had revisions (${withRev.reduce((n, t) => n + t.revision, 0)} in total).`),
     chart({ type: "bar", title: "Revisions per person", labels: Object.keys(by), datasets: [{ label: "Revisions", values: Object.values(by) }] }),
     { type: "table", columns: ["Task", "Brand", "Person", "Revisions", "Status"], rows: withRev.slice(0, 20).map((t) => ({ href: `/tasks/${t.id}`, cells: [t.title, t.brand || "—", first(t.assignee), t.revision, t.status] })) },
   ];
@@ -633,7 +633,8 @@ async function kindAnswer(me, q, kind) {
   const filter = has(q, W.late) ? "late" : has(q, W.done) ? "approved" : has(q, W.pending) ? "open" : "all";
   const r = await READ.list_tasks({ filter, kind, limit: 30 }, me);
   const label = { all: "", open: " pending", late: " late", approved: " approved" }[filter];
-  return r.total ? [text(`**${r.total} ${kind}${r.total === 1 ? "" : "s"}${label}** ${r.total === 1 ? "hai" : "hain"}:`), taskTable(r.tasks)] : [text(`Koi ${kind}${label} nahi hai.`)];
+  const many = kindPlural(kind).toLowerCase();
+  return r.total ? [text(`There ${r.total === 1 ? "is" : "are"} **${r.total} ${r.total === 1 ? kind : many}${label}**:`), taskTable(r.tasks)] : [text(`There are no${label} ${many}.`)];
 }
 
 async function allLeadRows() {
@@ -642,20 +643,20 @@ async function allLeadRows() {
 }
 
 async function leadsBySource(me) {
-  if (!canSeeAllLeads(me)) return [text("Leads ka data sirf admin aur ops dekh sakte hain.")];
+  if (!canSeeAllLeads(me)) return [text("Only admin and ops can see leads.")];
   const rows = await allLeadRows();
   const by = {};
   for (const l of rows) by[l.source || "unknown"] = (by[l.source || "unknown"] || 0) + 1;
   const ranked = Object.entries(by).sort((a, b) => b[1] - a[1]);
-  if (!ranked.length) return [text("Abhi tak koi lead nahi aaya.")];
+  if (!ranked.length) return [text("No leads have come in yet.")];
   return [
-    text(`Sabse zyada leads **${ranked[0][0]}** se aaye (${ranked[0][1]}). Total ${plural(rows.length, "lead", "leads")}.`),
+    text(`Most leads came from **${ranked[0][0]}** (${ranked[0][1]}). ${plural(rows.length, "lead", "leads")} in total.`),
     chart({ type: "pie", title: "Leads by source", labels: ranked.map(([s]) => s), datasets: [{ label: "Leads", values: ranked.map(([, n]) => n) }] }),
   ];
 }
 
 async function leadsByOwner(me) {
-  if (!canSeeAllLeads(me)) return [text("Leads ka data sirf admin aur ops dekh sakte hain.")];
+  if (!canSeeAllLeads(me)) return [text("Only admin and ops can see leads.")];
   const [rows, team] = await Promise.all([allLeadRows(), people()]);
   const name = Object.fromEntries(team.map((m) => [m.id, m.name]));
   const by = {};
@@ -667,23 +668,23 @@ async function leadsByOwner(me) {
     else if (!CLOSED_STATUSES.includes(l.status)) by[k].open += 1;
   }
   const list = Object.entries(by).sort((a, b) => b[1].open - a[1].open);
-  if (!list.length) return [text("Abhi tak koi lead nahi aaya.")];
+  if (!list.length) return [text("No leads have come in yet.")];
   return [
-    text(`Sabse zyada open leads **${first(list[0][0])}** ke paas hain (${list[0][1].open}).`),
+    text(`**${first(list[0][0])}** has the most open leads (${list[0][1].open}).`),
     chart({ type: "bar", title: "Leads per person", labels: list.map(([n]) => first(n)), datasets: [{ label: "Open", values: list.map(([, v]) => v.open) }, { label: "Won", values: list.map(([, v]) => v.won) }] }),
     { type: "table", columns: ["Person", "Open", "Won", "Lost"], rows: list.map(([n, v]) => ({ cells: [n, v.open, v.won, v.lost] })) },
   ];
 }
 
 async function conversionAnswer(me) {
-  if (!canSeeAllLeads(me)) return [text("Leads ka data sirf admin aur ops dekh sakte hain.")];
+  if (!canSeeAllLeads(me)) return [text("Only admin and ops can see leads.")];
   const rows = await allLeadRows();
   const won = rows.filter((l) => l.status === "Won").length;
   const lost = rows.filter((l) => l.status === "Lost").length;
   const open = rows.filter((l) => !CLOSED_STATUSES.includes(l.status)).length;
   const rate = won + lost ? Math.round((won / (won + lost)) * 100) : null;
   return [
-    text(`Total **${plural(rows.length, "lead", "leads")}**: ${won} won, ${lost} lost, ${open} abhi open.${rate !== null ? ` Jo leads close hue unme se **${rate}% won** hue.` : " Abhi tak koi lead close nahi hua."}`),
+    text(`**${plural(rows.length, "lead", "leads")}** in total: ${won} won, ${lost} lost, ${open} still open.${rate !== null ? ` Of the leads that closed, **${rate}% were won**.` : " No leads have closed yet."}`),
     chart({ type: "pie", title: "Where leads ended up", labels: ["Won", "Lost", "Open", "Other"], datasets: [{ label: "Leads", values: [won, lost, open, rows.length - won - lost - open] }] }),
   ];
 }
@@ -693,10 +694,10 @@ async function leastAnswer(me) {
   const makers = team.filter((m) => m.groups.some((g) => ["design", "video", "development", "execution"].includes(g)));
   const open = Object.fromEntries(work.map((w) => [w.person, w]));
   const list = (makers.length ? makers : team).map((m) => ({ name: m.name, open: open[m.name]?.open || 0, late: open[m.name]?.late || 0 })).sort((a, b) => a.open - b.open);
-  if (!list.length) return [text("Team mein abhi koi nahi hai.")];
+  if (!list.length) return [text("There is nobody in the team yet.")];
   const free = list.filter((m) => m.open === 0);
   return [
-    text(free.length ? `**${free.map((m) => first(m.name)).join(", ")}** ke paas abhi koi pending kaam nahi hai — inko naya task de sakte ho.` : `Sabse kam kaam **${first(list[0].name)}** ke paas hai (${plural(list[0].open, "task", "tasks")}).`),
+    text(free.length ? `**${free.map((m) => first(m.name)).join(", ")}** ${free.length === 1 ? "has" : "have"} no pending work right now — you can give them a new task.` : `**${first(list[0].name)}** has the least work (${plural(list[0].open, "task", "tasks")}).`),
     chart({ type: "bar", title: "Pending work per person (least first)", labels: list.map((m) => first(m.name)), datasets: [{ label: "Open", values: list.map((m) => m.open) }, { label: "Late", values: list.map((m) => m.late) }] }),
   ];
 }
@@ -704,20 +705,20 @@ async function leastAnswer(me) {
 async function onboardingAnswer(me) {
   const { brands } = await READ.list_brands({}, me);
   const list = brands.filter((b) => b.stage !== "active client");
-  if (!list.length) return [text("Abhi koi brand onboarding mein nahi hai — sab active clients hain ✓")];
+  if (!list.length) return [text("No brands are onboarding — all of them are active clients ✓")];
   return [
-    text(`**${plural(list.length, "brand", "brands")}** abhi onboarding mein ${list.length === 1 ? "hai" : "hain"}:`),
+    text(`**${plural(list.length, "brand is", "brands are")}** still onboarding:`),
     { type: "table", columns: ["Brand", "Stage"], rows: list.map((b) => ({ cells: [b.name, b.stage] })) },
   ];
 }
 
 async function staleLeadsAnswer(me, q) {
-  if (!canSeeAllLeads(me)) return [text("Leads ka data sirf admin aur ops dekh sakte hain.")];
+  if (!canSeeAllLeads(me)) return [text("Only admin and ops can see leads.")];
   const days = Number((q.match(/(\d+)\s*(din|day)/) || [])[1]) || 5;
   const r = await READ.list_leads({ open_only: true, untouched_for_days: days, limit: 30 }, me);
   return r.total
-    ? [text(`**${plural(r.total, "open lead", "open leads")}** pe ${days}+ din se koi update nahi hua — inpe follow up karo:`), leadTable(r.leads)]
-    : [text(`Saare open leads pe pichhle ${days} din mein kaam hua hai ✓`)];
+    ? [text(`**${plural(r.total, "open lead has", "open leads have")}** had no update for ${days}+ days — follow up on these:`), leadTable(r.leads)]
+    : [text(`Every open lead was updated in the last ${days} days ✓`)];
 }
 
 /** What people can ask Amigo, grouped — shown on the Amigo screen. {person} / {brand} are filled in with real names. */
@@ -809,9 +810,25 @@ const HELP = [
 const grammar = (blocks) =>
   blocks.map((b) => (b.type === "text" ? { ...b, text: b.text.replace(/(\b1 (?:task|lead|naya lead|meeting|proposal)\b[^.:\n]*?)\bhain\b/g, "$1hai") } : b));
 
+/**
+ * Keep a chart only when it adds something a sentence can't: at least 3 things to compare (2 if the
+ * person asked for a chart), and some real numbers — not a single bar or a row of zeros.
+ */
+function usefulCharts(blocks, question) {
+  const asked = has(norm(question), W.chart);
+  return blocks.filter((b) => {
+    if (b.type !== "chart") return true;
+    const values = (b.spec.datasets || []).flatMap((d) => d.values || []);
+    const nonZero = (b.spec.datasets?.[0]?.values || []).filter((v) => v > 0).length;
+    if (!values.some((v) => v > 0)) return false;
+    if (b.spec.type === "pie") return nonZero >= (asked ? 2 : 3);
+    return (b.spec.labels || []).length >= (asked ? 2 : 3);
+  });
+}
+
 /** Works out what the question is about and answers it from the CRM. Returns display blocks. */
 export async function answer(question, me) {
-  return grammar(await understand(question, me));
+  return usefulCharts(grammar(await understand(question, me)), question);
 }
 
 async function understand(question, me) {
@@ -838,9 +855,9 @@ async function understand(question, me) {
   if (has(q, W.revision) && !person) return revisionsAnswer(me);
   if (brand && !person) {
     const bn = brand.name;
-    if (has(q, W.late)) return tasksAnswer(me, "late", { none: `${bn} ka koi task late nahi hai ✓`, some: (n) => `${bn} ke **${plural(n, "task", "tasks")} late** hain:` }, { brand });
-    if (has(q, W.check)) return tasksAnswer(me, "to_check", { none: `${bn} ka kuch check karna baaki nahi hai.`, some: (n) => `${bn} ke **${n}** tasks check karne hain:` }, { brand });
-    if (has(q, W.done)) return tasksAnswer(me, "approved", { none: `${bn} ka abhi koi task approved nahi hai.`, some: (n) => `${bn} ke **${plural(n, "task", "tasks")} approved** hue:` }, { brand });
+    if (has(q, W.late)) return tasksAnswer(me, "late", { none: `${bn} has no late tasks ✓`, some: (n) => `${bn} has **${plural(n, "late task", "late tasks")}**:` }, { brand });
+    if (has(q, W.check)) return tasksAnswer(me, "to_check", { none: `Nothing of ${bn}'s is waiting to be checked.`, some: (n) => `**${plural(n, "task", "tasks")}** of ${bn} ${n === 1 ? "is" : "are"} waiting to be checked:` }, { brand });
+    if (has(q, W.done)) return tasksAnswer(me, "approved", { none: `${bn} has no approved tasks yet.`, some: (n) => `${bn} has **${plural(n, "approved task", "approved tasks")}**:` }, { brand });
     return brandAnswer(me, brand);
   }
   if (has(q, W.least) && !has(q, W.lead)) return leastAnswer(me);
@@ -849,26 +866,26 @@ async function understand(question, me) {
   if (!person && has(q, W.people) && (has(q, W.count) || has(q, W.who)) && !has(q, W.pending) && !has(q, W.late) && !has(q, W.check) && !q.includes("kaam")) return teamAnswer(me, q);
 
   if (person) {
-    if (has(q, W.late)) return tasksAnswer(me, "late", { none: `${p} ka koi task late nahi hai ✓`, some: (n) => `${p} ke **${plural(n, "task", "tasks")} late** hain:` }, { person });
-    if (has(q, W.check)) return tasksAnswer(me, "to_check", { none: `${p} ka kuch check karna baaki nahi hai.`, some: (n) => `${p} ke **${n}** tasks check karne hain:` }, { person });
+    if (has(q, W.late)) return tasksAnswer(me, "late", { none: `${p} has no late tasks ✓`, some: (n) => `${p} has **${plural(n, "late task", "late tasks")}**:` }, { person });
+    if (has(q, W.check)) return tasksAnswer(me, "to_check", { none: `Nothing of ${p}'s is waiting to be checked.`, some: (n) => `**${plural(n, "task", "tasks")}** from ${p} ${n === 1 ? "is" : "are"} waiting to be checked:` }, { person });
     if (has(q, W.done) || q.includes("kitna kaam kiya") || q.includes("kya kiya")) {
       const days = has(q, W.today) ? 1 : has(q, W.week) ? 7 : has(q, W.month) ? 30 : null;
       const r = await READ.list_tasks({ filter: "approved", person: person.name, approved_within_days: days || undefined, limit: 30 }, me);
-      const when = days === 1 ? "aaj" : days === 7 ? "is hafte" : days === 30 ? "is mahine" : "ab tak";
-      return r.total ? [text(`${p} ke ${when} **${plural(r.total, "task", "tasks")} approved** hue:`), taskTable(r.tasks)] : [text(`${p} ka ${when} koi task approved nahi hua.`)];
+      const when = days === 1 ? "today" : days === 7 ? "this week" : days === 30 ? "this month" : "so far";
+      return r.total ? [text(`${p} got **${plural(r.total, "task", "tasks")} approved** ${when}:`), taskTable(r.tasks)] : [text(`${p} has no approved tasks ${when}.`)];
     }
-    if (has(q, W.today)) return tasksAnswer(me, "due_today", { none: `${p} ka aaj koi task due nahi hai.`, some: (n) => `${p} ke aaj **${plural(n, "task", "tasks")} due** hain:` }, { person });
+    if (has(q, W.today)) return tasksAnswer(me, "due_today", { none: `${p} has nothing due today.`, some: (n) => `${p} has **${plural(n, "task", "tasks")} due today**:` }, { person });
     const w = (await READ.team_workload({ person: person.name }, me)).people[0];
-    const tasks = await tasksAnswer(me, "open", { none: `${p} ke paas abhi koi pending task nahi hai ✓`, some: () => "" }, { person });
-    if (!w) return [text(`${person.name} ke paas abhi koi task nahi hai.`)];
+    const tasks = await tasksAnswer(me, "open", { none: `${p} has no pending tasks right now ✓`, some: () => "" }, { person });
+    if (!w) return [text(`${person.name} has no tasks right now.`)];
     return [
-      text(`**${person.name}** ke paas **${plural(w.open, "task", "tasks")} pending** hain — ${w.late} late, ${w.due_today} aaj due, ${w.due_this_week} is hafte due. ${w.waiting_for_review} check ke liye gaye hain, aur pichhle 7 din mein ${w.approved_last_7_days} approved hue.`),
+      text(`**${person.name}** has **${plural(w.open, "task", "tasks")} pending** — ${w.late} late, ${w.due_today} due today, ${w.due_this_week} due this week. ${w.waiting_for_review} waiting to be checked, and ${w.approved_last_7_days} approved in the last 7 days.`),
       ...tasks.filter((b) => b.type !== "text"),
     ];
   }
 
   if (has(q, W.onboarding) && !has(q, W.count)) return onboardingAnswer(me);
-  if (W.client.some((w) => q.includes(w))) return tasksAnswer(me, "with_client", { none: "Abhi client ke paas koi task nahi hai.", some: (n) => `**${plural(n, "task", "tasks")}** client ke paas hain:` });
+  if (W.client.some((w) => q.includes(w))) return tasksAnswer(me, "with_client", { none: "Nothing is with clients right now.", some: (n) => `**${plural(n, "task is", "tasks are")}** with clients:` });
   if (has(q, W.brand) || has(q, W.onboard)) {
     if (has(q, W.most)) return brandsRanked(me);
     if (has(q, W.count) || has(q, W.onboard) || !taskWords) return brandsCount(me, q);
@@ -877,30 +894,30 @@ async function understand(question, me) {
   if (has(q, W.people) && !has(q, W.pending) && !taskWords) return teamAnswer(me, q);
   if (kind && !has(q, W.who)) return kindAnswer(me, q, kind);
 
-  if (has(q, W.late)) return tasksAnswer(me, "late", { none: "Koi bhi task late nahi hai ✓", some: (n) => `**${plural(n, "task", "tasks")} late** hain:`, chartTitle: "Late tasks per person" }, { chartBy: true });
-  if (has(q, W.check)) return tasksAnswer(me, "to_check", { none: "Abhi kuch check karna baaki nahi hai ✓", some: (n) => `**${plural(n, "task", "tasks")}** check karne baaki hain:` });
+  if (has(q, W.late)) return tasksAnswer(me, "late", { none: "No tasks are late ✓", some: (n) => `**${plural(n, "task is", "tasks are")} late**:`, chartTitle: "Late tasks per person" }, { chartBy: true });
+  if (has(q, W.check)) return tasksAnswer(me, "to_check", { none: "Nothing is waiting to be checked ✓", some: (n) => `**${plural(n, "task is", "tasks are")}** waiting to be checked:` });
   if (has(q, W.done)) {
     const days = has(q, W.today) ? 1 : has(q, W.month) ? 30 : 7;
     const r = await READ.list_tasks({ filter: "approved", approved_within_days: days, limit: 30 }, me);
-    const when = days === 1 ? "Aaj" : days === 30 ? "Pichhle 30 din mein" : "Is hafte";
-    return r.total ? [text(`${when} **${plural(r.total, "task", "tasks")} approved** hue:`), taskTable(r.tasks)] : [text(`${when} koi task approved nahi hua.`)];
+    const when = days === 1 ? "today" : days === 30 ? "in the last 30 days" : "this week";
+    return r.total ? [text(`**${plural(r.total, "task was", "tasks were")} approved** ${when}:`), taskTable(r.tasks)] : [text(`No tasks were approved ${when}.`)];
   }
   if ((has(q, W.who) || has(q, W.people)) && (taskWords || has(q, W.pending))) return workloadAnswer(me);
   if (has(q, W.today) && (taskWords || has(q, W.pending))) {
-    const due = await tasksAnswer(me, "due_today", { none: "Aaj koi task due nahi hai.", some: (n) => `Aaj **${plural(n, "task", "tasks")} due** hain:` });
+    const due = await tasksAnswer(me, "due_today", { none: "Nothing is due today.", some: (n) => `**${plural(n, "task is", "tasks are")} due today**:` });
     const late = await READ.list_tasks({ filter: "late", limit: 30 }, me);
-    return [...due, ...(late.total ? [text(`Iske alawa **${plural(late.total, "task", "tasks")} pehle se late** hain:`), taskTable(late.tasks)] : [])];
+    return [...due, ...(late.total ? [text(`Also, **${plural(late.total, "task is", "tasks are")} already late**:`), taskTable(late.tasks)] : [])];
   }
   if ((has(q, W.tomorrow) || has(q, W.kal)) && (taskWords || has(q, W.pending)))
-    return tasksAnswer(me, "due_tomorrow", { none: "Kal koi task due nahi hai.", some: (n) => `Kal **${plural(n, "task", "tasks")} due** hain:` });
+    return tasksAnswer(me, "due_tomorrow", { none: "Nothing is due tomorrow.", some: (n) => `**${plural(n, "task is", "tasks are")} due tomorrow**:` });
   if (has(q, W.week) && (taskWords || has(q, W.pending)))
-    return tasksAnswer(me, "due_this_week", { none: "Is hafte koi task due nahi hai.", some: (n) => `Is hafte **${plural(n, "task", "tasks")} due** hain:` }, { chartBy: true });
+    return tasksAnswer(me, "due_this_week", { none: "Nothing is due this week.", some: (n) => `**${plural(n, "task is", "tasks are")} due this week**:` }, { chartBy: true });
   if (has(q, W.pending) || taskWords || has(q, W.chart)) return workloadAnswer(me);
   if (has(q, W.people)) return teamAnswer(me, q);
   if (has(q, W.overview) || has(q, W.today) || has(q, W.count)) return overviewAnswer(me);
 
   // Not sure what was asked: show the overview so there is always something useful, plus ideas
-  return [text("Yeh sawaal main poori tarah nahi samjha, toh yeh raha CRM ka overview 👇 (Kisi employee ya brand ka naam likh ke bhi pooch sakte ho.)"), ...(await overviewAnswer(me)), suggest(HELP)];
+  return [text("I didn't fully understand that, so here's the CRM overview 👇 (You can also ask about a person or a brand by name.)"), ...(await overviewAnswer(me)), suggest(HELP)];
 }
 
 export const AMIGO_SUGGESTIONS = HELP;
