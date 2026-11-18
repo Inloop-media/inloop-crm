@@ -10,7 +10,8 @@ export function KyroMark({ size = 28, className = "" }) {
 }
 
 /** The full lockup (red K + "kyro") from public/kyro-logo-*.png. The word is a mask filled with the text colour,
- *  so it is white on the dark theme and near-black on the light one. */
+ *  so it is white on the dark theme and near-black on the light one. The negative margins drop the "y" tail (and the
+ *  top padding) from the layout box, so the K sits on the line centre next to icons and text. */
 const WORD = { WebkitMask: "url(/kyro-logo-word.png) center / contain no-repeat", mask: "url(/kyro-logo-word.png) center / contain no-repeat" };
 
 export default function Logo({ compact = false, height = 28 }) {
@@ -21,7 +22,7 @@ export default function Logo({ compact = false, height = 28 }) {
       </span>
     );
   return (
-    <span role="img" aria-label="Kyro" className="relative block shrink-0" style={{ height, width: (height * 1088) / 345 }}>
+    <span role="img" aria-label="Kyro" className="relative block shrink-0" style={{ height, width: (height * 1088) / 345, marginTop: (-height * 6) / 345, marginBottom: (-height * 79) / 345 }}>
       <span className="absolute inset-0 bg-ink" style={WORD} />
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src="/kyro-logo-mark.png" alt="" className="absolute inset-0 h-full w-full" />

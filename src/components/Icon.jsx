@@ -32,6 +32,7 @@ const PATHS = {
   expand: "M14 4h6v6M10 20H4v-6M20 4l-6 6M4 20l6-6",
   chevron: "M6 9l6 6 6-6",
   board: "M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z",
+  menu: "M4 9h16M4 15h10",
   list: "M9 6h11M9 12h11M9 18h11M4.5 6h.01M4.5 12h.01M4.5 18h.01",
   chart: "M4 20h16M7 16v-5M12 16V6M17 16v-8",
   tasks: "M9 6h11M9 12h11M9 18h11M3.5 6l1.2 1.2L7 5M3.5 12l1.2 1.2L7 11M3.5 18l1.2 1.2L7 17",

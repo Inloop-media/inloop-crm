@@ -108,7 +108,7 @@ export function TopBar({ logo, search, right }) {
   return (
     <header className="hidden h-14 shrink-0 items-center gap-3 rounded-2xl border border-line bg-panel px-3 md:flex">
       <button onClick={toggleFold} aria-label="Fold the sidebar" className="grid h-9 w-9 place-items-center rounded-lg text-muted transition hover:bg-panel-2 hover:text-ink">
-        <Icon name="list" size={17} />
+        <Icon name="menu" size={20} />
       </button>
       <Link href="/" className="flex items-center gap-2">
         {logo}
