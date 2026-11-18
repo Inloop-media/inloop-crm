@@ -33,8 +33,8 @@ export default async function GroupPage({ params }) {
   if (!/^[0-9a-f-]{36}$/i.test(id)) notFound();
   const { data: group } = await db().from("groups").select("*, group_members(member:members(id, name, active))").eq("id", id).maybeSingle();
   if (!group) notFound();
-  const staff = me.role === "admin" || me.role === "ops";
-  if (!staff && group.lead_id !== me.id) notFound();
+  // Admin opens any group; everyone else only the groups they head
+  if (me.role !== "admin" && group.lead_id !== me.id) notFound();
 
   const members = (group.group_members || []).map((g) => g.member).filter((m) => m?.active).sort((a, b) => a.name.localeCompare(b.name));
   const ids = members.map((m) => m.id);

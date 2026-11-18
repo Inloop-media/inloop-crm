@@ -71,7 +71,12 @@ export default async function CrmLayout({ children }) {
   if (me.role === "admin") admin.push({ href: "/feedback", label: "Feedback", icon: "alert", badge: await newFeedback() });
   // Heads see the groups they run, each with its own page
   const GROUP_ICON = { design: "board", video: "video", production: "video", development: "link", performance: "chart", social: "chat", strategy: "brief", sales: "leads", execution: "team" };
-  const myGroups = (me.ledGroups || []).map((g) => ({ href: `/groups/${g.id}`, label: g.name, icon: GROUP_ICON[g.kind] || "team" }));
+  const staffMe = me.role === "admin";
+  const myGroups = [
+    // "All groups" opens every team at a glance; the groups you head follow, each with its own page
+    ...(staffMe || (me.ledGroups || []).length || (me.groups || []).length ? [{ href: "/groups", label: staffMe ? "All groups" : "My groups", icon: "team" }] : []),
+    ...(me.ledGroups || []).map((g) => ({ href: `/groups/${g.id}`, label: g.name, icon: GROUP_ICON[g.kind] || "team" })),
+  ];
   const groups = [
     { title: "Main", items: main },
     { title: "Groups", items: myGroups },

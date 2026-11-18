@@ -237,7 +237,9 @@ export default function DirectChat({ meId, other, initial, canAddLeads, canShare
     await refresh();
   };
 
-  const all = [...messages, ...pending];
+  // The real message often arrives (live update) before the send call returns — hide its "sending" copy then
+  const arrived = (p) => messages.some((m) => m.from_id === meId && m.body === p.body && (m.attachments || []).length === p.attachments.length && new Date(m.created_at) >= new Date(new Date(p.created_at).getTime() - 60000));
+  const all = [...messages, ...pending.filter((p) => !arrived(p))];
   const first = other.name.split(" ")[0];
 
   return (
