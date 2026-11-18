@@ -64,7 +64,7 @@ function usePush() {
 
 const COPY = {
   off: { title: "Turn on notifications", text: "Get a ping on this device when a lead, brief or commercials needs you." },
-  install: { title: "Get the app on your iPhone", text: "In Safari tap Share → Add to Home Screen, open Inloop CRM from there, then turn notifications on." },
+  install: { title: "Get the app on your iPhone", text: "In Safari tap Share → Add to Home Screen, open Kyro from there, then turn notifications on." },
   blocked: { title: "Notifications are blocked", text: "Allow notifications for this site in your browser or phone settings, then reload." },
 };
 

@@ -65,8 +65,12 @@ export default async function CrmLayout({ children }) {
   if (feeds.length) admin.push({ href: "/updates", label: "Updates", icon: "slack", badge: feeds.reduce((n, g) => n + g.unread, 0) });
   if (canManageTeam(me)) admin.push({ href: "/team", label: "Team", icon: "team" });
   if (me.role === "admin") admin.push({ href: "/feedback", label: "Feedback", icon: "alert", badge: await newFeedback() });
+  // Heads see the groups they run, each with its own page
+  const GROUP_ICON = { design: "board", video: "video", production: "video", development: "link", performance: "chart", social: "chat", strategy: "brief", sales: "leads", execution: "team" };
+  const myGroups = (me.ledGroups || []).map((g) => ({ href: `/groups/${g.id}`, label: g.name, icon: GROUP_ICON[g.kind] || "team" }));
   const groups = [
     { title: "Main", items: main },
+    { title: "Groups", items: myGroups },
     { title: "Sales", items: sales },
     { title: "Clients", items: clients },
     { title: "Admin", items: admin },
@@ -114,7 +118,7 @@ export default async function CrmLayout({ children }) {
           </div>
           <footer className="hidden h-10 shrink-0 items-center justify-between rounded-2xl border border-line bg-panel px-4 text-[11px] text-muted md:flex">
             <span>
-              © {new Date().getFullYear()} · Inloop CRM <span className="text-faint">v2.0</span>
+              © {new Date().getFullYear()} · Kyro <span className="text-faint">v2.0</span>
             </span>
             <span>
               by <span className="rounded-md border border-line bg-panel-2 px-1.5 py-0.5 font-medium text-ink">Inloop Media</span>

@@ -5,9 +5,9 @@ import { useRouter } from "next/navigation";
 import Icon from "@/components/Icon";
 import { createClient } from "@/lib/supabase/browser";
 import { addTaskFile, createTask, deleteTask, removeTaskFile, reviewTask, setTaskStatus, startTaskUpload, updateTask } from "@/app/(crm)/tasks/actions";
-import { MAKER_STATUS_OPTIONS, TASK_KINDS, TASK_STATUSES } from "@/lib/constants";
+import { MAKER_STATUS_OPTIONS, PRIORITIES, TASK_KINDS, TASK_STATUSES } from "@/lib/constants";
 
-const KIND_GROUP = { design: "Designers", development: "Developers", video: "Video editors", execution: "Execution heads" };
+const KIND_GROUP = { head: "Heads", design: "Designers", development: "Developers", video: "Video editors", production: "Production", performance: "Performance", social: "Social media", strategy: "Creative strategists", sales: "Sales", execution: "Execution heads" };
 const kb = (n) => (n > 1048576 ? `${(n / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(n / 1024))} KB`);
 const isImg = (n) => /\.(jpe?g|png|webp|gif)$/i.test(n || "");
 const isVid = (n) => /\.(mp4|mov|webm|m4v)$/i.test(n || "");
@@ -32,10 +32,11 @@ export function PersonSelect({ people, value, onChange, kind }) {
   const want = TASK_KINDS.find((k) => k.id === kind)?.group;
   const groups = {};
   for (const p of people) {
-    const g = (want && p.kinds.includes(want) ? want : p.kinds.find((k) => k !== "execution")) || p.kinds[0];
+    const g = p.kinds.includes("head") ? "head" : (want && p.kinds.includes(want) ? want : p.kinds.find((k) => k !== "execution")) || p.kinds[0] || "other";
     (groups[g] ||= []).push(p);
   }
-  const order = [want, "design", "video", "development", "execution"].filter((g, i, a) => g && a.indexOf(g) === i && groups[g]);
+  const known = [want, "head", "design", "video", "production", "development", "performance", "social", "strategy", "sales", "execution"];
+  const order = [...known, ...Object.keys(groups)].filter((g, i, a) => g && a.indexOf(g) === i && groups[g]);
   return (
     <select className="field" value={value} onChange={(e) => onChange(e.target.value)} required>
       <option value="">Assign to…</option>
@@ -58,12 +59,25 @@ const toLocal = (iso) => {
   return d.toISOString().slice(0, 16);
 };
 
+/** High / Medium / Low — high-priority tasks show first on the employee's list. */
+export function PrioritySelect({ value, onChange, className = "field" }) {
+  return (
+    <select className={className} value={value || "medium"} onChange={(e) => onChange(e.target.value)} title="Priority">
+      {PRIORITIES.map((p) => (
+        <option key={p.id} value={p.id}>
+          {p.id === "high" ? "🔴" : p.id === "medium" ? "🟠" : "⚪"} {p.label} priority
+        </option>
+      ))}
+    </select>
+  );
+}
+
 /* ------------------------------ New task ------------------------------ */
 
 export function NewTaskForm({ brandId, people }) {
   const { pending, error, run } = useRun();
   const [open, setOpen] = useState(false);
-  const empty = { title: "", kind: "post", assignee_id: "", due_at: "", brief: "" };
+  const empty = { title: "", kind: "post", assignee_id: "", due_at: "", brief: "", priority: "medium" };
   const [f, setF] = useState(empty);
   const set = (k) => (e) => setF({ ...f, [k]: e.target ? e.target.value : e });
 
@@ -95,9 +109,10 @@ export function NewTaskForm({ brandId, people }) {
           </button>
         ))}
       </div>
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid gap-3 sm:grid-cols-3">
         <PersonSelect people={people} value={f.assignee_id} onChange={set("assignee_id")} kind={f.kind} />
         <input className="field bg-panel" type="datetime-local" value={f.due_at} onChange={set("due_at")} title="Due date" />
+        <PrioritySelect value={f.priority} onChange={(v) => setF({ ...f, priority: v })} className="field bg-panel" />
       </div>
       <textarea className="field resize-y bg-panel" rows={3} placeholder="Brief: copy, references, sizes, anything they need" value={f.brief} onChange={set("brief")} />
       {error && <p className="text-xs text-rose-400">{error}</p>}
@@ -328,7 +343,8 @@ export function TaskAdmin({ task, people }) {
   const { pending, error, run } = useRun();
   const [due, setDue] = useState(toLocal(task.due_at));
   const [assignee, setAssignee] = useState(task.assignee_id || "");
-  const changed = due !== toLocal(task.due_at) || assignee !== (task.assignee_id || "");
+  const [priority, setPriority] = useState(task.priority || "medium");
+  const changed = due !== toLocal(task.due_at) || assignee !== (task.assignee_id || "") || priority !== (task.priority || "medium");
   return (
     <div className="flex flex-col gap-3">
       <label className="flex flex-col gap-1.5">
@@ -339,9 +355,13 @@ export function TaskAdmin({ task, people }) {
         <span className="text-xs text-muted">Due</span>
         <input className="field" type="datetime-local" value={due} onChange={(e) => setDue(e.target.value)} />
       </label>
+      <label className="flex flex-col gap-1.5">
+        <span className="text-xs text-muted">Priority</span>
+        <PrioritySelect value={priority} onChange={setPriority} />
+      </label>
       <div className="flex items-center gap-2">
         <button
-          onClick={() => run(() => updateTask(task.id, { due_at: due, ...(assignee !== task.assignee_id ? { assignee_id: assignee } : {}) }))}
+          onClick={() => run(() => updateTask(task.id, { due_at: due, ...(priority !== (task.priority || "medium") ? { priority } : {}), ...(assignee !== task.assignee_id ? { assignee_id: assignee } : {}) }))}
           disabled={pending || !changed}
           className="btn-ghost btn-sm"
         >

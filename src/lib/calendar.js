@@ -14,7 +14,8 @@ export function shiftMonth(m, by) {
 export const monthStart = (m) => `${m}-01`;
 export const monthLabel = (m) => new Intl.DateTimeFormat("en-IN", { month: "long", year: "numeric", timeZone: "UTC" }).format(new Date(`${m}-01T00:00:00Z`));
 
-const ITEM_FIELDS = "id, brand_id, publish_on, kind, platform, title, caption, notes, status, task_id, created_at, task:tasks(id, status, due_at, revision, assignee:members!tasks_assignee_id_fkey(id, name))";
+// "*" so the brief fields (migration 016) come along when they exist
+const ITEM_FIELDS = "*, task:tasks(id, status, due_at, revision, assignee:members!tasks_assignee_id_fkey(id, name))";
 
 /** Calendar items for one brand (or several) in a month. */
 export async function loadItems(brandIds, month) {

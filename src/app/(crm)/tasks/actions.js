@@ -5,8 +5,8 @@ import { after } from "next/server";
 import { requireMember } from "@/lib/auth";
 import { db } from "@/lib/supabase/server";
 import { getBrand } from "@/lib/brands";
-import { logTask, notifyTask, TASK_FIELDS } from "@/lib/tasks";
-import { MAKER_STATUS_OPTIONS, TASK_KINDS, TASK_STATUSES } from "@/lib/constants";
+import { canAssignTo, logTask, notifyTask, TASK_FIELDS } from "@/lib/tasks";
+import { MAKER_STATUS_OPTIONS, PRIORITIES, TASK_KINDS, TASK_STATUSES } from "@/lib/constants";
 import { canAssignTasks, canReviewTask } from "@/lib/permissions";
 
 const str = (v, max = 4000) => String(v ?? "").trim().slice(0, max);
@@ -55,17 +55,21 @@ export async function createTask(brandId, input) {
   const kind = TASK_KINDS.some((k) => k.id === input.kind) ? input.kind : "other";
   const assignee = await activeMember(input.assignee_id);
   if (!assignee) return { ok: false, error: "Pick who does it." };
+  if (!(await canAssignTo(me, assignee.id))) return { ok: false, error: "You can give tasks to your own team and to the other heads — not to another head's team." };
   const due = dueAt(input.due_at);
   if (due === undefined) return { ok: false, error: "The due date isn't valid." };
 
-  const { data: task, error } = await db()
-    .from("tasks")
-    .insert({ brand_id: brandId, title, kind, brief: str(input.brief, 8000), assignee_id: assignee.id, assigned_by: me.id, due_at: due })
-    .select(TASK_FIELDS)
-    .single();
+  const priority = PRIORITIES.some((p) => p.id === input.priority) ? input.priority : "medium";
+  const row = { brand_id: brandId, title, kind, brief: str(input.brief, 8000), assignee_id: assignee.id, assigned_by: me.id, due_at: due, priority };
+  let { data: task, error } = await db().from("tasks").insert(row).select(TASK_FIELDS).single();
+  if (error && /priority/.test(error.message)) {
+    // Before migration 017: save without a priority
+    const { priority: _skip, ...rest } = row;
+    ({ data: task, error } = await db().from("tasks").insert(rest).select(TASK_FIELDS).single());
+  }
   if (error) return { ok: false, error: error.message };
   await logTask(task.id, me.id, "created", { to: assignee.name });
-  if (assignee.id !== me.id) after(() => notifyTask([assignee.id], task, "New task"));
+  if (assignee.id !== me.id) after(() => notifyTask([assignee.id], task, priority === "high" ? "🔴 New HIGH priority task" : "New task"));
   refresh(task);
   return { ok: true, id: task.id };
 }
@@ -78,6 +82,7 @@ export async function updateTask(id, patch) {
   if ("title" in patch) changes.title = str(patch.title, 160) || task.title;
   if ("brief" in patch) changes.brief = str(patch.brief, 8000);
   if ("kind" in patch && TASK_KINDS.some((k) => k.id === patch.kind)) changes.kind = patch.kind;
+  if ("priority" in patch && PRIORITIES.some((p) => p.id === patch.priority)) changes.priority = patch.priority;
   if ("due_at" in patch) {
     const due = dueAt(patch.due_at);
     if (due === undefined) return { ok: false, error: "The due date isn't valid." };
@@ -89,12 +94,13 @@ export async function updateTask(id, patch) {
   if ("assignee_id" in patch && patch.assignee_id !== task.assignee_id) {
     newAssignee = await activeMember(patch.assignee_id);
     if (!newAssignee) return { ok: false, error: "Pick who does it." };
+    if (!(await canAssignTo(me, newAssignee.id))) return { ok: false, error: "You can give tasks to your own team and to the other heads — not to another head's team." };
     changes.assignee_id = newAssignee.id;
   }
   if (!Object.keys(changes).length) return { ok: true };
   changes.updated_at = new Date().toISOString();
   const { error } = await db().from("tasks").update(changes).eq("id", id);
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: /priority/.test(error.message) ? "Priority needs migration 017 — ask the admin to run it." : error.message };
   await logTask(id, me.id, "edited", { fields: Object.keys(changes).filter((k) => !k.endsWith("_at") || k === "due_at"), to: newAssignee?.name });
   if (newAssignee && newAssignee.id !== me.id) after(() => notifyTask([newAssignee.id], { ...task, ...changes }, "Task assigned to you"));
   refresh(task);
@@ -163,6 +169,7 @@ export async function reviewTask(id, action, { feedback = "", assignee_id, due_a
       if (!["client_rejected", "completed"].includes(from)) return { ok: false, error: "Nothing to reassign." };
       const person = await activeMember(assignee_id || task.assignee_id);
       if (!person) return { ok: false, error: "Pick who does the revision." };
+      if (person.id !== task.assignee_id && !(await canAssignTo(me, person.id))) return { ok: false, error: "You can give tasks to your own team and to the other heads — not to another head's team." };
       const due = due_at ? dueAt(due_at) : task.due_at;
       if (due === undefined) return { ok: false, error: "The due date isn't valid." };
       changes = {

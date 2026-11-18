@@ -9,6 +9,13 @@ import { GROUP_KINDS, ROLES, UPDATE_EVENTS } from "@/lib/constants";
 const KIND_TONE = {
   sales: "tint-blue text-ink",
   strategy: "tint-pink text-ink",
+  execution: "tint-amber text-ink",
+  design: "tint-green text-ink",
+  video: "tint-lavender text-ink",
+  development: "tint-blue text-ink",
+  performance: "tint-amber text-ink",
+  social: "tint-pink text-ink",
+  production: "tint-green text-ink",
   other: "tint-lavender text-ink",
 };
 
@@ -153,6 +160,26 @@ function GroupCard({ g, members }) {
         </button>
       </div>
       <p className="mt-3 text-xs leading-relaxed text-muted">{kind?.help}</p>
+      <label className="mt-4 flex items-center gap-3 rounded-2xl bg-panel-2 px-3 py-2.5">
+        <span className="text-xs font-medium text-muted">Head</span>
+        <select
+          value={g.lead_id || ""}
+          disabled={pending}
+          onChange={(e) => change(g.id, { lead_id: e.target.value || null })}
+          className="min-w-0 flex-1 bg-transparent text-sm outline-none"
+        >
+          <option value="">No head</option>
+          {members
+            .filter((m) => m.active)
+            .map((m) => (
+              <option key={m.id} value={m.id}>
+                {m.name}
+              </option>
+            ))}
+        </select>
+      </label>
+      <p className="mt-1.5 px-1 text-[11px] text-faint">The head&apos;s dashboard, Tasks and Leads show this group&apos;s work.</p>
+      {error && <p className="mt-1.5 px-1 text-xs text-rose-400">{error}</p>}
       <div className="mt-4">
         <div className="mb-2 text-xs font-medium text-muted">Posts here</div>
         <div className="flex flex-wrap gap-1.5">

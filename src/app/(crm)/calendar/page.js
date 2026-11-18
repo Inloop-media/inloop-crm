@@ -97,7 +97,7 @@ export default async function CalendarPage({ searchParams }) {
   const brand = brands.find((b) => b.id === sp.brand) || null;
   const view = !brand && sp.view === "plans" ? "plans" : "";
   const ids = brand ? [brand.id] : brands.map((b) => b.id);
-  const [items, plans, people] = await Promise.all([loadItems(ids, month), loadPlans(ids, month), brand && canAssignTasks(me) ? listMakers() : []]);
+  const [items, plans, people] = await Promise.all([loadItems(ids, month), loadPlans(ids, month), brand && canAssignTasks(me) ? listMakers(me) : []]);
 
   return (
     <div className="page">

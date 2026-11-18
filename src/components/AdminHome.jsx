@@ -5,6 +5,7 @@
 import Link from "next/link";
 import Icon from "@/components/Icon";
 import { Avatar, BrandMark } from "@/components/ui";
+import { MeetingAgenda } from "@/components/DashboardView";
 import { CLOSED_STATUSES, OPEN_TASK, PROPOSAL_STAGES } from "@/lib/constants";
 import { ago, fullName } from "@/lib/format";
 
@@ -64,7 +65,7 @@ export function Ring({ value, total, label, icon }) {
  *   brands  listBrands()
  *   tasks   every task (empty if this member can't see tasks)
  */
-export default function AdminHome({ me, data, brands = [], tasks = [], actions }) {
+export default function AdminHome({ me, data, brands = [], tasks = [], actions, salesOnly = false }) {
   const { leads, upcoming, proposals, members, now } = data;
   const today = dayKey(now);
   const d0 = new Date(now);
@@ -443,36 +444,49 @@ export default function AdminHome({ me, data, brands = [], tasks = [], actions }
           </ul>
         </Card>
 
-        {/* Busiest client — the dark card */}
-        <section className="rise flex flex-col rounded-[24px] bg-[#18181b] p-5 text-white shadow-[0_24px_50px_-28px_rgb(0_0_0/0.7)] xl:col-span-4">
-          {topBrand ? (
-            <>
-              <div className="flex items-start justify-between">
-                <span className="flex items-center gap-1.5 text-xs text-white/60">
-                  <span className="h-1.5 w-1.5 rounded-full bg-brand" /> Busiest client
-                </span>
-                <BrandMark name={topBrand.name} size={30} />
+        {salesOnly ? (
+          <Card className="rise xl:col-span-4">
+            <div className="flex items-start justify-between">
+              <div>
+                <h2 className="text-xl font-normal tracking-[-0.01em]">Meetings</h2>
+                <p className="text-xs text-muted">Your team&apos;s discovery calls</p>
               </div>
-              <h2 className="mt-3 text-[26px] font-normal leading-tight tracking-[-0.02em]">{topBrand.name}</h2>
-              <p className="text-xs text-white/55">{(topBrand.services || []).map((s) => s.name).join(" · ") || "Active client"}</p>
-              <div className="mt-5 grid grid-cols-2 gap-2">
-                <div className="rounded-2xl bg-white/[0.07] p-3">
-                  <div className="text-[11px] text-white/55">In progress</div>
-                  <div className="text-2xl font-light tabular-nums">{topBrand.open}</div>
+            </div>
+            <div className="mt-3">
+              <MeetingAgenda meetings={upcoming} now={now} />
+            </div>
+          </Card>
+        ) : (
+          <section className="rise flex flex-col rounded-[24px] bg-[#18181b] p-5 text-white shadow-[0_24px_50px_-28px_rgb(0_0_0/0.7)] xl:col-span-4">
+            {topBrand ? (
+              <>
+                <div className="flex items-start justify-between">
+                  <span className="flex items-center gap-1.5 text-xs text-white/60">
+                    <span className="h-1.5 w-1.5 rounded-full bg-brand" /> Busiest client
+                  </span>
+                  <BrandMark name={topBrand.name} size={30} />
                 </div>
-                <div className="rounded-2xl bg-white/[0.07] p-3">
-                  <div className="text-[11px] text-white/55">Approved</div>
-                  <div className="text-2xl font-light tabular-nums">{topBrand.done}</div>
+                <h2 className="mt-3 text-[26px] font-normal leading-tight tracking-[-0.02em]">{topBrand.name}</h2>
+                <p className="text-xs text-white/55">{(topBrand.services || []).map((s) => s.name).join(" · ") || "Active client"}</p>
+                <div className="mt-5 grid grid-cols-2 gap-2">
+                  <div className="rounded-2xl bg-white/[0.07] p-3">
+                    <div className="text-[11px] text-white/55">In progress</div>
+                    <div className="text-2xl font-light tabular-nums">{topBrand.open}</div>
+                  </div>
+                  <div className="rounded-2xl bg-white/[0.07] p-3">
+                    <div className="text-[11px] text-white/55">Approved</div>
+                    <div className="text-2xl font-light tabular-nums">{topBrand.done}</div>
+                  </div>
                 </div>
-              </div>
-              <Link href={`/brands/${topBrand.id}`} className="mt-5 flex items-center justify-between rounded-full bg-white px-4 py-2.5 text-[13px] font-medium text-[#141416] transition hover:bg-white/90">
-                Open workspace <Icon name="arrow" size={14} />
-              </Link>
-            </>
-          ) : (
-            <p className="m-auto text-sm text-white/60">Your first client shows up here once they sign.</p>
-          )}
-        </section>
+                <Link href={`/brands/${topBrand.id}`} className="mt-5 flex items-center justify-between rounded-full bg-white px-4 py-2.5 text-[13px] font-medium text-[#141416] transition hover:bg-white/90">
+                  Open workspace <Icon name="arrow" size={14} />
+                </Link>
+              </>
+            ) : (
+              <p className="m-auto text-sm text-white/60">Your first client shows up here once they sign.</p>
+            )}
+          </section>
+        )}
       </div>
     </div>
   );

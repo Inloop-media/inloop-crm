@@ -3,7 +3,7 @@
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Icon from "@/components/Icon";
-import { PersonSelect } from "@/components/TaskForms";
+import { PersonSelect, PrioritySelect } from "@/components/TaskForms";
 import { createTask } from "@/app/(crm)/tasks/actions";
 import { TASK_KINDS } from "@/lib/constants";
 
@@ -13,7 +13,7 @@ export default function QuickAssign({ brands, people, defaultBrand = "", label =
   const [pending, start] = useTransition();
   const [error, setError] = useState("");
   const [done, setDone] = useState("");
-  const empty = { brand: defaultBrand, title: "", kind: "post", assignee_id: "", due_at: "", brief: "" };
+  const empty = { brand: defaultBrand, title: "", kind: "post", assignee_id: "", due_at: "", brief: "", priority: "medium" };
   const [f, setF] = useState(empty);
   const set = (k) => (e) => setF({ ...f, [k]: e.target ? e.target.value : e });
 
@@ -79,9 +79,10 @@ export default function QuickAssign({ brands, people, defaultBrand = "", label =
                 </button>
               ))}
             </div>
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid gap-3 sm:grid-cols-3">
               <PersonSelect people={people} value={f.assignee_id} onChange={set("assignee_id")} kind={f.kind} />
               <input className="field" type="datetime-local" value={f.due_at} onChange={set("due_at")} title="Due date" />
+              <PrioritySelect value={f.priority} onChange={(v) => setF({ ...f, priority: v })} />
             </div>
             <textarea className="field resize-y" rows={3} placeholder="Brief: copy, references, sizes…" value={f.brief} onChange={set("brief")} />
             {error && <p className="text-xs text-rose-400">{error}</p>}

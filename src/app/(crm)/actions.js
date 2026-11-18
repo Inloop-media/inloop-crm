@@ -13,6 +13,8 @@ import {
   canCreateLead,
   canManageTeam,
   canSeeLead,
+  canSeeAllLeads,
+  salesTeam,
   canSetStatus,
 } from "@/lib/permissions";
 import { DISCOVERY_STATUS, GROUP_KINDS, MEETING_KINDS, MEETING_MINUTES, PROPOSAL_STATUS, ROLES, STATUS_NAMES, UPDATE_EVENTS } from "@/lib/constants";
@@ -62,6 +64,8 @@ export async function updateLead(id, patch) {
     const to = patch.assigned_to || null;
     if (to !== lead.assigned_to) {
       if (!canAssign(me)) return { ok: false, error: "Only admins and ops can assign leads." };
+      // A sales head hands leads out within their own team
+      if (to && !canSeeAllLeads(me) && ![me.id, ...salesTeam(me)].includes(to)) return { ok: false, error: "You can only assign leads to people in your team." };
       let toName = null;
       if (to) {
         toName = await assigneeName(to);
@@ -459,9 +463,10 @@ export async function updateGroup(id, patch) {
     if (typeof patch.name === "string" && patch.name.trim()) changes.name = str(patch.name, 60);
     if (patch.kind && GROUP_KINDS.some((k) => k.id === patch.kind)) changes.kind = patch.kind;
     if (Array.isArray(patch.notify)) changes.notify = patch.notify.filter((e) => UPDATE_EVENTS.some((u) => u.id === e));
+    if ("lead_id" in patch) changes.lead_id = isUuid(patch.lead_id) ? patch.lead_id : null;
     if (Object.keys(changes).length) {
       const { error } = await db().from("groups").update(changes).eq("id", id);
-      if (error) return { ok: false, error: error.code === "23505" ? "A group with that name already exists." : error.message };
+      if (error) return { ok: false, error: error.code === "23505" ? "A group with that name already exists." : /lead_id/.test(error.message) ? "Group heads need migration 015 — run it in Supabase first." : error.message };
     }
     if (isUuid(patch.addMember)) await db().from("group_members").upsert({ group_id: id, member_id: patch.addMember });
     if (isUuid(patch.removeMember)) await db().from("group_members").delete().eq("group_id", id).eq("member_id", patch.removeMember);

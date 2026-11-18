@@ -38,7 +38,7 @@ export default async function TaskPage({ params }) {
   if (!task) notFound();
   const head = canAssignTasks(me);
   const mine = task.assignee_id === me.id;
-  const people = head ? await listMakers() : [];
+  const people = head ? await listMakers(me) : [];
   const showFeedback = task.feedback && ["revision", "assigned", "in_progress"].includes(task.status);
 
   return (
@@ -60,6 +60,9 @@ export default async function TaskPage({ params }) {
         <h1 className="mt-3 text-[28px] font-medium leading-tight tracking-[-0.02em] md:text-[36px]">{task.title}</h1>
         <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-muted">
           <TaskStatusPill status={task.status} />
+          {task.priority && task.priority !== "medium" && (
+            <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${task.priority === "high" ? "bg-red-500/15 text-red-400" : "bg-panel-2 text-muted"}`}>{task.priority === "high" ? "High priority" : "Low priority"}</span>
+          )}
           <span className="inline-flex items-center gap-1.5">
             <Icon name="clock" size={14} />
             <DueLabel due={task.due_at} status={task.status} />

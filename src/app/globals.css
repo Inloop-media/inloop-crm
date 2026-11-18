@@ -3,7 +3,7 @@
 /* dark: follows the theme switch, not the OS setting */
 @custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
 
-/* Inloop CRM — "coral studio": flat light-grey page, white rounded cards, a black floating icon
+/* Kyro — "coral studio": flat light-grey page, white rounded cards, a black floating icon
    rail, coral as the one accent, black pills for the main action. Light (default) and dark.
    Every colour is a token, so the theme switch is one attribute on <html>. */
 @theme {

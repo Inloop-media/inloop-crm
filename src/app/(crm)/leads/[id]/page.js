@@ -13,7 +13,7 @@ import Timeline from "@/components/Timeline";
 import FollowUp from "@/components/FollowUp";
 import { requireMember } from "@/lib/auth";
 import { getLead, listAssignees, listGuests, listMembers, openLeadCounts } from "@/lib/leads";
-import { canAssign, canBookDiscovery, canBookProposal, canEnterCommercials, canOnboard, canSeeLeads, isStrategist, statusOptions } from "@/lib/permissions";
+import { canSeeAllLeads, salesTeam, canAssign, canBookDiscovery, canBookProposal, canEnterCommercials, canOnboard, canSeeLeads, isStrategist, statusOptions } from "@/lib/permissions";
 import { fmtDateTime, fullName } from "@/lib/format";
 import { statusColor } from "@/lib/constants";
 
@@ -227,7 +227,7 @@ export default async function LeadPage({ params }) {
 
         <div className="flex flex-col gap-5">
           <Section title="Owner" action={lead.assigned_at ? <span className="text-[11px] text-faint">since {fmtDateTime(lead.assigned_at)}</span> : null}>
-            <OwnerPicker lead={lead} members={members} assignees={assignees} canAssign={canAssign(me)} openCounts={openCounts} />
+            <OwnerPicker lead={lead} members={members} assignees={canSeeAllLeads(me) ? assignees : assignees.filter((a) => [me.id, ...salesTeam(me)].includes(a.id))} canAssign={canAssign(me)} openCounts={openCounts} />
           </Section>
           <Section title="History" sub="Everything that happened on this lead">
             <Timeline events={lead.events} />

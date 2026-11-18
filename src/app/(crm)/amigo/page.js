@@ -9,7 +9,7 @@ export const metadata = { title: "Amigo" };
 
 export default async function AmigoPage() {
   const me = await requireMember(canUseAmigo);
-  const [brands, people] = canAssignTasks(me) ? await Promise.all([listBrands(), listMakers()]) : [[], []];
+  const [brands, people] = canAssignTasks(me) ? await Promise.all([listBrands(), listMakers(me)]) : [[], []];
   const activeBrands = brands.filter((b) => b.stage === "active");
   const somePerson = (people.find((p) => p.id !== me.id) || people[0])?.name.split(" ")[0] || "Riya";
   const someBrand = activeBrands[0]?.name || "Shadowe";

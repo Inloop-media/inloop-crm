@@ -41,10 +41,13 @@ export const GROUP_KINDS = [
   { id: "design", label: "Designers", help: "Get design tasks (posts, carousels, stories) and deliver them" },
   { id: "development", label: "Developers", help: "Get website / development tasks and deliver them" },
   { id: "video", label: "Video editors", help: "Get reels and video tasks and deliver them" },
+  { id: "performance", label: "Performance marketing", help: "Get ads and performance tasks and deliver them" },
+  { id: "social", label: "Social media management", help: "Get posting, scheduling and community tasks and deliver them" },
+  { id: "production", label: "Production", help: "Get shoots and production tasks and deliver them" },
   { id: "other", label: "Other", help: "A label only, no extra access" },
 ];
 // Groups whose members do the execution work (and show up in the task assignee picker)
-export const MAKER_KINDS = ["design", "development", "video"];
+export const MAKER_KINDS = ["design", "development", "video", "performance", "social", "production"];
 
 export const MEETING_MINUTES = { discovery: 30, proposal: 30 };
 export const MEETING_KINDS = {
@@ -115,7 +118,7 @@ export const BRAND_STAGES = {
 };
 
 export const TASK_KINDS = [
-  { id: "post", label: "Post", group: "design" },
+  { id: "post", label: "Static", group: "design" },
   { id: "carousel", label: "Carousel", group: "design" },
   { id: "story", label: "Story", group: "design" },
   { id: "reel", label: "Reel", group: "video" },
@@ -137,11 +140,36 @@ export const TASK_STATUSES = {
   done: { label: "Approved", color: "#4ade80", who: null },
 };
 export const OPEN_TASK = ["assigned", "in_progress", "revision"];
+/** Task priority — set when assigning; employees see high first. */
+export const PRIORITIES = [
+  { id: "high", label: "High", color: "#ef4444" },
+  { id: "medium", label: "Medium", color: "#f59e0b" },
+  { id: "low", label: "Low", color: "#94a3b8" },
+];
+const PRIORITY_RANK = { high: 0, medium: 1, low: 2 };
+/** Sort tasks: high priority first, then the earliest due date (no date last). */
+export const byPriority = (a, b) => (PRIORITY_RANK[a.priority] ?? 1) - (PRIORITY_RANK[b.priority] ?? 1) || (a.due_at || "9").localeCompare(b.due_at || "9");
 // What the employee can pick from the dropdown on their own task
 export const MAKER_STATUS_OPTIONS = ["assigned", "in_progress", "completed"];
 
 // Content calendar
 export const PLAN_KINDS = ["post", "carousel", "story", "reel", "video"];
+/** The types a content calendar post can be (the dropdown on each post, and the sheet import). */
+export const CALENDAR_TYPES = [
+  { id: "post", label: "Static" },
+  { id: "carousel", label: "Carousel" },
+  { id: "reel", label: "Reel" },
+  { id: "story", label: "Story" },
+];
+/** The written brief on a calendar post, in the order the team fills it in. */
+export const CALENDAR_FIELDS = [
+  { id: "notes", label: "Notes", rows: 2 },
+  { id: "creative_brief", label: "Creative brief", rows: 3 },
+  { id: "creative_direction", label: "Creative direction", rows: 3 },
+  { id: "caption_direction", label: "Caption direction", rows: 2 },
+  { id: "caption", label: "Content copy", rows: 4 },
+  { id: "cta_objective", label: "CTA objective", rows: 1 },
+];
 export const PLATFORMS = [
   { id: "instagram", label: "Instagram", short: "IG" },
   { id: "facebook", label: "Facebook", short: "FB" },
@@ -150,7 +178,7 @@ export const PLATFORMS = [
   { id: "x", label: "X", short: "X" },
   { id: "other", label: "Other", short: "•" },
 ];
-export const kindPlural = (id) => ({ story: "Stories", other: "Other" })[id] || `${taskKindLabel(id)}s`;
+export const kindPlural = (id) => ({ post: "Static posts", story: "Stories", other: "Other" })[id] || `${taskKindLabel(id)}s`;
 
 /** One colour per kind of content (calendar chips, task tags) */
 export const KIND_COLOR = { post: "#3b82f6", carousel: "#8b5cf6", story: "#ec4899", reel: "#f59e0b", video: "#06b6d4", design: "#10b981", website: "#64748b", other: "#64748b" };

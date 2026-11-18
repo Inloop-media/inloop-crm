@@ -66,7 +66,7 @@ export default async function BrandPage({ params, searchParams }) {
   if (!brand) notFound();
   const current = TABS.some(([k]) => k === sp.tab) ? sp.tab : sp.tab === "library" ? "files" : "tasks";
   const month = validMonth(sp.month);
-  const [tasks, people] = await Promise.all([listTasks(me, { view: "all", brandId: id }), canAssignTasks(me) ? listMakers() : []]);
+  const [tasks, people] = await Promise.all([listTasks(me, { view: "all", brandId: id }), canAssignTasks(me) ? listMakers(me) : []]);
   const overdue = tasks.filter(isOverdue);
   const done = tasks.filter((t) => t.status === "done");
   const files = current === "files" ? await library(tasks) : [];

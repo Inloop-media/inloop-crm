@@ -5,7 +5,7 @@ import Icon from "@/components/Icon";
 import { Empty, StatCard } from "@/components/ui";
 import { PageTop, Section, TaskLine } from "@/components/Desk";
 import StartTask from "@/components/StartTask";
-import { OPEN_TASK, TASK_STATUSES } from "@/lib/constants";
+import { OPEN_TASK, TASK_STATUSES, byPriority } from "@/lib/constants";
 
 const now = () => Date.now();
 const IST = "Asia/Kolkata";
@@ -57,8 +57,9 @@ export default function MyWork({ me, tasks, embedded = false }) {
     .filter((t) => t.status === "done")
     .sort((a, b) => (b.done_at || "").localeCompare(a.done_at || ""))
     .slice(0, 8);
-  const now_ = [...fix, ...overdue, ...dueToday];
-  const coming = [...week, ...later];
+  // High priority first, whenever it was assigned
+  const now_ = [...fix, ...overdue, ...dueToday].sort(byPriority);
+  const coming = [...week, ...later].sort(byPriority);
   const first = me.name.split(" ")[0];
 
   return (

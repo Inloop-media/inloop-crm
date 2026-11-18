@@ -2,7 +2,13 @@ import "server-only";
 import { db } from "@/lib/supabase/server";
 import { MEMBER_FIELDS } from "@/lib/auth";
 import { CLOSED_STATUSES } from "@/lib/constants";
-import { canSeeAllLeads, canSeeLead, canSeeMeetingKind, canSeeProposal } from "@/lib/permissions";
+import { canSeeAllLeads, canSeeLead, canSeeMeetingKind, canSeeProposal, isSalesHead, salesTeam } from "@/lib/permissions";
+
+/** Whose leads this member sees when they can't see all: their own, plus their team's if they head sales. */
+const ownerIds = (me) => [me.id, ...salesTeam(me)];
+/** A sales head also sees new, unassigned leads so they can hand them out. */
+const scopeLeads = (query, me, column = "assigned_to") =>
+  isSalesHead(me) ? query.or(`${column}.in.(${ownerIds(me).join(",")}),${column}.is.null`) : query.in(column, ownerIds(me));
 
 const CARD_FIELDS =
   "id, code, lead_no, first_name, last_name, email, phone, brand, service, budget, location, status, assigned_to, assigned_at, created_at, updated_at";
@@ -14,8 +20,11 @@ const clean = (q) => String(q || "").replace(/[%*,()\\:]/g, " ").trim().slice(0,
 export async function listLeads(me, { q, owner, status } = {}) {
   let query = db().from("leads").select(CARD_FIELDS).order("created_at", { ascending: false }).limit(1000);
 
-  if (!canSeeAllLeads(me)) query = query.eq("assigned_to", me.id);
-  else if (owner === "unassigned") query = query.is("assigned_to", null);
+  if (!canSeeAllLeads(me)) {
+    if (owner === "unassigned" && isSalesHead(me)) query = query.is("assigned_to", null);
+    else if (owner && ownerIds(me).includes(owner)) query = query.eq("assigned_to", owner);
+    else query = scopeLeads(query, me);
+  } else if (owner === "unassigned") query = query.is("assigned_to", null);
   else if (owner) query = query.eq("assigned_to", owner);
 
   if (status) query = query.eq("status", status);
@@ -75,10 +84,9 @@ export async function listAssignees() {
 }
 
 export async function listGroups() {
-  const { data, error } = await db()
-    .from("groups")
-    .select("id, name, kind, notify, created_at, group_members(member:members(id, name, email, active))")
-    .order("created_at");
+  const fields = "id, name, kind, notify, created_at, group_members(member:members(id, name, email, active))";
+  let { data, error } = await db().from("groups").select(`${fields}, lead_id`).order("created_at");
+  if (error) ({ data, error } = await db().from("groups").select(fields).order("created_at")); // before migration 015
   if (error) return [];
   return (data || []).map(({ group_members, ...g }) => ({ ...g, members: (group_members || []).map((x) => x.member).filter(Boolean) }));
 }
@@ -104,7 +112,7 @@ export async function listMeetings(me, { leadId, from, to } = {}) {
   if (leadId) query = query.eq("lead_id", leadId);
   if (from) query = query.gte("starts_at", from);
   if (to) query = query.lt("starts_at", to);
-  if (!canSeeAllLeads(me)) query = query.eq("kind", "discovery").eq("lead.assigned_to", me.id);
+  if (!canSeeAllLeads(me)) query = query.eq("kind", "discovery").in("lead.assigned_to", ownerIds(me));
   const { data, error } = await query;
   if (error) {
     // The meetings table is added by supabase/migrations/002_meetings.sql — until then, show none
@@ -126,7 +134,7 @@ export async function dashboardData(me) {
     .select("id, code, first_name, last_name, brand, service, source, status, assigned_to, budget, created_at, updated_at")
     .order("created_at", { ascending: false })
     .limit(5000);
-  if (!canSeeAllLeads(me)) query = query.eq("assigned_to", me.id);
+  if (!canSeeAllLeads(me)) query = scopeLeads(query, me);
 
   const since = new Date(Date.now() - 90 * 864e5).toISOString();
   let activity = db()
@@ -139,8 +147,8 @@ export async function dashboardData(me) {
     const { data: mine } = await db().from("proposals").select("lead_id").eq("strategist_id", me.id);
     const briefIds = (mine || []).map((p) => p.lead_id);
     activity = briefIds.length
-      ? activity.or(`assigned_to.eq.${me.id},id.in.(${briefIds.join(",")})`, { referencedTable: "lead" })
-      : activity.eq("lead.assigned_to", me.id);
+      ? activity.or(`assigned_to.in.(${ownerIds(me).join(",")}),id.in.(${briefIds.join(",")})`, { referencedTable: "lead" })
+      : activity.in("lead.assigned_to", ownerIds(me));
   }
 
   const [{ data: leads, error }, upcoming, recentMeetings, members, proposals, { data: events }] = await Promise.all([
@@ -155,7 +163,7 @@ export async function dashboardData(me) {
   // Same rule as the lead history: executives don't see proposal work or proposal meetings
   const visibleEvents = (events || []).filter((e) => {
     if (canSeeAllLeads(me)) return true;
-    if (e.lead.assigned_to !== me.id) return e.type.startsWith("proposal"); // a strategist's brief
+    if (!ownerIds(me).includes(e.lead.assigned_to)) return e.type.startsWith("proposal"); // a strategist's brief
     return !e.type.startsWith("proposal") && (!e.type.startsWith("meeting") || canSeeMeetingKind(me, e.data?.kind));
   });
   return { leads: leads || [], upcoming, meetings: recentMeetings, members, proposals, activity: visibleEvents, now: Date.now() };

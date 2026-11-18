@@ -7,9 +7,10 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Icon from "@/components/Icon";
 import MonthGrid, { todayKey } from "@/components/MonthGrid";
-import { PersonSelect } from "@/components/TaskForms";
+import CalendarImport from "@/components/CalendarImport";
+import { PersonSelect, PrioritySelect } from "@/components/TaskForms";
 import { assignCalendarItem, deleteCalendarItem, moveCalendarItem, saveCalendarItem, savePlan, setCalendarPosted } from "@/app/(crm)/calendar/actions";
-import { PLAN_KINDS, PLATFORMS, TASK_KINDS, TASK_STATUSES, kindPlural, taskKindLabel } from "@/lib/constants";
+import { CALENDAR_FIELDS, CALENDAR_TYPES, PLAN_KINDS, PLATFORMS, TASK_KINDS, TASK_STATUSES, kindPlural, taskKindLabel } from "@/lib/constants";
 
 export const KIND_COLOR = { post: "#60a5fa", carousel: "#a78bfa", story: "#f472b6", reel: "#fbbf24", video: "#22d3ee", design: "#4ade80", website: "#94a3b8", other: "#94a3b8" };
 const CONTENT_KINDS = TASK_KINDS.filter((k) => k.id !== "website");
@@ -57,8 +58,10 @@ function Chip({ i, onOpen, draggable }) {
       style={{ background: `color-mix(in srgb, ${KIND_COLOR[i.kind] || "#94a3b8"} 15%, transparent)` }}
     >
       <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: st.color }} />
+      <span className="shrink-0 rounded px-1 text-[9px] font-semibold uppercase" style={{ background: `color-mix(in srgb, ${KIND_COLOR[i.kind] || "#94a3b8"} 30%, transparent)` }}>
+        {taskKindLabel(i.kind)}
+      </span>
       <span className={`min-w-0 flex-1 truncate ${i.status === "posted" ? "line-through" : ""}`}>{i.title}</span>
-      <span className="shrink-0 text-[9px] font-semibold uppercase opacity-60">{taskKindLabel(i.kind).slice(0, 4)}</span>
     </button>
   );
 }
@@ -174,7 +177,19 @@ function PlanCard({ brandId, month, monthName, plan, progress, canPlan }) {
 function Drawer({ item, brandId, people, canEdit, canAssign, onClose }) {
   const { pending, error, run } = useRun();
   const isNew = !item.id;
-  const [f, setF] = useState({ title: item.title || "", kind: item.kind || "post", platform: item.platform || "instagram", publish_on: item.publish_on, caption: item.caption || "", notes: item.notes || "" });
+  const [f, setF] = useState({
+    title: item.title || "",
+    kind: item.kind || "post",
+    platform: item.platform || "instagram",
+    publish_on: item.publish_on,
+    caption: item.caption || "",
+    notes: item.notes || "",
+    creative_brief: item.creative_brief || "",
+    creative_direction: item.creative_direction || "",
+    caption_direction: item.caption_direction || "",
+    cta_objective: item.cta_objective || "",
+  });
+  const [refs, setRefs] = useState(item.refs?.length ? item.refs : [""]);
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
   const [who, setWho] = useState("");
   const twoDaysBefore = (() => {
@@ -184,6 +199,7 @@ function Drawer({ item, brandId, people, canEdit, canAssign, onClose }) {
     return k < todayKey() ? todayKey() : k;
   })();
   const [due, setDue] = useState(twoDaysBefore);
+  const [priority, setPriority] = useState("medium");
   const st = itemState(item);
 
   useEffect(() => {
@@ -195,7 +211,7 @@ function Drawer({ item, brandId, people, canEdit, canAssign, onClose }) {
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
       <button aria-label="Close" onClick={onClose} className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" />
-      <aside className="relative flex h-full w-full max-w-md flex-col border-l border-line bg-panel shadow-2xl">
+      <aside className="relative flex h-full w-full max-w-lg flex-col border-l border-line bg-panel shadow-2xl">
         <header className="flex items-center gap-3 border-b border-line px-5 py-4">
           <span className="h-2.5 w-2.5 rounded-full" style={{ background: KIND_COLOR[f.kind] }} />
           <h2 className="flex-1 text-sm font-medium">{isNew ? "New post" : canEdit ? "Edit post" : "Post"}</h2>
@@ -214,48 +230,80 @@ function Drawer({ item, brandId, people, canEdit, canAssign, onClose }) {
           className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-5 py-5"
           onSubmit={(e) => {
             e.preventDefault();
-            run(() => saveCalendarItem({ ...f, id: item.id, brand_id: brandId }), onClose);
+            run(() => saveCalendarItem({ ...f, refs, id: item.id, brand_id: brandId }), onClose);
           }}
         >
           <fieldset disabled={!canEdit} className="flex flex-col gap-4">
-            <div>
-              <label className="label">Topic / title</label>
-              <input className="field" value={f.title} onChange={set("title")} placeholder="e.g. Diwali offer — 20% off" required autoFocus={isNew} />
-            </div>
-            <div>
-              <label className="label">Type</label>
-              <div className="flex flex-wrap gap-1.5">
-                {CONTENT_KINDS.map((k) => (
-                  <button key={k.id} type="button" onClick={() => setF({ ...f, kind: k.id })} className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition ${f.kind === k.id ? "solid" : "bg-panel-2 text-muted hover:text-ink"}`}>
-                    <span className="h-1.5 w-1.5 rounded-full" style={{ background: KIND_COLOR[k.id] }} />
-                    {k.label}
-                  </button>
-                ))}
-              </div>
-            </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="label">Goes out on</label>
+                <label className="label">Date</label>
                 <input type="date" className="field" value={f.publish_on} onChange={set("publish_on")} required />
               </div>
               <div>
-                <label className="label">Platform</label>
-                <select className="field" value={f.platform} onChange={set("platform")}>
-                  {PLATFORMS.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.label}
+                <label className="label">Type</label>
+                <select className="field" value={f.kind} onChange={set("kind")}>
+                  {CALENDAR_TYPES.map((k) => (
+                    <option key={k.id} value={k.id}>
+                      {k.label}
                     </option>
                   ))}
+                  {!CALENDAR_TYPES.some((k) => k.id === f.kind) && <option value={f.kind}>{taskKindLabel(f.kind)}</option>}
                 </select>
               </div>
             </div>
             <div>
-              <label className="label">Caption</label>
-              <textarea className="field resize-y" rows={5} value={f.caption} onChange={set("caption")} placeholder="The caption, hashtags, CTA…" />
+              <label className="label">Content idea</label>
+              <textarea className="field resize-y" rows={2} value={f.title} onChange={set("title")} placeholder="e.g. Diwali offer — 20% off on all cakes" required autoFocus={isNew} />
+            </div>
+            {CALENDAR_FIELDS.map((c) => (
+              <div key={c.id}>
+                <label className="label">{c.label}</label>
+                {c.rows > 1 ? (
+                  <textarea className="field resize-y" rows={c.rows} value={f[c.id]} onChange={set(c.id)} />
+                ) : (
+                  <input className="field" value={f[c.id]} onChange={set(c.id)} placeholder={c.id === "cta_objective" ? "e.g. DM to order, visit the website" : ""} />
+                )}
+              </div>
+            ))}
+            <div>
+              <label className="label">References</label>
+              <div className="flex flex-col gap-2">
+                {refs.map((r, i) => (
+                  <div key={i} className="flex items-center gap-2">
+                    <input
+                      className="field"
+                      value={r}
+                      onChange={(e) => setRefs(refs.map((x, j) => (j === i ? e.target.value : x)))}
+                      placeholder="Paste a link (Instagram, Pinterest, Drive…) or a note"
+                    />
+                    {/^https?:\/\//.test(r) && (
+                      <a href={r} target="_blank" rel="noreferrer" className="grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-line text-muted hover:text-brand" aria-label="Open reference">
+                        <Icon name="external" size={13} />
+                      </a>
+                    )}
+                    {canEdit && refs.length > 1 && (
+                      <button type="button" onClick={() => setRefs(refs.filter((_, j) => j !== i))} className="grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-line text-muted hover:text-rose-400" aria-label="Remove reference">
+                        <Icon name="x" size={13} />
+                      </button>
+                    )}
+                  </div>
+                ))}
+                {canEdit && refs.length < 20 && (
+                  <button type="button" onClick={() => setRefs([...refs, ""])} className="btn-ghost btn-sm self-start">
+                    <Icon name="plus" size={12} /> Add reference
+                  </button>
+                )}
+              </div>
             </div>
             <div>
-              <label className="label">Notes for the designer / editor</label>
-              <textarea className="field resize-y" rows={3} value={f.notes} onChange={set("notes")} placeholder="References, visual idea, text on the creative…" />
+              <label className="label">Platform</label>
+              <select className="field" value={f.platform} onChange={set("platform")}>
+                {PLATFORMS.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.label}
+                  </option>
+                ))}
+              </select>
             </div>
           </fieldset>
 
@@ -277,11 +325,12 @@ function Drawer({ item, brandId, people, canEdit, canAssign, onClose }) {
                   <div className="flex items-center gap-2">
                     <label className="text-xs text-muted">Due</label>
                     <input type="date" className="field" value={due} onChange={(e) => setDue(e.target.value)} />
+                    <PrioritySelect value={priority} onChange={setPriority} />
                   </div>
-                  <button type="button" disabled={!who || pending} onClick={() => run(() => assignCalendarItem(item.id, { assignee_id: who, due_at: due }), onClose)} className="btn-primary btn-sm self-start">
+                  <button type="button" disabled={!who || pending} onClick={() => run(() => assignCalendarItem(item.id, { assignee_id: who, due_at: due, priority }), onClose)} className="btn-primary btn-sm self-start">
                     <Icon name="tasks" size={13} /> Assign as task
                   </button>
-                  <p className="text-[11px] text-muted">The caption and notes go into the task brief.</p>
+                  <p className="text-[11px] text-muted">The whole brief (direction, copy, references) goes into the task.</p>
                 </div>
               ) : (
                 <p className="text-xs text-muted">Not assigned yet — the execution heads assign it to a designer or editor.</p>
@@ -390,6 +439,7 @@ export default function ContentCalendar({ brand, month, monthName, items: initia
               </button>
             ))}
           </nav>
+          {canEdit && <CalendarImport brand={brand} month={month} monthName={monthName} />}
           {canEdit && (
             <button onClick={() => add(todayKey().startsWith(month) ? todayKey() : `${month}-01`)} className="btn-primary btn-sm">
               <Icon name="plus" size={13} /> Add post

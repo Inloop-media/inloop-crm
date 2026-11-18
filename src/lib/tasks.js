@@ -2,10 +2,11 @@ import "server-only";
 import { db } from "@/lib/supabase/server";
 import { pushTo } from "@/lib/push";
 import { MAKER_KINDS, OPEN_TASK, taskKindLabel } from "@/lib/constants";
-import { canAssignTasks, canSeeTask } from "@/lib/permissions";
+import { canAssignTasks, canSeeTask, headsTeam, myTeam } from "@/lib/permissions";
 
+// "*" so newer columns (priority, migration 017) come along when they exist
 export const TASK_FIELDS =
-  "id, brand_id, title, kind, brief, assignee_id, assigned_by, due_at, status, revision, feedback, completed_at, done_at, created_at, updated_at, " +
+  "*, " +
   "brand:brands(id, name, lead_id), assignee:members!tasks_assignee_id_fkey(id, name), assigner:members!tasks_assigned_by_fkey(id, name)";
 
 const isUuid = (v) => /^[0-9a-f-]{36}$/i.test(String(v || ""));
@@ -50,11 +51,36 @@ export async function getTask(me, id) {
 }
 
 /** People who can take tasks: active members of the designer / developer / video groups (and heads). */
-export async function listMakers() {
-  const { data } = await db()
-    .from("groups")
-    .select("kind, group_members(member:members(id, name, active))")
-    .in("kind", [...MAKER_KINDS, "execution"]);
+/** Members who head at least one group (Krish, Udit, Arushi…). Empty before migration 015. */
+export async function headIds() {
+  const { data, error } = await db().from("groups").select("lead_id").not("lead_id", "is", null);
+  return error ? [] : [...new Set((data || []).map((g) => g.lead_id))];
+}
+
+/** A head who runs teams gives work to their own team and to the other heads — not to other heads' teams. */
+function headRule(me) {
+  return me && me.role !== "admin" && headsTeam(me);
+}
+
+/** May `me` give a task to this person? */
+export async function canAssignTo(me, memberId) {
+  if (!headRule(me)) return true;
+  if (memberId === me.id || myTeam(me).includes(memberId)) return true;
+  return (await headIds()).includes(memberId);
+}
+
+/**
+ * People who can take tasks, with their open work: the designer / developer / video / … groups and the heads.
+ * Pass `me` to get only the people *they* may assign to (a head: their team + the other heads + themselves).
+ */
+export async function listMakers(me) {
+  const [{ data }, heads] = await Promise.all([
+    db()
+      .from("groups")
+      .select("kind, group_members(member:members(id, name, active))")
+      .in("kind", [...MAKER_KINDS, "execution", "sales", "strategy"]),
+    headIds(),
+  ]);
   const byId = new Map();
   for (const g of data || []) {
     for (const gm of g.group_members || []) {
@@ -64,6 +90,20 @@ export async function listMakers() {
       cur.kinds.push(g.kind);
       byId.set(m.id, cur);
     }
+  }
+  if (heads.length) {
+    const missing = heads.filter((id) => !byId.has(id));
+    if (missing.length) {
+      const { data: rows } = await db().from("members").select("id, name, active").in("id", missing);
+      for (const m of rows || []) if (m.active) byId.set(m.id, { id: m.id, name: m.name, kinds: [] });
+    }
+    for (const id of heads) byId.get(id)?.kinds.push("head");
+  }
+  // Who shows up: makers and heads for everyone; a head's sales / strategy people only for that head
+  const isMakerOrHead = (p) => p.kinds.some((k) => [...MAKER_KINDS, "execution", "head"].includes(k));
+  for (const [id, p] of byId) {
+    const allowed = headRule(me) ? id === me.id || myTeam(me).includes(id) || heads.includes(id) : isMakerOrHead(p);
+    if (!allowed) byId.delete(id);
   }
   const people = [...byId.values()];
   // Open work per person, so the head can pick someone free

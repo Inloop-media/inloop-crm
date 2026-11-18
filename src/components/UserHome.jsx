@@ -10,7 +10,7 @@ import MyWork from "@/components/MyWork";
 import { RoundLink, Ring } from "@/components/AdminHome";
 import { Activity, MeetingAgenda, ProposalProgress } from "@/components/DashboardView";
 import { Empty } from "@/components/ui";
-import { CLOSED_STATUSES, OPEN_TASK } from "@/lib/constants";
+import { CLOSED_STATUSES, OPEN_TASK, byPriority } from "@/lib/constants";
 import { ago, fullName } from "@/lib/format";
 import { isMaker, isSales, isStrategist } from "@/lib/permissions";
 
@@ -134,7 +134,7 @@ export default function UserHome({ me, data, tasks = [], followUps = [] }) {
   const lateTasks = openTasks.filter(isLate);
   const fixTasks = openTasks.filter((t) => t.status === "revision");
   const dueToday = openTasks.filter((t) => t.due_at && dayKey(t.due_at) === today && !isLate(t));
-  const doToday = [...new Set([...fixTasks, ...lateTasks, ...dueToday])];
+  const doToday = [...new Set([...fixTasks, ...lateTasks, ...dueToday])].sort(byPriority);
   const waiting = tasks.filter((t) => ["completed", "client_rejected", "sent_to_client"].includes(t.status));
   const approved = tasks.filter((t) => t.status === "done");
   const approvedWeek = approved.filter((t) => t.done_at && now - new Date(t.done_at).getTime() < 7 * DAY);

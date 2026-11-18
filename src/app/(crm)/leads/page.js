@@ -9,7 +9,7 @@ import { FilterPills, PageTop } from "@/components/Desk";
 import { requireMember } from "@/lib/auth";
 import { listLeads, listMembers } from "@/lib/leads";
 import { CLOSED_STATUSES, EXEC_VISIBLE_STATUSES, STATUS_NAMES } from "@/lib/constants";
-import { canCreateLead, canSeeAllLeads, canSeeLeads, statusOptions } from "@/lib/permissions";
+import { canCreateLead, canSeeAllLeads, canSeeLeads, isSalesHead, salesTeam, statusOptions } from "@/lib/permissions";
 
 export const metadata = { title: "Leads" };
 const nowMs = () => Date.now();
@@ -39,7 +39,7 @@ export default async function LeadsPage({ searchParams }) {
   return (
     <div className="page">
       <PageTop
-        title={all ? "Leads" : "My leads"}
+        title={all ? "Leads" : isSalesHead(me) ? "Team leads" : "My leads"}
         sub={`${open.length} open · ${newWeek.length} new this week${all ? ` · ${unassigned.length} unassigned` : ""}`}
         right={
           <>
@@ -65,10 +65,10 @@ export default async function LeadsPage({ searchParams }) {
       </div>
       <div className="rise mb-4 mt-4">
         <Suspense>
-          <LeadsToolbar members={members.filter((m) => m.active && m.groups.some((g) => g.kind === "sales"))} showOwner={all} statuses={all ? STATUS_NAMES : EXEC_VISIBLE_STATUSES} />
+          <LeadsToolbar members={members.filter((m) => m.active && m.groups.some((g) => g.kind === "sales") && (all || salesTeam(me).includes(m.id)))} showOwner={all || isSalesHead(me)} statuses={all || isSalesHead(me) ? STATUS_NAMES : EXEC_VISIBLE_STATUSES} />
         </Suspense>
       </div>
-      {isList ? <LeadList leads={leads} owners={owners} /> : <Board leads={leads} owners={owners} allowed={statusOptions(me)} columns={all ? undefined : EXEC_VISIBLE_STATUSES} />}
+      {isList ? <LeadList leads={leads} owners={owners} /> : <Board leads={leads} owners={owners} allowed={statusOptions(me)} columns={all || isSalesHead(me) ? undefined : EXEC_VISIBLE_STATUSES} />}
     </div>
   );
 }

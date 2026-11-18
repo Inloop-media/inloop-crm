@@ -128,7 +128,7 @@ export default function MasterCalendar({ month, brands, items }) {
                               </span>
                               {i.task?.assignee && <span>· {i.task.assignee.name.split(" ")[0]}</span>}
                             </div>
-                            {i.caption && <p className="mt-1 line-clamp-2 text-[11px] text-ink/70">{i.caption}</p>}
+                            {(i.creative_brief || i.caption) && <p className="mt-1 line-clamp-2 text-[11px] text-ink/70">{i.creative_brief || i.caption}</p>}
                           </li>
                         );
                       })}

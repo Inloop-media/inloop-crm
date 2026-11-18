@@ -6,7 +6,7 @@
 import Link from "next/link";
 import Icon from "@/components/Icon";
 import { Avatar } from "@/components/ui";
-import { KIND_COLOR, OPEN_TASK, TASK_STATUSES, taskKindLabel } from "@/lib/constants";
+import { KIND_COLOR, OPEN_TASK, TASK_STATUSES, taskKindLabel, PRIORITIES } from "@/lib/constants";
 
 const IST = "Asia/Kolkata";
 const dayKey = (d) => new Date(d).toLocaleDateString("en-CA", { timeZone: IST });
@@ -85,6 +85,7 @@ export function TaskLine({ t, showBrand = true, action, note }) {
   const c = KIND_COLOR[t.kind] || "#64748b";
   const due = duePill(t);
   const done = t.status === "done";
+  const pr = t.priority && !done ? PRIORITIES.find((p) => p.id === t.priority) : null;
   return (
     <li className="group relative flex items-center gap-3 border-b border-line py-2.5 last:border-0">
       <Link href={`/tasks/${t.id}`} className="absolute inset-0 z-0" aria-label={t.title} />
@@ -105,6 +106,11 @@ export function TaskLine({ t, showBrand = true, action, note }) {
         </span>
         {note && <span className="mt-1 line-clamp-2 block rounded-lg bg-rose-400/10 px-2 py-1 text-[11px] text-rose-400">“{note}”</span>}
       </span>
+      {pr && (
+        <span className="shrink-0 rounded-full px-2 py-0.5 text-[10.5px] font-semibold" style={{ background: `color-mix(in srgb, ${pr.color} 16%, transparent)`, color: pr.color }}>
+          {pr.label}
+        </span>
+      )}
       <span
         className="hidden shrink-0 rounded-full px-2 py-0.5 text-[10.5px] font-medium sm:inline"
         style={{ background: `color-mix(in srgb, ${s.color} 15%, transparent)`, color: `color-mix(in oklab, ${s.color} 62%, var(--color-ink))` }}

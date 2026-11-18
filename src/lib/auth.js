@@ -36,7 +36,17 @@ export async function memberForEmail(email, fullName) {
     member = data;
   }
   if (!member || !member.active) return null;
-  return { ...member, groups: await groupsOf(member.id) };
+  const [groups, led] = await Promise.all([groupsOf(member.id), ledGroupsOf(member.id)]);
+  // team: everyone in the groups this person heads (empty for people who head nothing)
+  const team = [...new Set(led.flatMap((g) => g.memberIds))].filter((id) => id !== member.id);
+  return { ...member, groups, ledGroups: led, team };
+}
+
+/** Groups this member heads, with who is in them: [{ id, name, kind, memberIds }]. Empty before migration 015. */
+async function ledGroupsOf(memberId) {
+  const { data, error } = await db().from("groups").select("id, name, kind, group_members(member_id)").eq("lead_id", memberId);
+  if (error) return [];
+  return (data || []).map((g) => ({ id: g.id, name: g.name, kind: g.kind, memberIds: (g.group_members || []).map((m) => m.member_id) }));
 }
 
 /** [{ id, name, kind }] — what a member can do beyond their role comes from these. */

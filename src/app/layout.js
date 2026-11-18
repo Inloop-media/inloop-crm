@@ -5,10 +5,10 @@ import "./globals.css";
 const geist = Geist({ variable: "--font-geist", subsets: ["latin"] });
 
 export const metadata = {
-  title: { default: "Inloop CRM", template: "%s · Inloop CRM" },
-  description: "Lead management for Inloop Media",
+  title: { default: "Kyro", template: "%s · Kyro" },
+  description: "Kyro: the Inloop Media workspace",
   robots: { index: false, follow: false },
-  appleWebApp: { capable: true, title: "Inloop CRM", statusBarStyle: "default" },
+  appleWebApp: { capable: true, title: "Kyro", statusBarStyle: "default" },
   icons: { apple: "/icons/apple-touch-icon.png" },
 };
 

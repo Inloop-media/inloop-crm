@@ -18,6 +18,26 @@ function refresh(brandId) {
   revalidatePath("/client");
 }
 
+/** The written brief fields (migration 016), cleaned. */
+function briefFields(input) {
+  const refs = (Array.isArray(input.refs) ? input.refs : String(input.refs || "").split(/\n+/))
+    .map((r) => str(r, 500))
+    .filter(Boolean)
+    .slice(0, 20);
+  return {
+    creative_brief: str(input.creative_brief, 4000),
+    creative_direction: str(input.creative_direction, 4000),
+    caption_direction: str(input.caption_direction, 2000),
+    cta_objective: str(input.cta_objective, 500),
+    refs,
+  };
+}
+const BRIEF_KEYS = ["creative_brief", "creative_direction", "caption_direction", "cta_objective", "refs"];
+const isMissingColumn = (error) => BRIEF_KEYS.some((k) => String(error?.message || "").includes(k));
+/** The row without the migration-016 fields, for databases that don't have them yet. */
+const basic = (row) => Object.fromEntries(Object.entries(row).filter(([k]) => !BRIEF_KEYS.includes(k)));
+const friendly = (error) => (/creative_brief|creative_direction|caption_direction|cta_objective|refs/.test(error.message) ? "The new calendar fields need migration 016 — ask the admin to run it in Supabase." : error.message);
+
 async function loadItem(id) {
   if (!isUuid(id)) return null;
   const { data } = await db().from("calendar_items").select("*").eq("id", id).maybeSingle();
@@ -32,19 +52,21 @@ export async function saveCalendarItem(input) {
     title: str(input.title, 200),
     caption: str(input.caption, 6000),
     notes: str(input.notes, 4000),
+    ...briefFields(input),
     kind: TASK_KINDS.some((k) => k.id === input.kind) ? input.kind : "post",
     platform: PLATFORMS.some((p) => p.id === input.platform) ? input.platform : "instagram",
     updated_at: new Date().toISOString(),
   };
-  if (!row.title) return { ok: false, error: "Give it a title or topic." };
+  if (!row.title) return { ok: false, error: "Write the content idea." };
   if (!isDay(input.publish_on)) return { ok: false, error: "Pick the date it goes out." };
   row.publish_on = input.publish_on;
 
   if (input.id) {
     const item = await loadItem(input.id);
     if (!item) return { ok: false, error: "Not found." };
-    const { error } = await db().from("calendar_items").update(row).eq("id", item.id);
-    if (error) return { ok: false, error: error.message };
+    let { error } = await db().from("calendar_items").update(row).eq("id", item.id);
+    if (error && isMissingColumn(error)) ({ error } = await db().from("calendar_items").update(basic(row)).eq("id", item.id));
+    if (error) return { ok: false, error: friendly(error) };
     // Keep a linked task's title in step
     if (item.task_id && row.title !== item.title) await db().from("tasks").update({ title: row.title.slice(0, 160) }).eq("id", item.task_id);
     refresh(item.brand_id);
@@ -52,12 +74,10 @@ export async function saveCalendarItem(input) {
   }
   const brand = await getBrand(input.brand_id);
   if (!brand) return { ok: false, error: "Pick a brand." };
-  const { data, error } = await db()
-    .from("calendar_items")
-    .insert({ ...row, brand_id: brand.id, created_by: me.id })
-    .select("id")
-    .single();
-  if (error) return { ok: false, error: error.message };
+  const insert = (r) => db().from("calendar_items").insert({ ...r, brand_id: brand.id, created_by: me.id }).select("id").single();
+  let { data, error } = await insert(row);
+  if (error && isMissingColumn(error)) ({ data, error } = await insert(basic(row)));
+  if (error) return { ok: false, error: friendly(error) };
   refresh(brand.id);
   return { ok: true, id: data.id };
 }
@@ -96,14 +116,27 @@ export async function deleteCalendarItem(id) {
 }
 
 /** Head: turn a calendar item into a task for someone (the task's brief is the caption + notes). */
-export async function assignCalendarItem(id, { assignee_id, due_at, brief }) {
+export async function assignCalendarItem(id, { assignee_id, due_at, brief, priority }) {
   const me = await requireMember();
   if (!canAssignTasks(me)) return { ok: false, error: "Only execution heads and admins assign tasks." };
   const item = await loadItem(id);
   if (!item) return { ok: false, error: "Not found." };
   if (item.task_id) return { ok: false, error: "This one already has a task." };
-  const text = str(brief, 8000) || [item.caption && `Caption:\n${item.caption}`, item.notes && `Notes:\n${item.notes}`, `Goes out: ${item.publish_on}`].filter(Boolean).join("\n\n");
-  const res = await createTask(item.brand_id, { title: item.title, kind: item.kind, assignee_id, due_at, brief: text });
+  const text =
+    str(brief, 8000) ||
+    [
+      item.creative_brief && `Creative brief:\n${item.creative_brief}`,
+      item.creative_direction && `Creative direction:\n${item.creative_direction}`,
+      item.caption_direction && `Caption direction:\n${item.caption_direction}`,
+      item.caption && `Content copy:\n${item.caption}`,
+      item.cta_objective && `CTA objective: ${item.cta_objective}`,
+      (item.refs || []).length && `References:\n${item.refs.join("\n")}`,
+      item.notes && `Notes:\n${item.notes}`,
+      `Goes out: ${item.publish_on}`,
+    ]
+      .filter(Boolean)
+      .join("\n\n");
+  const res = await createTask(item.brand_id, { title: item.title, kind: item.kind, assignee_id, due_at, brief: text, priority });
   if (!res.ok) return res;
   await db().from("calendar_items").update({ task_id: res.id, updated_at: new Date().toISOString() }).eq("id", id);
   refresh(item.brand_id);
@@ -128,4 +161,72 @@ export async function savePlan(brandId, month, targets, notes = "") {
   if (error) return { ok: false, error: error.message };
   refresh(brand.id);
   return { ok: true };
+}
+
+/* ------------------------------ Sheet import ------------------------------ */
+
+/**
+ * Read a Google Sheet the team shared by link ("Anyone with the link can view"), as CSV text.
+ * Only docs.google.com spreadsheet links are fetched.
+ */
+export async function fetchSheetCsv(link) {
+  const me = await requireMember();
+  if (!canEditCalendar(me)) return { ok: false, error: "Only strategists and heads edit the calendar." };
+  let url;
+  try {
+    url = new URL(String(link || "").trim());
+  } catch {
+    return { ok: false, error: "Paste the Google Sheet link." };
+  }
+  const id = url.hostname === "docs.google.com" && url.pathname.match(/^\/spreadsheets\/d\/([\w-]{20,})/)?.[1];
+  if (!id) return { ok: false, error: "That isn't a Google Sheets link (it should start with docs.google.com/spreadsheets)." };
+  const gid = url.searchParams.get("gid") || url.hash.match(/gid=(\d+)/)?.[1] || "0";
+  const res = await fetch(`https://docs.google.com/spreadsheets/d/${id}/export?format=csv&gid=${gid}`, { redirect: "follow", cache: "no-store" }).catch(() => null);
+  const type = res?.headers.get("content-type") || "";
+  if (!res || !res.ok || !/text\/csv|text\/plain|application\/octet-stream/.test(type)) {
+    return { ok: false, error: "Couldn't open the sheet. In Google Sheets click Share → General access → \"Anyone with the link\" (Viewer), then try again — or download it as .xlsx / .csv and upload the file." };
+  }
+  const text = await res.text();
+  if (text.length > 3_000_000) return { ok: false, error: "That sheet is too big — upload one month at a time." };
+  return { ok: true, text };
+}
+
+/**
+ * Save posts read from a sheet into one brand's calendar.
+ * replace: first remove this month's posts that aren't assigned or posted yet (so re-importing an updated sheet doesn't duplicate).
+ */
+export async function importCalendarItems(brandId, month, items, { replace = false } = {}) {
+  const me = await requireMember();
+  if (!canEditCalendar(me)) return { ok: false, error: "Only strategists and heads edit the calendar." };
+  const brand = await getBrand(brandId);
+  if (!brand) return { ok: false, error: "Brand not found." };
+  if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(String(month))) return { ok: false, error: "Bad month." };
+  const rows = (Array.isArray(items) ? items : [])
+    .slice(0, 400)
+    .map((input) => ({
+      brand_id: brand.id,
+      created_by: me.id,
+      publish_on: input.publish_on,
+      title: str(input.title, 200),
+      caption: str(input.caption, 6000),
+      notes: str(input.notes, 4000),
+      kind: TASK_KINDS.some((k) => k.id === input.kind) ? input.kind : "post",
+      platform: PLATFORMS.some((p) => p.id === input.platform) ? input.platform : "instagram",
+      ...briefFields(input),
+    }))
+    .filter((r) => r.title && isDay(r.publish_on));
+  if (!rows.length) return { ok: false, error: "No posts to import." };
+
+  if (replace) {
+    const next = (() => {
+      const [y, m] = month.split("-").map(Number);
+      return new Date(Date.UTC(y, m, 1)).toISOString().slice(0, 10);
+    })();
+    await db().from("calendar_items").delete().eq("brand_id", brand.id).gte("publish_on", `${month}-01`).lt("publish_on", next).is("task_id", null).eq("status", "planned");
+  }
+  let { error } = await db().from("calendar_items").insert(rows);
+  if (error && isMissingColumn(error)) ({ error } = await db().from("calendar_items").insert(rows.map(basic)));
+  if (error) return { ok: false, error: friendly(error) };
+  refresh(brand.id);
+  return { ok: true, count: rows.length };
 }

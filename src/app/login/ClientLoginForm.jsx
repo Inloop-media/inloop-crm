@@ -35,7 +35,6 @@ export default function ClientLoginForm() {
         });
       }}
     >
-      <div className="text-sm font-medium">Client login</div>
       <input className="field" placeholder="Login ID" autoComplete="username" autoCapitalize="none" value={id} onChange={(e) => setId(e.target.value)} autoFocus />
       <div className="relative">
         <input className="field pr-16" placeholder="Password" type={show ? "text" : "password"} autoComplete="current-password" value={pw} onChange={(e) => setPw(e.target.value)} />

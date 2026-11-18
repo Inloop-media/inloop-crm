@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import Icon from "@/components/Icon";
 import { Avatar } from "@/components/ui";
 import { reviewTask, setTaskStatus } from "@/app/(crm)/tasks/actions";
-import { KIND_COLOR, OPEN_TASK, TASK_STATUSES, taskKindLabel } from "@/lib/constants";
+import { KIND_COLOR, OPEN_TASK, TASK_STATUSES, taskKindLabel, byPriority } from "@/lib/constants";
 
 const COLS = [
   { id: "todo", label: "To do", statuses: ["assigned"], color: TASK_STATUSES.assigned.color },
@@ -92,7 +92,7 @@ export default function TaskBoard({ tasks: initial, showBrand = true }) {
       )}
       <div className="-mx-4 flex snap-x gap-3 overflow-x-auto px-4 pb-2 md:mx-0 md:px-0">
         {COLS.map((c) => {
-          const list = tasks.filter((t) => c.statuses.includes(t.status));
+          const list = tasks.filter((t) => c.statuses.includes(t.status)).sort(c.id === "done" ? () => 0 : byPriority);
           const shown = c.id === "done" ? list.slice(0, 20) : list;
           const valid = drag && typeof move(tasks.find((x) => x.id === drag)?.status, c.id) !== "string";
           return (
@@ -138,6 +138,7 @@ export default function TaskBoard({ tasks: initial, showBrand = true }) {
                     <div className="text-[13px] font-medium leading-snug group-hover:text-brand">
                       {t.title}
                       {t.revision > 0 && <span className="ml-1.5 rounded-full bg-rose-400/15 px-1.5 text-[10px] font-semibold text-rose-400">R{t.revision}</span>}
+                      {t.priority === "high" && c.id !== "done" && <span className="ml-1.5 rounded-full bg-red-500/15 px-1.5 text-[10px] font-semibold text-red-400">High</span>}
                     </div>
                     <div className="flex items-center justify-between gap-2 border-t border-dashed border-line-strong/70 pt-2.5">
                       <span className="flex min-w-0 items-center gap-1.5 text-[11px] text-muted">

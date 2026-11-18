@@ -7,15 +7,15 @@ import { listBrands } from "@/lib/brands";
 import MyWork from "@/components/MyWork";
 import { requireMember } from "@/lib/auth";
 import { listMakers, listTasks } from "@/lib/tasks";
-import { canAssignTasks } from "@/lib/permissions";
-import { OPEN_TASK, kindPlural } from "@/lib/constants";
+import { canAssignTasks, headsTeam, myTeam } from "@/lib/permissions";
+import { OPEN_TASK, kindPlural, byPriority } from "@/lib/constants";
 
 export const metadata = { title: "Tasks" };
 const nowMs = () => Date.now();
 
 
 const overdue = (t) => OPEN_TASK.includes(t.status) && t.due_at && new Date(t.due_at).getTime() < Date.now();
-const KIND_LABEL = { design: "Designer", development: "Developer", video: "Video editor", execution: "Execution head" };
+const KIND_LABEL = { design: "Designer", development: "Developer", video: "Video editor", performance: "Performance", social: "Social media", production: "Production", execution: "Execution head" };
 
 function Workload({ people, tasks }) {
   const open = tasks.filter((t) => OPEN_TASK.includes(t.status));
@@ -85,7 +85,15 @@ export default async function TasksPage({ searchParams }) {
     );
   }
 
-  const [all, people, brands] = await Promise.all([listTasks(me, { view: "all" }), listMakers(), listBrands()]);
+  const [everything, everyone, brands] = await Promise.all([listTasks(me, { view: "all" }), listMakers(me), listBrands()]);
+  // Heads of departments start on their own team's work; "Everyone" shows the whole agency
+  const team = myTeam(me);
+  const teamView = me.role !== "admin" && headsTeam(me) && team.length > 0;
+  const whole = sp.who === "all" || !teamView;
+  const all = whole ? everything : everything.filter((t) => team.includes(t.assignee_id) || t.assigned_by === me.id);
+  // Who you can give work to (a head: own team + other heads) vs whose workload you're looking at
+  const assignable = everyone;
+  const people = whole ? everyone : everyone.filter((p) => team.includes(p.id) || p.id === me.id);
   const active = brands.filter((b) => b.stage === "active").map((b) => ({ id: b.id, name: b.name }));
   const myOpen = mine.filter((t) => t.status !== "done").length;
   const views = [
@@ -101,7 +109,7 @@ export default async function TasksPage({ searchParams }) {
   const kind = kinds.includes(sp.kind) ? sp.kind : "";
   const shown = kind ? byBrand.filter((t) => t.kind === kind) : byBrand;
   const href = (o) => {
-    const q = new URLSearchParams({ ...(current !== "list" && { view: current }), ...(brand && { brand }), ...(kind && { kind }), ...o });
+    const q = new URLSearchParams({ ...(current !== "list" && { view: current }), ...(brand && { brand }), ...(kind && { kind }), ...(sp.who === "all" && { who: "all" }), ...o });
     for (const [k, v] of [...q]) if (!v) q.delete(k);
     const str = q.toString();
     return str ? `/tasks?${str}` : "/tasks";
@@ -109,9 +117,9 @@ export default async function TasksPage({ searchParams }) {
 
   const now = nowMs();
   const isLate = (t) => OPEN_TASK.includes(t.status) && t.due_at && new Date(t.due_at).getTime() < now;
-  const toCheck = shown.filter((t) => ["completed", "client_rejected"].includes(t.status));
-  const late = shown.filter(isLate).sort((a, b) => a.due_at.localeCompare(b.due_at));
-  const working = shown.filter((t) => OPEN_TASK.includes(t.status) && !isLate(t)).sort((a, b) => (a.due_at || "9").localeCompare(b.due_at || "9"));
+  const toCheck = shown.filter((t) => ["completed", "client_rejected"].includes(t.status)).sort(byPriority);
+  const late = shown.filter(isLate).sort(byPriority);
+  const working = shown.filter((t) => OPEN_TASK.includes(t.status) && !isLate(t)).sort(byPriority);
   const withClient = shown.filter((t) => t.status === "sent_to_client");
   const approved = shown.filter((t) => t.status === "done").sort((a, b) => (b.done_at || "").localeCompare(a.done_at || ""));
   const doneShare = shown.length ? Math.round((approved.length / shown.length) * 100) : 0;
@@ -121,11 +129,19 @@ export default async function TasksPage({ searchParams }) {
     <div className="page">
       <PageTop
         title="Tasks"
-        sub={`${open} open · ${late.length} late · ${doneShare}% approved`}
+        sub={`${teamView && !whole ? `${(me.ledGroups || []).map((g) => g.name).join(", ")} · ` : ""}${open} open · ${late.length} late · ${doneShare}% approved`}
         right={
           <>
+            {teamView && (
+              <FilterPills
+                items={[
+                  { label: "My team", href: href({ who: "" }), on: !whole },
+                  { label: "Everyone", href: href({ who: "all" }), on: whole },
+                ]}
+              />
+            )}
             <FilterPills items={views.map((v) => ({ label: v.label, count: v.count, href: href({ view: v.id === "list" ? "" : v.id }), on: current === v.id }))} />
-            <QuickAssign brands={active} people={people} defaultBrand={brand} label="New task" />
+            <QuickAssign brands={active} people={assignable} defaultBrand={brand} label="New task" />
           </>
         }
       />
