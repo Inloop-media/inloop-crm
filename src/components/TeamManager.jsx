@@ -72,6 +72,14 @@ function MemberRow({ m, isMe, groups }) {
           );
         })}
       </div>
+      <button
+        disabled={pending}
+        onClick={() => change(m.id, { can_see_documents: !m.can_see_documents })}
+        title="Can open the confidential Documents folder in every brand's library"
+        className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-medium transition ${m.can_see_documents ? "bg-brand/15 text-brand" : "border border-dashed border-line-strong text-faint hover:text-ink"}`}
+      >
+        <Icon name="lock" size={12} /> {m.can_see_documents ? "Opens Documents" : "No Documents"}
+      </button>
       <select value={m.role} disabled={pending || isMe} onChange={(e) => change(m.id, { role: e.target.value })} className="field w-auto rounded-full py-2 text-xs">
         {ROLES.map((r) => (
           <option key={r.id} value={r.id}>

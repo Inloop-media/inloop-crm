@@ -428,9 +428,10 @@ export async function updateMember(id, patch) {
   if (patch.role && ROLES.some((r) => r.id === patch.role)) changes.role = patch.role;
   if (typeof patch.active === "boolean") changes.active = patch.active;
   if (typeof patch.name === "string" && patch.name.trim()) changes.name = str(patch.name, 100);
+  if (typeof patch.can_see_documents === "boolean") changes.can_see_documents = patch.can_see_documents;
   if (Object.keys(changes).length) {
     const { error } = await db().from("members").update(changes).eq("id", id);
-    if (error) return { ok: false, error: error.message };
+    if (error) return { ok: false, error: /can_see_documents/.test(error.message) ? "Run migration 020 in Supabase first." : error.message };
   }
   if (Array.isArray(patch.groups)) await setMemberGroups(id, patch.groups);
   revalidatePath("/team");

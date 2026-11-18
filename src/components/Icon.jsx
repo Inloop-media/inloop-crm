@@ -24,6 +24,8 @@ const PATHS = {
   file: "M7 3h7l5 5v13H7zM14 3v5h5",
   link: "M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1",
   upload: "M12 16V4M7 9l5-5 5 5M4 16v4h16v-4",
+  download: "M12 4v12M7 11l5 5 5-5M4 20h16",
+  lock: "M6 11h12v9H6zM8.5 11V8a3.5 3.5 0 0 1 7 0v3",
   external: "M14 4h6v6M20 4l-9 9M18 14v6H4V6h6",
   clock: "M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18M12 7v5l3 2",
   rupee: "M6 4h12M6 9h12M9 4c6 0 6 9 0 9H6l8 7",

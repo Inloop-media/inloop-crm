@@ -52,6 +52,7 @@ export default async function CrmLayout({ children }) {
   if (canUseAmigo(me)) main.push({ href: "/amigo", label: "Amigo", icon: "sparkle", tag: "AI" });
   if (canAssignTasks(me) || isMaker(me) || tasksCount) main.push({ href: "/tasks", label: canAssignTasks(me) ? "Tasks" : "My tasks", icon: "tasks", badge: tasksCount });
   if (canSeeCalendar(me)) main.push({ href: "/calendar", label: "Content calendar", icon: "calendar" });
+  main.push({ href: "/library", label: "Brand library", icon: "board" });
   main.push({ href: "/dm", label: "Direct messages", icon: "chat", badge: await dmUnread(me.id).catch(() => 0) });
   main.push({ href: "/requirements", label: "Requirements", icon: "list", badge: (await requirementCounts(me.id).catch(() => ({ inbox: 0 }))).inbox });
   const sales = [];

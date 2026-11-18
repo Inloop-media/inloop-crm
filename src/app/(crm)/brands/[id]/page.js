@@ -99,6 +99,9 @@ export default async function BrandPage({ params, searchParams }) {
             </p>
           </div>
           <div className="flex items-center gap-2">
+            <Link href={`/library/${id}`} className="btn-ghost btn-sm">
+              <Icon name="board" size={13} /> Library
+            </Link>
             {canOnboard(me) && (
               <Link href={`/leads/${brand.lead_id}#onboarding`} className="btn-ghost btn-sm">
                 <Icon name="file" size={13} /> Lead & MOU
