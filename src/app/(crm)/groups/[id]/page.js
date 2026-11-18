@@ -4,6 +4,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import Icon from "@/components/Icon";
 import QuickAssign from "@/components/QuickAssign";
+import TeamLeadPicker from "@/components/TeamLeadPicker";
 import StatusBadge from "@/components/StatusBadge";
 import { PageTop, Section, TaskLine } from "@/components/Desk";
 import { Avatar, BrandMark, Empty, StatCard } from "@/components/ui";
@@ -60,6 +61,9 @@ export default async function GroupPage({ params }) {
           <StatCard label="Need a follow-up" value={stale.length} tone="#fb7185" note="No update for 5+ days" />
           <StatCard label="Won" value={won.length} bar={leads.length ? Math.round((won.length / leads.length) * 100) : 0} />
         </div>
+        <div className="rise mt-4">
+          <TeamLeadPicker groupId={group.id} members={members} current={group.team_lead_id} />
+        </div>
         <section className="rise mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           {members.map((m) => {
             const mine = leads.filter((l) => l.assigned_to === m.id);
@@ -68,7 +72,7 @@ export default async function GroupPage({ params }) {
               <Link key={m.id} href={`/leads?view=list&owner=${m.id}`} className="card card-hover flex items-center gap-3 p-4">
                 <Avatar name={m.name} size={40} />
                 <div className="min-w-0 flex-1">
-                  <div className="truncate text-sm font-medium">{m.name}</div>
+                  <div className="truncate text-sm font-medium">{m.name}{m.id === group.team_lead_id && <span className="ml-1.5 rounded-full bg-brand/12 px-1.5 py-0.5 text-[10px] font-medium text-brand">Team lead</span>}</div>
                   <div className="text-xs text-muted">
                     {mOpen.length} open · {mine.filter((l) => l.status === "Won").length} won · {stale.filter((l) => l.assigned_to === m.id).length} to follow up
                   </div>
@@ -123,6 +127,9 @@ export default async function GroupPage({ params }) {
         <StatCard label="Approved this week" value={approvedWeek.length} bar={tasks.length ? Math.round((tasks.filter((t) => t.status === "done").length / tasks.length) * 100) : 0} />
       </div>
 
+      <div className="rise mt-4">
+        <TeamLeadPicker groupId={group.id} members={members} current={group.team_lead_id} />
+      </div>
       <section className="rise mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {members.map((m) => {
           const mine = open.filter((t) => t.assignee_id === m.id);
@@ -131,7 +138,7 @@ export default async function GroupPage({ params }) {
             <div key={m.id} className="card flex items-center gap-3 p-4">
               <Avatar name={m.name} size={40} />
               <div className="min-w-0 flex-1">
-                <div className="truncate text-sm font-medium">{m.name}</div>
+                <div className="truncate text-sm font-medium">{m.name}{m.id === group.team_lead_id && <span className="ml-1.5 rounded-full bg-brand/12 px-1.5 py-0.5 text-[10px] font-medium text-brand">Team lead</span>}</div>
                 <div className="text-xs text-muted">
                   {mine.length} open{mLate ? <span className="text-rose-400"> · {mLate} late</span> : ""} · {approvedWeek.filter((t) => t.assignee_id === m.id).length} approved this week
                 </div>

@@ -31,7 +31,7 @@ const ext = (name) => (String(name).split(".").pop() || "file").slice(0, 4).toUp
 const POLL_MS = 30000;
 const URL_RE = /(https?:\/\/[^\s<]+[^\s<.,:;"')\]!?]|www\.[^\s<]+[^\s<.,:;"')\]!?])/g;
 
-function Linkified({ text }) {
+export function Linkified({ text }) {
   return String(text)
     .split(URL_RE)
     .map((part, i) =>
@@ -62,7 +62,7 @@ function Ticks({ state }) {
   );
 }
 
-function Attachments({ files, onOpen }) {
+export function Attachments({ files, onOpen }) {
   const imgs = files.filter((a) => isImg(a) && (a.href || a.preview));
   const rest = files.filter((a) => !imgs.includes(a));
   return (

@@ -3,7 +3,7 @@
 import { useActionState, useState, useTransition } from "react";
 import Icon from "@/components/Icon";
 import { Avatar } from "@/components/ui";
-import { addGuest, addMember, createGroup, updateGroup, updateGuest, updateMember } from "@/app/(crm)/actions";
+import { addGuest, addMember, createGroup, setTeamLead, updateGroup, updateGuest, updateMember } from "@/app/(crm)/actions";
 import { GROUP_KINDS, ROLES, UPDATE_EVENTS } from "@/lib/constants";
 
 const KIND_TONE = {
@@ -140,6 +140,7 @@ function AddPerson({ groups }) {
 
 function GroupCard({ g, members }) {
   const { pending, error, change } = useChange(updateGroup);
+  const lead = useChange(setTeamLead);
   const kind = GROUP_KINDS.find((k) => k.id === g.kind);
   const outside = members.filter((m) => m.active && !g.members.some((x) => x.id === m.id));
 
@@ -179,6 +180,26 @@ function GroupCard({ g, members }) {
         </select>
       </label>
       <p className="mt-1.5 px-1 text-[11px] text-faint">The head&apos;s dashboard, Tasks and Leads show this group&apos;s work.</p>
+      <label className="mt-3 flex items-center gap-3 rounded-2xl bg-panel-2 px-3 py-2.5">
+        <span className="text-xs font-medium text-muted">Team lead</span>
+        <select
+          value={g.team_lead_id || ""}
+          disabled={lead.pending}
+          onChange={(e) => lead.change(g.id, e.target.value || null)}
+          className="min-w-0 flex-1 bg-transparent text-sm outline-none"
+        >
+          <option value="">No team lead</option>
+          {g.members
+            .filter((m) => m.active)
+            .map((m) => (
+              <option key={m.id} value={m.id}>
+                {m.name}
+              </option>
+            ))}
+        </select>
+      </label>
+      <p className="mt-1.5 px-1 text-[11px] text-faint">The group can message its team lead and head directly. The head can change this on the group page too.</p>
+      {lead.error && <p className="mt-1.5 px-1 text-xs text-rose-400">{lead.error}</p>}
       {error && <p className="mt-1.5 px-1 text-xs text-rose-400">{error}</p>}
       <div className="mt-4">
         <div className="mb-2 text-xs font-medium text-muted">Posts here</div>

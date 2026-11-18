@@ -10,6 +10,7 @@ import { unreadCounts } from "@/lib/chat";
 import { unseenCelebrations } from "@/lib/brands";
 import { taskBadge } from "@/lib/tasks";
 import { getTheme } from "@/lib/theme";
+import { dmUnread } from "@/lib/dm";
 import { requireMember } from "@/lib/auth";
 import { db } from "@/lib/supabase/server";
 import { listFeeds } from "@/lib/leads";
@@ -50,6 +51,7 @@ export default async function CrmLayout({ children }) {
   if (canUseAmigo(me)) main.push({ href: "/amigo", label: "Amigo", icon: "sparkle", tag: "AI" });
   if (canAssignTasks(me) || isMaker(me) || tasksCount) main.push({ href: "/tasks", label: canAssignTasks(me) ? "Tasks" : "My tasks", icon: "tasks", badge: tasksCount });
   if (canSeeCalendar(me)) main.push({ href: "/calendar", label: "Content calendar", icon: "calendar" });
+  main.push({ href: "/dm", label: "Direct messages", icon: "chat", badge: await dmUnread(me.id).catch(() => 0) });
   const sales = [];
   if (canSeeLeads(me)) sales.push({ href: "/leads", label: "Leads", icon: "leads" });
   if (canSeeBriefs(me)) sales.push({ href: "/briefs", label: "Proposals", icon: "brief", badge: await briefsBadge(me) });

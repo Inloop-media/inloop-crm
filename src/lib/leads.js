@@ -84,7 +84,7 @@ export async function listAssignees() {
 }
 
 export async function listGroups() {
-  const fields = "id, name, kind, notify, created_at, group_members(member:members(id, name, email, active))";
+  const fields = "*, group_members(member:members(id, name, email, active))"; // * → lead_id / team_lead_id once their migrations ran
   let { data, error } = await db().from("groups").select(`${fields}, lead_id`).order("created_at");
   if (error) ({ data, error } = await db().from("groups").select(fields).order("created_at")); // before migration 015
   if (error) return [];

@@ -21,7 +21,8 @@ export const canSeeLead = (me, lead) => canSeeAllLeads(me) || lead.assigned_to =
 export const canSeeLeads = (me) => isStaff(me) || isSales(me) || isSalesHead(me);
 /** Admin / ops assign any lead; a sales head moves leads between people in their team. */
 export const canAssign = (me) => isStaff(me) || isSalesHead(me);
-export const canCreateLead = (me) => isStaff(me);
+/** Leads are added by hand only by admin / ops and the sales head; executives share theirs in the group chat. */
+export const canCreateLead = (me) => isStaff(me) || isSalesHead(me);
 export const canManageTeam = (me) => isAdmin(me);
 
 // Sales executives move a lead only within New Lead … Discovery Call; the rest is for admin / ops

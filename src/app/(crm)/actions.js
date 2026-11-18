@@ -28,6 +28,7 @@ import { fmtDateTime, fullName } from "@/lib/format";
 
 const str = (v, max = 5000) => String(v ?? "").trim().slice(0, max);
 const isUuid = (v) => /^[0-9a-f-]{36}$/i.test(String(v || ""));
+const isStaffMember = (me) => me.role === "admin" || me.role === "ops";
 
 /** Name of an active member in a sales group, or null if they can't take leads. */
 async function assigneeName(memberId) {
@@ -204,7 +205,7 @@ export async function setFeedbackStatus(id, status) {
 /** Add a lead by hand (calls, referrals, events…). */
 export async function createLead(_prev, formData) {
   const me = await requireMember();
-  if (!canCreateLead(me)) return { error: "Only admins and ops can add leads." };
+  if (!canCreateLead(me)) return { error: "Only admins and the sales head can add leads. Share it in your group chat instead." };
 
   const row = {
     first_name: str(formData.get("first_name"), 100),
@@ -223,6 +224,7 @@ export async function createLead(_prev, formData) {
   const assignee = str(formData.get("assigned_to"), 40);
   if (assignee) {
     if (!(await assigneeName(assignee))) return { error: "Leads can only go to active members of a sales group." };
+    if (!isStaffMember(me) && assignee !== me.id && !salesTeam(me).includes(assignee)) return { error: "You can only give leads to people in your team." };
     row.assigned_to = assignee;
     row.assigned_at = new Date().toISOString();
   }
@@ -473,6 +475,23 @@ export async function updateGroup(id, patch) {
   }
   revalidatePath("/team");
   revalidatePath("/updates");
+  return { ok: true };
+}
+
+/** The group's head (or an admin) picks its team lead — someone in the group, or nobody. */
+export async function setTeamLead(groupId, memberId) {
+  const me = await requireMember();
+  if (!isUuid(groupId)) return { ok: false, error: "Group not found." };
+  const { data: g } = await db().from("groups").select("id, lead_id, group_members(member_id)").eq("id", groupId).maybeSingle();
+  if (!g) return { ok: false, error: "Group not found." };
+  if (!canManageTeam(me) && !isStaffMember(me) && g.lead_id !== me.id) return { ok: false, error: "Only the group's head can pick its team lead." };
+  const id = isUuid(memberId) ? memberId : null;
+  if (id && !(g.group_members || []).some((x) => x.member_id === id)) return { ok: false, error: "The team lead has to be someone in this group." };
+  const { error } = await db().from("groups").update({ team_lead_id: id }).eq("id", groupId);
+  if (error) return { ok: false, error: /team_lead_id/.test(error.message) ? "Team leads need migration 018 — run it in Supabase first." : error.message };
+  revalidatePath(`/groups/${groupId}`);
+  revalidatePath("/team");
+  revalidatePath("/dm");
   return { ok: true };
 }
 
