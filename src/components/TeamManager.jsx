@@ -98,7 +98,7 @@ function AddPerson({ groups }) {
       </div>
       <div>
         <label className="label" htmlFor="name">Name</label>
-        <input id="name" name="name" required className="field" placeholder="Aryan Verma" />
+        <input id="name" name="name" required className="field" placeholder="Full name" />
       </div>
       <div>
         <label className="label" htmlFor="email">Google account email</label>
