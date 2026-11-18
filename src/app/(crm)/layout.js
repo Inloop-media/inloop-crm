@@ -11,6 +11,7 @@ import { unseenCelebrations } from "@/lib/brands";
 import { taskBadge } from "@/lib/tasks";
 import { getTheme } from "@/lib/theme";
 import { dmUnread } from "@/lib/dm";
+import { requirementCounts } from "@/lib/requirements";
 import { requireMember } from "@/lib/auth";
 import { db } from "@/lib/supabase/server";
 import { listFeeds } from "@/lib/leads";
@@ -52,6 +53,7 @@ export default async function CrmLayout({ children }) {
   if (canAssignTasks(me) || isMaker(me) || tasksCount) main.push({ href: "/tasks", label: canAssignTasks(me) ? "Tasks" : "My tasks", icon: "tasks", badge: tasksCount });
   if (canSeeCalendar(me)) main.push({ href: "/calendar", label: "Content calendar", icon: "calendar" });
   main.push({ href: "/dm", label: "Direct messages", icon: "chat", badge: await dmUnread(me.id).catch(() => 0) });
+  main.push({ href: "/requirements", label: "Requirements", icon: "list", badge: (await requirementCounts(me.id).catch(() => ({ inbox: 0 }))).inbox });
   const sales = [];
   if (canSeeLeads(me)) sales.push({ href: "/leads", label: "Leads", icon: "leads" });
   if (canSeeBriefs(me)) sales.push({ href: "/briefs", label: "Proposals", icon: "brief", badge: await briefsBadge(me) });
