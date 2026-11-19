@@ -4,7 +4,7 @@ import { isConfigured } from "@/lib/supabase/server";
 import GoogleButton from "./GoogleButton";
 import ClientLoginForm from "./ClientLoginForm";
 import { getCurrentClient } from "@/lib/clients";
-import Logo, { KyroMark } from "@/components/Logo";
+import Logo, { InloopMark } from "@/components/Logo";
 import Icon from "@/components/Icon";
 
 export const metadata = { title: "Sign in" };
@@ -21,7 +21,7 @@ export default async function LoginPage({ searchParams }) {
       <section className="relative hidden overflow-hidden border-r border-white/[0.06] lg:flex lg:flex-col lg:justify-between lg:p-12">
         <div aria-hidden className="pointer-events-none absolute inset-0 [background-image:linear-gradient(to_right,rgba(255,255,255,0.035)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.035)_1px,transparent_1px)] [background-size:44px_44px] [mask-image:radial-gradient(ellipse_at_30%_40%,black,transparent_75%)]" />
         <div aria-hidden className="pointer-events-none absolute -left-40 top-1/4 h-[520px] w-[520px] rounded-full bg-[#e5303c] opacity-[0.16] blur-[140px]" />
-        <KyroMark size={560} className="pointer-events-none absolute -bottom-24 -right-28 opacity-[0.06]" />
+        <InloopMark size={640} className="pointer-events-none absolute -bottom-20 -right-40 opacity-[0.07]" />
 
         <div className="relative">
           <Logo height={34} />
@@ -81,7 +81,7 @@ export default async function LoginPage({ searchParams }) {
           )}
           {error && <p className="tint-pink mt-4 rounded-2xl p-3.5 text-sm">Sign-in didn&apos;t complete. Please try again.</p>}
 
-          <p className="mt-10 text-center text-xs text-faint">Kyro by Inloop Media</p>
+          <p className="mt-10 text-center text-xs text-faint">Inloop Media</p>
         </div>
       </section>
     </main>

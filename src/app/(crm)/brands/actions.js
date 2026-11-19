@@ -200,7 +200,7 @@ export async function addExistingBrand(input) {
   const name = str(input?.name, 200);
   if (!name) return { ok: false, error: "Write the brand name." };
   const { data: dup } = await db().from("brands").select("id").ilike("name", name).maybeSingle();
-  if (dup) return { ok: false, error: `${name} is already in Kyro.` };
+  if (dup) return { ok: false, error: `${name} is already in the CRM.` };
   const services = (Array.isArray(input.services) ? input.services : []).map((s) => str(s, 120)).filter(Boolean).slice(0, 12);
   const [first, ...rest] = (str(input.contact, 200) || name).split(/\s+/);
   const now = new Date().toISOString();
@@ -214,7 +214,7 @@ export async function addExistingBrand(input) {
       email: str(input.email, 200),
       brand: name,
       service: services.join(", "),
-      details: "Existing client, added to Kyro directly.",
+      details: "Existing client, added to the CRM directly.",
       source: "existing",
       status: "Won",
     })

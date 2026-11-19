@@ -1,5 +1,5 @@
 "use client";
-// Admin: bring the brands Inloop already works with into Kyro in one go — one row per brand with its
+// Admin: bring the brands Inloop already works with into the CRM in one go — one row per brand with its
 // services and monthly deliverables (posts, carousels, stories, reels, videos). Tasks can then be given per brand.
 import { useState } from "react";
 import { createPortal } from "react-dom";

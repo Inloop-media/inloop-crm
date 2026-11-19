@@ -1,4 +1,4 @@
-// Kyro service worker: shows push notifications and opens the right page when one is tapped.
+// Inloop service worker: shows push notifications and opens the right page when one is tapped.
 
 self.addEventListener("install", () => self.skipWaiting());
 self.addEventListener("activate", (event) => event.waitUntil(self.clients.claim()));
@@ -8,10 +8,10 @@ self.addEventListener("push", (event) => {
   try {
     data = event.data ? event.data.json() : {};
   } catch {
-    data = { title: "Kyro", body: event.data ? event.data.text() : "" };
+    data = { title: "Inloop", body: event.data ? event.data.text() : "" };
   }
   event.waitUntil(
-    self.registration.showNotification(data.title || "Kyro", {
+    self.registration.showNotification(data.title || "Inloop", {
       body: data.body || "",
       icon: "/icons/icon-192.png",
       badge: "/icons/icon-192.png",

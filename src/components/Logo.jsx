@@ -1,31 +1,27 @@
-/** Kyro: the red lightning "K" mark (same shapes as public/kyro-mark.svg), with the lowercase wordmark. */
-export function KyroMark({ size = 28, className = "" }) {
-  return (
-    <svg viewBox="0 0 433 384" width={size} height={(size * 384) / 433} className={className} fill="#E5303C" aria-hidden>
-      <polygon points="0,0 128,0 128,117 68,210 243,180 128,297 128,384 0,384" />
-      <polygon points="278,0 428,0 316,122 146,160" />
-      <polygon points="278,197 433,384 283,384 200,277" />
-    </svg>
-  );
-}
+/* eslint-disable @next/next/no-img-element -- a small static image, sized by its parent */
+// Inloop: the silver infinity mark (public/images/hero-logo.webp, same as the website) with "inloop" next to it.
+// On the light theme the silver mark is darkened a little (.logo-mark in globals.css) so it still reads.
 
-/** The full lockup (red K + "kyro") from public/kyro-logo-*.png. The word is a mask filled with the text colour,
- *  so it is white on the dark theme and near-black on the light one. The negative margins drop the "y" tail (and the
- *  top padding) from the layout box, so the K sits on the line centre next to icons and text. */
-const WORD = { WebkitMask: "url(/kyro-logo-word.png) center / contain no-repeat", mask: "url(/kyro-logo-word.png) center / contain no-repeat" };
+const RATIO = 720 / 395; // the mark image's width / height
+
+/** The infinity mark on its own. `size` is its width. */
+export function InloopMark({ size = 40, className = "" }) {
+  return <img src="/images/hero-logo.webp" alt="" width={size} height={Math.round(size / RATIO)} className={`logo-mark shrink-0 ${className}`} aria-hidden />;
+}
 
 export default function Logo({ compact = false, height = 28 }) {
   if (compact)
     return (
-      <span className="grid h-9 w-9 shrink-0 place-items-center" aria-label="Kyro">
-        <KyroMark size={26} />
+      <span className="grid h-9 w-9 shrink-0 place-items-center" aria-label="Inloop">
+        <InloopMark size={30} />
       </span>
     );
   return (
-    <span role="img" aria-label="Kyro" className="relative block shrink-0" style={{ height, width: (height * 1088) / 345, marginTop: (-height * 6) / 345, marginBottom: (-height * 79) / 345 }}>
-      <span className="absolute inset-0 bg-ink" style={WORD} />
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src="/kyro-logo-mark.png" alt="" className="absolute inset-0 h-full w-full" />
+    <span role="img" aria-label="Inloop" className="flex shrink-0 items-center" style={{ gap: height * 0.3, height }}>
+      <InloopMark size={Math.round(height * 1.45)} />
+      <span className="font-semibold leading-none tracking-[-0.03em] text-ink" style={{ fontSize: Math.round(height * 0.8) }}>
+        inloop
+      </span>
     </span>
   );
 }

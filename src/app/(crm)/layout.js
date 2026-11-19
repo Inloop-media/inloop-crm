@@ -132,7 +132,7 @@ export default async function CrmLayout({ children }) {
           </div>
           <footer className="hidden h-10 shrink-0 items-center justify-between rounded-2xl border border-line bg-panel px-4 text-[11px] text-muted md:flex">
             <span>
-              © {new Date().getFullYear()} · Kyro <span className="text-faint">v2.0</span>
+              © {new Date().getFullYear()} · Inloop <span className="text-faint">v2.0</span>
             </span>
             <span>
               by <span className="rounded-md border border-line bg-panel-2 px-1.5 py-0.5 font-medium text-ink">Inloop Media</span>

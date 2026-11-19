@@ -11,7 +11,7 @@ export default async function NoAccess({ searchParams }) {
         <Logo />
         <h1 className="mt-10 text-[28px] font-medium leading-tight tracking-[-0.02em]">You&apos;re not on the team yet</h1>
         <p className="mt-3 text-sm leading-relaxed text-muted">
-          {email ? <>{email} isn&apos;t</> : "This account isn't"} added to Kyro. Ask an admin to add you under Team, then sign in again.
+          {email ? <>{email} isn&apos;t</> : "This account isn't"} added to Inloop. Ask an admin to add you under Team, then sign in again.
         </p>
         <Link href="/login" className="btn-primary mt-8">
           Back to sign in

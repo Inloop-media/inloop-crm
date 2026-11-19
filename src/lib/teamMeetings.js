@@ -67,7 +67,7 @@ export async function createTeamMeeting(me, input) {
   try {
     event = await createMeetEvent(me.id, {
       summary: title,
-      description: [agenda, `Called by ${me.name}${groupNames.length ? ` · ${groupNames.join(", ")}` : ""} on Kyro.`].filter(Boolean).join("\n\n"),
+      description: [agenda, `Called by ${me.name}${groupNames.length ? ` · ${groupNames.join(", ")}` : ""} on Inloop.`].filter(Boolean).join("\n\n"),
       start,
       end,
       attendees: guests.map((g) => g.email),
