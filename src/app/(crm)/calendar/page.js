@@ -9,7 +9,7 @@ import { listBrands } from "@/lib/brands";
 import { listMakers } from "@/lib/tasks";
 import { calendarLock, loadItems, loadPlans, monthLabel, planProgress, shiftMonth, validMonth } from "@/lib/calendar";
 import { kindPlural } from "@/lib/constants";
-import { canAssignTasks, canEditCalendar, canSeeCalendar, canLockCalendar, canSetPlan } from "@/lib/permissions";
+import { canAssignTasks, canEditCalendar, canSeeCalendar, canLockCalendar, canDeleteCalendar, canSetPlan } from "@/lib/permissions";
 
 export const metadata = { title: "Content calendar" };
 
@@ -159,6 +159,7 @@ export default async function CalendarPage({ searchParams }) {
             canPlan={canSetPlan(me)}
             lock={lock}
             canLock={canLockCalendar(me)}
+              canDelete={canDeleteCalendar(me)}
           />
         ) : view === "plans" ? (
           <Overview brands={brands} plans={plans} items={items} month={month} />

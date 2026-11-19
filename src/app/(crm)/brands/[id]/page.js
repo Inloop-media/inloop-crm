@@ -14,7 +14,7 @@ import { requireMember } from "@/lib/auth";
 import { getBrand } from "@/lib/brands";
 import { listMakers, listTasks } from "@/lib/tasks";
 import { db } from "@/lib/supabase/server";
-import { canAssignTasks, canEditCalendar, canOnboard, canSeeBrands, canLockCalendar, canSetPlan } from "@/lib/permissions";
+import { canAssignTasks, canEditCalendar, canOnboard, canSeeBrands, canLockCalendar, canDeleteCalendar, canSetPlan } from "@/lib/permissions";
 import { OPEN_TASK, taskKindLabel } from "@/lib/constants";
 import { fmtDay } from "@/lib/format";
 
@@ -163,6 +163,7 @@ export default async function BrandPage({ params, searchParams }) {
               canPlan={canSetPlan(me)}
               lock={lock}
               canLock={canLockCalendar(me)}
+              canDelete={canDeleteCalendar(me)}
             />
           </div>
         )}

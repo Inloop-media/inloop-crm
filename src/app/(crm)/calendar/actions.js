@@ -6,8 +6,8 @@ import { db } from "@/lib/supabase/server";
 import { getBrand } from "@/lib/brands";
 import { createTask } from "@/app/(crm)/tasks/actions";
 import { PLAN_KINDS, TASK_KINDS, platformValue } from "@/lib/constants";
-import { canEditCalendar, canLockCalendar, canSetPlan, canAssignTasks } from "@/lib/permissions";
-import { calendarLock } from "@/lib/calendar";
+import { canDeleteCalendar, canEditCalendar, canLockCalendar, canSetPlan, canAssignTasks } from "@/lib/permissions";
+import { calendarLock, monthStart, shiftMonth, validMonth } from "@/lib/calendar";
 
 const str = (v, max = 4000) => String(v ?? "").trim().slice(0, max);
 const isUuid = (v) => /^[0-9a-f-]{36}$/i.test(String(v || ""));
@@ -136,7 +136,7 @@ export async function setCalendarPosted(id, posted) {
 
 export async function deleteCalendarItem(id) {
   const me = await requireMember();
-  if (!canEditCalendar(me)) return { ok: false, error: "You can't edit the calendar." };
+  if (!canDeleteCalendar(me)) return { ok: false, error: "Only admin and the creative strategists can delete posts." };
   const item = await loadItem(id);
   if (!item) return { ok: false, error: "Not found." };
   const locked = await lockedError(item.brand_id);
@@ -144,6 +144,25 @@ export async function deleteCalendarItem(id) {
   await db().from("calendar_items").delete().eq("id", id);
   refresh(item.brand_id);
   return { ok: true };
+}
+
+/** Admin / creative strategists: delete every post of a brand in one month. Tasks already given stay. */
+export async function clearCalendarMonth(brandId, month) {
+  const me = await requireMember();
+  if (!canDeleteCalendar(me)) return { ok: false, error: "Only admin and the creative strategists can delete posts." };
+  const m = validMonth(month);
+  if (m !== month) return { ok: false, error: "Pick a month." };
+  const locked = await lockedError(brandId);
+  if (locked) return { ok: false, error: locked };
+  const { error, count } = await db()
+    .from("calendar_items")
+    .delete({ count: "exact" })
+    .eq("brand_id", brandId)
+    .gte("publish_on", monthStart(m))
+    .lt("publish_on", monthStart(shiftMonth(m, 1)));
+  if (error) return { ok: false, error: error.message };
+  refresh(brandId);
+  return { ok: true, deleted: count || 0 };
 }
 
 /** Head: turn a calendar item into a task for someone (the task's brief is the caption + notes). */

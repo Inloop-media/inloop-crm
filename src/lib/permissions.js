@@ -69,5 +69,7 @@ export const canEditCalendar = canSeeCalendar;
  */
 export const canLockCalendar = (me) =>
   isAdmin(me) || (me.leadGroups || []).some((g) => g.kind === "strategy") || (me.ledGroups || []).some((g) => g.kind === "strategy");
+/** Delete posts from a brand's content calendar (one by one, or clear a month): admin and the creative strategists. */
+export const canDeleteCalendar = (me) => isAdmin(me) || isStrategist(me) || canLockCalendar(me);
 /** The monthly deliverables of a brand (how many posts, reels, stories…) are set by admin only. */
 export const canSetPlan = (me) => isAdmin(me);

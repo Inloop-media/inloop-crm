@@ -10,7 +10,7 @@ import Icon from "@/components/Icon";
 import MonthGrid, { todayKey } from "@/components/MonthGrid";
 import CalendarImport from "@/components/CalendarImport";
 import { PersonSelect, PrioritySelect } from "@/components/TaskForms";
-import { assignCalendarItem, deleteCalendarItem, moveCalendarItem, saveCalendarItem, savePlan, setCalendarLock, setCalendarPosted } from "@/app/(crm)/calendar/actions";
+import { assignCalendarItem, clearCalendarMonth, deleteCalendarItem, moveCalendarItem, saveCalendarItem, savePlan, setCalendarLock, setCalendarPosted } from "@/app/(crm)/calendar/actions";
 import { CALENDAR_FIELDS, CALENDAR_TYPES, PLAN_KINDS, PLATFORMS, TASK_KINDS, TASK_STATUSES, kindPlural, platformLabel, platformList, taskKindLabel } from "@/lib/constants";
 
 export const KIND_COLOR = { post: "#60a5fa", carousel: "#a78bfa", story: "#f472b6", reel: "#fbbf24", video: "#22d3ee", design: "#4ade80", website: "#94a3b8", other: "#94a3b8" };
@@ -175,7 +175,7 @@ function PlanCard({ brandId, month, monthName, plan, progress, canPlan }) {
 
 /* ------------------------------ Item drawer ------------------------------ */
 
-function Drawer({ item, brandId, people, canEdit, canPost = canEdit, canAssign, onClose }) {
+function Drawer({ item, brandId, people, canEdit, canPost = canEdit, canAssign, canDelete = false, onClose }) {
   const { pending, error, run } = useRun();
   const isNew = !item.id;
   const [f, setF] = useState({
@@ -364,15 +364,14 @@ function Drawer({ item, brandId, people, canEdit, canPost = canEdit, canAssign, 
 
         {canEdit && (
           <footer className="flex items-center gap-2 border-t border-line px-5 py-4">
-            {!isNew && (
+            {!isNew && canDelete && (
               <button
                 type="button"
                 disabled={pending}
                 onClick={() => confirm("Delete this post from the calendar?") && run(() => deleteCalendarItem(item.id), onClose)}
-                className="grid h-10 w-10 place-items-center rounded-full text-muted transition hover:bg-rose-400/10 hover:text-rose-400"
-                aria-label="Delete"
+                className="flex items-center gap-1.5 rounded-full px-3 py-2 text-xs font-medium text-rose-400 transition hover:bg-rose-400/10"
               >
-                <Icon name="trash" size={15} />
+                <Icon name="trash" size={14} /> Delete post
               </button>
             )}
             <span className="flex-1" />
@@ -386,6 +385,29 @@ function Drawer({ item, brandId, people, canEdit, canPost = canEdit, canAssign, 
         )}
       </aside>
     </div>
+  );
+}
+
+/** Admin / creative strategists: delete every post of this brand in the month. */
+function ClearMonth({ brandId, month, monthName, count }) {
+  const router = useRouter();
+  const [busy, setBusy] = useState(false);
+  return (
+    <button
+      type="button"
+      disabled={busy}
+      onClick={async () => {
+        if (!confirm(`Delete all ${count} post${count === 1 ? "" : "s"} of ${monthName} from this calendar? Tasks already given stay.`)) return;
+        setBusy(true);
+        const r = await clearCalendarMonth(brandId, month);
+        setBusy(false);
+        if (!r.ok) return alert(r.error);
+        router.refresh();
+      }}
+      className="btn-ghost btn-sm text-rose-400"
+    >
+      <Icon name="trash" size={13} /> {busy ? "Deleting…" : "Clear month"}
+    </button>
   );
 }
 
@@ -524,7 +546,7 @@ function LockBar({ brandId, lock, canLock }) {
 
 /* ------------------------------ Calendar ------------------------------ */
 
-export default function ContentCalendar({ brand, month, monthName, items: initial, plan, progress, people = [], canEdit: mayEdit, canAssign, canPlan, lock = { locked: false, ready: false }, canLock = false }) {
+export default function ContentCalendar({ brand, month, monthName, items: initial, plan, progress, people = [], canEdit: mayEdit, canAssign, canPlan, lock = { locked: false, ready: false }, canLock = false, canDelete = false }) {
   // A locked calendar can't be changed by anyone (assigning and marking posted still work)
   const canEdit = mayEdit && !lock.locked;
   const router = useRouter();
@@ -591,6 +613,7 @@ export default function ContentCalendar({ brand, month, monthName, items: initia
               </button>
             ))}
           </nav>
+          {canEdit && canDelete && items.length > 0 && <ClearMonth brandId={brand.id} month={month} monthName={monthName} count={items.length} />}
           {canEdit && <CalendarImport brand={brand} month={month} monthName={monthName} />}
           {canEdit && (
             <button onClick={() => add(todayKey().startsWith(month) ? todayKey() : `${month}-01`)} className="btn-primary btn-sm">
@@ -663,7 +686,7 @@ export default function ContentCalendar({ brand, month, monthName, items: initia
         )}
       </section>
 
-      {open && <Drawer key={open.id || open.publish_on} item={open} brandId={brand.id} people={people} canEdit={canEdit} canPost={mayEdit} canAssign={canAssign} onClose={() => setOpen(null)} />}
+      {open && <Drawer key={open.id || open.publish_on} item={open} brandId={brand.id} people={people} canEdit={canEdit} canPost={mayEdit} canAssign={canAssign} canDelete={canEdit && canDelete} onClose={() => setOpen(null)} />}
     </div>
   );
 }
