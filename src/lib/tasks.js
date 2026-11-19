@@ -100,8 +100,8 @@ export async function listMakers(me) {
     }
     for (const id of heads) byId.get(id)?.kinds.push("head");
   }
-  // Who shows up: makers and heads for everyone; a head's sales / strategy people only for that head
-  const isMakerOrHead = (p) => p.kinds.some((k) => [...MAKER_KINDS, "execution", "head"].includes(k));
+  // Who shows up: everyone in a maker / creative strategist / sales group, plus the managers and CBOs
+  const isMakerOrHead = (p) => p.kinds.some((k) => [...MAKER_KINDS, "execution", "sales", "strategy", "head"].includes(k));
   for (const [id, p] of byId) {
     const allowed = headRule(me) ? id === me.id || myTeam(me).includes(id) || heads.includes(id) : isMakerOrHead(p);
     if (!allowed) byId.delete(id);
