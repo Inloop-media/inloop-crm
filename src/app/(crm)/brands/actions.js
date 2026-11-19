@@ -255,3 +255,55 @@ export async function addExistingBrand(input) {
   revalidatePath("/");
   return { ok: true, id: brand.id };
 }
+
+/** Admin: change a brand's name, services and contact (also kept on its lead). */
+export async function updateBrand(brandId, input) {
+  const me = await requireMember();
+  if (me.role !== "admin") return { ok: false, error: "Only an admin can edit brands." };
+  const brand = await getBrand(brandId);
+  if (!brand) return { ok: false, error: "Brand not found." };
+  const name = str(input?.name, 200);
+  if (!name) return { ok: false, error: "Write the brand name." };
+  const { data: dup } = await db().from("brands").select("id").ilike("name", name).neq("id", brandId).maybeSingle();
+  if (dup) return { ok: false, error: `Another brand is already called ${name}.` };
+  const email = str(input.email, 200);
+  if (email && !/^\S+@\S+\.\S+$/.test(email)) return { ok: false, error: "The email doesn't look right." };
+  // Keep the fee / scope of services that stay
+  const old = Object.fromEntries((brand.services || []).map((s) => [s.name, s]));
+  const services = [...new Set((Array.isArray(input.services) ? input.services : []).map((s) => str(s, 120)).filter(Boolean))]
+    .slice(0, 20)
+    .map((s) => old[s] || { name: s, scope: "", fee: "", billing: "Monthly" });
+  const now = new Date().toISOString();
+  const { error } = await db().from("brands").update({ name, services, updated_at: now }).eq("id", brandId);
+  if (error) return { ok: false, error: error.message };
+  const [first, ...rest] = str(input.contact, 200).split(/\s+/).filter(Boolean);
+  const leadPatch = { brand: name, service: services.map((s) => s.name).join(", "), phone: str(input.phone, 40), email };
+  if (first) Object.assign(leadPatch, { first_name: first, last_name: rest.join(" ") });
+  await db().from("leads").update(leadPatch).eq("id", brand.lead_id);
+  refresh(brand);
+  revalidatePath("/calendar");
+  return { ok: true };
+}
+
+/**
+ * Admin: remove a brand for good — its tasks, calendar, chat, library and client login go with it.
+ * `confirmName` must match the brand name. Its lead stays (unless it was only made by "Add existing brands").
+ */
+export async function deleteBrand(brandId, confirmName) {
+  const me = await requireMember();
+  if (me.role !== "admin") return { ok: false, error: "Only an admin can delete brands." };
+  const brand = await getBrand(brandId);
+  if (!brand) return { ok: false, error: "Brand not found." };
+  if (str(confirmName, 200).toLowerCase() !== brand.name.trim().toLowerCase()) return { ok: false, error: "Type the brand name exactly to delete it." };
+  const { data: account } = await db().from("client_accounts").select("auth_user_id").eq("brand_id", brandId).maybeSingle();
+  const { data: lead } = await db().from("leads").select("id, source").eq("id", brand.lead_id).maybeSingle();
+  const { error } = await db().from("brands").delete().eq("id", brandId);
+  if (error) return { ok: false, error: error.message };
+  if (account?.auth_user_id) await db().auth.admin.deleteUser(account.auth_user_id).catch(() => {});
+  if (lead?.source === "existing") await db().from("leads").delete().eq("id", lead.id);
+  else if (lead) await addEvents(lead.id, me.id, [{ type: "brand_deleted", data: { brand: brand.name } }]);
+  revalidatePath("/brands");
+  revalidatePath("/calendar");
+  revalidatePath("/", "layout");
+  return { ok: true };
+}

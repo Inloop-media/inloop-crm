@@ -47,6 +47,8 @@ export const describe = (e) => {
       return <>MOU v{e.data?.version || 1} sent to the client</>;
     case "onboarded":
       return <span className="text-emerald-400">MOU signed — {e.data?.brand} is onboarded</span>;
+    case "brand_deleted":
+      return <span className="text-rose-400">Brand {e.data?.brand} was deleted</span>;
     default:
       return e.type;
   }

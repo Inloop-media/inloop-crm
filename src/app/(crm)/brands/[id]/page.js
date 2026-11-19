@@ -4,6 +4,7 @@ import Icon from "@/components/Icon";
 import { BrandMark, Empty, Panel } from "@/components/ui";
 import TaskBoard from "@/components/TaskBoard";
 import QuickAssign from "@/components/QuickAssign";
+import BrandAdmin from "@/components/BrandAdmin";
 import ContentCalendar from "@/components/ContentCalendar";
 import { calendarLock, loadItems, loadPlans, monthLabel, planProgress, shiftMonth, validMonth } from "@/lib/calendar";
 import BrandChat from "@/components/BrandChat";
@@ -102,6 +103,7 @@ export default async function BrandPage({ params, searchParams }) {
             <Link href={`/library/${id}`} className="btn-ghost btn-sm">
               <Icon name="board" size={13} /> Library
             </Link>
+            {me.role === "admin" && <BrandAdmin brand={{ id, name: brand.name, services: brand.services || [], lead: brand.lead || {} }} />}
             {canOnboard(me) && (
               <Link href={`/leads/${brand.lead_id}#onboarding`} className="btn-ghost btn-sm">
                 <Icon name="file" size={13} /> Lead & MOU
