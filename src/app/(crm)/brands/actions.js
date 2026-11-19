@@ -297,8 +297,12 @@ export async function deleteBrand(brandId, confirmName) {
   if (str(confirmName, 200).toLowerCase() !== brand.name.trim().toLowerCase()) return { ok: false, error: "Type the brand name exactly to delete it." };
   const { data: account } = await db().from("client_accounts").select("auth_user_id").eq("brand_id", brandId).maybeSingle();
   const { data: lead } = await db().from("leads").select("id, source").eq("id", brand.lead_id).maybeSingle();
-  const { error } = await db().from("brands").delete().eq("id", brandId);
-  if (error) return { ok: false, error: error.message };
+  const { error, count } = await db().from("brands").delete({ count: "exact" }).eq("id", brandId);
+  if (error) {
+    console.error("deleteBrand", brandId, error);
+    return { ok: false, error: error.message };
+  }
+  if (!count) return { ok: false, error: "The brand couldn't be deleted — try again." };
   if (account?.auth_user_id) await db().auth.admin.deleteUser(account.auth_user_id).catch(() => {});
   if (lead?.source === "existing") await db().from("leads").delete().eq("id", lead.id);
   else if (lead) await addEvents(lead.id, me.id, [{ type: "brand_deleted", data: { brand: brand.name } }]);

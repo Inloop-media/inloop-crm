@@ -38,7 +38,7 @@ export default function BrandAdmin({ brand }) {
     e.preventDefault();
     setBusy(true);
     setError("");
-    const r = await updateBrand(brand.id, f);
+    const r = await updateBrand(brand.id, f).catch((err) => ({ ok: false, error: err?.message || "Couldn't save — reload the page and try again." }));
     setBusy(false);
     if (!r.ok) return setError(r.error);
     setOpen(false);
@@ -48,7 +48,7 @@ export default function BrandAdmin({ brand }) {
   const remove = async () => {
     setBusy(true);
     setError("");
-    const r = await deleteBrand(brand.id, confirmName);
+    const r = await deleteBrand(brand.id, confirmName).catch((err) => ({ ok: false, error: err?.message || "Couldn't delete — reload the page and try again." }));
     if (!r.ok) {
       setBusy(false);
       return setError(r.error);
@@ -116,7 +116,7 @@ export default function BrandAdmin({ brand }) {
                 </div>
               </div>
 
-              {error && <p className="text-xs text-rose-400">{error}</p>}
+              {error && !del && <p className="text-xs text-rose-400">{error}</p>}
 
               <div className="flex items-center justify-between gap-2">
                 <button type="button" disabled={busy} onClick={() => setDel(!del)} className="flex items-center gap-1.5 text-xs text-rose-400 hover:underline">
@@ -140,6 +140,7 @@ export default function BrandAdmin({ brand }) {
                     Type <span className="font-medium text-ink">{brand.name}</span> to confirm
                   </label>
                   <input id="be-confirm" className="field" value={confirmName} onChange={(e) => setConfirmName(e.target.value)} disabled={busy} autoComplete="off" />
+                  {error && <p className="mt-2 text-xs text-rose-400">{error}</p>}
                   <button
                     type="button"
                     onClick={remove}
