@@ -7,9 +7,9 @@ import { Avatar, Empty } from "@/components/ui";
 import { requireMember } from "@/lib/auth";
 import { listBrands } from "@/lib/brands";
 import { listMakers } from "@/lib/tasks";
-import { loadItems, loadPlans, monthLabel, planProgress, shiftMonth, validMonth } from "@/lib/calendar";
+import { calendarLock, loadItems, loadPlans, monthLabel, planProgress, shiftMonth, validMonth } from "@/lib/calendar";
 import { kindPlural } from "@/lib/constants";
-import { canAssignTasks, canEditCalendar, canSeeCalendar, canSetPlan } from "@/lib/permissions";
+import { canAssignTasks, canEditCalendar, canSeeCalendar, canLockCalendar, canSetPlan } from "@/lib/permissions";
 
 export const metadata = { title: "Content calendar" };
 
@@ -46,7 +46,7 @@ function Overview({ brands, plans, items, month }) {
     <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
       {rows.map(({ b, plan, p }) => {
         const pct = p.target ? Math.min(100, Math.round((p.planned / p.target) * 100)) : 0;
-        const status = !p.target ? ["No plan set", "text-muted"] : p.planned >= p.target ? ["Fully planned", "text-emerald-400"] : p.planned ? [`${p.target - p.planned} still to plan`, "text-amber-400"] : ["Calendar not started", "text-rose-400"];
+        const status = !p.target ? ["No deliverables set", "text-muted"] : p.planned >= p.target ? ["Fully planned", "text-emerald-400"] : p.planned ? [`${p.target - p.planned} still to plan`, "text-amber-400"] : ["Calendar not started", "text-rose-400"];
         return (
           <Link key={b.id} href={href({ brand: b.id, month })} className="card card-hover flex flex-col gap-4 !rounded-3xl p-5">
             <div className="flex items-center gap-3">
@@ -81,7 +81,7 @@ function Overview({ brands, plans, items, month }) {
                 ))}
               </div>
             )}
-            {plan?.inherited && <span className="-mt-2 text-[10px] text-faint">Plan carried over from an earlier month</span>}
+            {plan?.inherited && <span className="-mt-2 text-[10px] text-faint">Deliverables carried over from an earlier month</span>}
           </Link>
         );
       })}
@@ -97,7 +97,7 @@ export default async function CalendarPage({ searchParams }) {
   const brand = brands.find((b) => b.id === sp.brand) || null;
   const view = !brand && sp.view === "plans" ? "plans" : "";
   const ids = brand ? [brand.id] : brands.map((b) => b.id);
-  const [items, plans, people] = await Promise.all([loadItems(ids, month), loadPlans(ids, month), brand && canAssignTasks(me) ? listMakers(me) : []]);
+  const [items, plans, people, lock] = await Promise.all([loadItems(ids, month), loadPlans(ids, month), brand && canAssignTasks(me) ? listMakers(me) : [], brand ? calendarLock(brand.id) : null]);
 
   return (
     <div className="page">
@@ -108,13 +108,13 @@ export default async function CalendarPage({ searchParams }) {
               <Icon name="back" size={12} /> All brands
             </Link>
           ) : (
-            <p className="text-sm text-muted">Monthly plan & content</p>
+            <p className="text-sm text-muted">Monthly deliverables & content</p>
           )}
           <div className="flex items-center gap-3">
             {brand && <Avatar name={brand.name} size={40} />}
             <h1 className="text-[30px] font-medium leading-tight tracking-[-0.02em] md:text-[36px]">{brand ? brand.name : "Content calendar"}</h1>
           </div>
-          {!brand && <p className="mt-1 text-sm text-muted">{view ? "Each brand's monthly plan. Pick a brand to plan its posts." : "Every brand's posts in one calendar. Click a day to see what's going out."}</p>}
+          {!brand && <p className="mt-1 text-sm text-muted">{view ? "Each brand's monthly deliverables. Pick a brand to plan its posts." : "Every brand's posts in one calendar. Click a day to see what's going out."}</p>}
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {brand && (
@@ -157,6 +157,8 @@ export default async function CalendarPage({ searchParams }) {
             canEdit={canEditCalendar(me)}
             canAssign={canAssignTasks(me)}
             canPlan={canSetPlan(me)}
+            lock={lock}
+            canLock={canLockCalendar(me)}
           />
         ) : view === "plans" ? (
           <Overview brands={brands} plans={plans} items={items} month={month} />

@@ -7,12 +7,13 @@ import Icon from "@/components/Icon";
 import PushSetup from "@/components/PushSetup";
 import ConnectCalendar from "@/components/ConnectCalendar";
 import ThemeToggle from "@/components/ThemeToggle";
+import SwitchAccount from "@/components/SwitchAccount";
 
 function Me({ initials, size = "h-10 w-10 text-xs" }) {
   return <span className={`grid shrink-0 place-items-center rounded-full bg-gradient-to-br from-brand-soft to-brand font-semibold text-white ${size}`}>{initials}</span>;
 }
 
-/** Name, notifications, calendar, theme and sign out — the phone sheet and the desktop menu share it. */
+/** Name, notifications, calendar, theme, switch account and sign out — the phone sheet and the desktop menu share it. */
 function ProfileBody({ name, initials, roleLabel, calendar, domain, theme, showTheme }) {
   return (
     <>
@@ -39,6 +40,7 @@ function ProfileBody({ name, initials, roleLabel, calendar, domain, theme, showT
             )}
           </div>
         )}
+        <SwitchAccount domain={domain} />
         <form action="/auth/signout" method="post">
           <button className="flex w-full items-center gap-3 rounded-2xl bg-panel-2 px-4 py-3 text-left text-sm text-rose-400">
             <Icon name="logout" size={18} />

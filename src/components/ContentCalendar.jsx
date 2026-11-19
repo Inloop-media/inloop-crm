@@ -2,15 +2,16 @@
 // One brand's content calendar for a month: the plan on top, then a month grid (or an agenda list on
 // phones). Click a day to add a post, click a post to edit it, drag it to move it. Heads turn a post
 // into a task for someone straight from here.
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Icon from "@/components/Icon";
 import MonthGrid, { todayKey } from "@/components/MonthGrid";
 import CalendarImport from "@/components/CalendarImport";
 import { PersonSelect, PrioritySelect } from "@/components/TaskForms";
-import { assignCalendarItem, deleteCalendarItem, moveCalendarItem, saveCalendarItem, savePlan, setCalendarPosted } from "@/app/(crm)/calendar/actions";
-import { CALENDAR_FIELDS, CALENDAR_TYPES, PLAN_KINDS, PLATFORMS, TASK_KINDS, TASK_STATUSES, kindPlural, taskKindLabel } from "@/lib/constants";
+import { assignCalendarItem, deleteCalendarItem, moveCalendarItem, saveCalendarItem, savePlan, setCalendarLock, setCalendarPosted } from "@/app/(crm)/calendar/actions";
+import { CALENDAR_FIELDS, CALENDAR_TYPES, PLAN_KINDS, PLATFORMS, TASK_KINDS, TASK_STATUSES, kindPlural, platformLabel, platformList, taskKindLabel } from "@/lib/constants";
 
 export const KIND_COLOR = { post: "#60a5fa", carousel: "#a78bfa", story: "#f472b6", reel: "#fbbf24", video: "#22d3ee", design: "#4ade80", website: "#94a3b8", other: "#94a3b8" };
 const CONTENT_KINDS = TASK_KINDS.filter((k) => k.id !== "website");
@@ -86,7 +87,7 @@ function PlanCard({ brandId, month, monthName, plan, progress, canPlan }) {
       >
         <div className="mb-4 flex items-center justify-between">
           <div>
-            <h3 className="text-sm font-medium">Plan for {monthName}</h3>
+            <h3 className="text-sm font-medium">Deliverables for {monthName}</h3>
             <p className="text-xs text-muted">How many of each the brand gets this month. Next months copy it until you change it.</p>
           </div>
         </div>
@@ -108,7 +109,7 @@ function PlanCard({ brandId, month, monthName, plan, progress, canPlan }) {
             Cancel
           </button>
           <button disabled={pending} className="btn-primary btn-sm">
-            {pending ? "Saving…" : "Save plan"}
+            {pending ? "Saving…" : "Save deliverables"}
           </button>
         </div>
       </form>
@@ -119,7 +120,7 @@ function PlanCard({ brandId, month, monthName, plan, progress, canPlan }) {
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0">
           <h3 className="text-sm font-medium">
-            {monthName} plan
+            {monthName} deliverables
             {plan?.inherited && <span className="ml-2 rounded-full bg-panel-2 px-2 py-0.5 text-[10px] font-normal text-muted">same as last month</span>}
           </h3>
           <p className="mt-0.5 text-xs text-muted">
@@ -128,16 +129,16 @@ function PlanCard({ brandId, month, monthName, plan, progress, canPlan }) {
                 <b className="font-medium text-ink">{progress.planned}</b> of {progress.target} planned · <b className="font-medium text-ink">{progress.assigned}</b> assigned · <b className="font-medium text-ink">{progress.done}</b> done
               </>
             ) : canPlan ? (
-              "No plan yet — set how many posts, reels and stories this brand gets."
+              "No deliverables yet — set how many posts, reels and stories this brand gets."
             ) : (
-              "No plan set for this month yet."
+              "No deliverables set for this month yet — admin sets them."
             )}
           </p>
           {plan?.notes && <p className="mt-2 max-w-2xl whitespace-pre-line text-xs text-muted">{plan.notes}</p>}
         </div>
         {canPlan && (
           <button onClick={() => setEditing(true)} className="btn-ghost btn-sm">
-            <Icon name="board" size={13} /> {progress.target ? "Edit plan" : "Set plan"}
+            <Icon name="board" size={13} /> {progress.target ? "Edit deliverables" : "Set deliverables"}
           </button>
         )}
       </div>
@@ -174,7 +175,7 @@ function PlanCard({ brandId, month, monthName, plan, progress, canPlan }) {
 
 /* ------------------------------ Item drawer ------------------------------ */
 
-function Drawer({ item, brandId, people, canEdit, canAssign, onClose }) {
+function Drawer({ item, brandId, people, canEdit, canPost = canEdit, canAssign, onClose }) {
   const { pending, error, run } = useRun();
   const isNew = !item.id;
   const [f, setF] = useState({
@@ -296,14 +297,29 @@ function Drawer({ item, brandId, people, canEdit, canAssign, onClose }) {
               </div>
             </div>
             <div>
-              <label className="label">Platform</label>
-              <select className="field" value={f.platform} onChange={set("platform")}>
-                {PLATFORMS.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.label}
-                  </option>
-                ))}
-              </select>
+              <span className="label">Platforms</span>
+              <div className="flex flex-wrap gap-1.5">
+                {PLATFORMS.map((p) => {
+                  const list = platformList(f.platform);
+                  const on = list.includes(p.id);
+                  return (
+                    <button
+                      key={p.id}
+                      type="button"
+                      aria-pressed={on}
+                      onClick={() => {
+                        const next = on ? list.filter((x) => x !== p.id) : [...list, p.id];
+                        if (next.length) setF({ ...f, platform: next.join(",") });
+                      }}
+                      className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[12.5px] transition disabled:opacity-60 ${on ? "bg-brand/15 text-ink shadow-[inset_0_0_0_1.5px_var(--color-brand)]" : "bg-panel-2 text-muted hover:text-ink"}`}
+                    >
+                      {on && <Icon name="check" size={12} />}
+                      {p.label}
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="mt-1 text-[11px] text-faint">Pick every platform it goes out on.</p>
             </div>
           </fieldset>
 
@@ -333,9 +349,9 @@ function Drawer({ item, brandId, people, canEdit, canAssign, onClose }) {
                   <p className="text-[11px] text-muted">The whole brief (direction, copy, references) goes into the task.</p>
                 </div>
               ) : (
-                <p className="text-xs text-muted">Not assigned yet — the execution heads assign it to a designer or editor.</p>
+                <p className="text-xs text-muted">Not assigned yet — the CBOs assign it to a designer or editor.</p>
               )}
-              {canEdit && (
+              {canPost && (
                 <label className="flex cursor-pointer items-center gap-2 text-sm">
                   <input type="checkbox" checked={item.status === "posted"} onChange={(e) => run(() => setCalendarPosted(item.id, e.target.checked))} className="h-4 w-4 accent-[var(--color-brand)]" />
                   Posted
@@ -373,9 +389,144 @@ function Drawer({ item, brandId, people, canEdit, canAssign, onClose }) {
   );
 }
 
+/* ------------------------------ Lock ------------------------------ */
+
+const lockTime = new Intl.DateTimeFormat("en-IN", { timeZone: "Asia/Kolkata", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" });
+
+/**
+ * The bar above the calendar: locked (no one can change it) or unlocked (someone is working on it).
+ * While it's unlocked, the person who can lock it is asked to lock it before leaving the page.
+ */
+function LockBar({ brandId, lock, canLock }) {
+  const router = useRouter();
+  const [pending, start] = useTransition();
+  const [error, setError] = useState("");
+  const [leaving, setLeaving] = useState(null); // the link they clicked
+  const guard = canLock && lock.ready && !lock.locked;
+  const guardRef = useRef(guard);
+  useEffect(() => {
+    guardRef.current = guard;
+  }, [guard]);
+
+  const set = (locked, then) =>
+    start(async () => {
+      setError("");
+      const r = await setCalendarLock(brandId, locked);
+      if (!r.ok) return setError(r.error);
+      guardRef.current = !locked && canLock;
+      router.refresh();
+      then?.();
+    });
+
+  // Closing the tab / reloading while it's unlocked → the browser's "Leave site?" pop-up
+  useEffect(() => {
+    if (!guard) return;
+    const onUnload = (e) => {
+      if (!guardRef.current) return;
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", onUnload);
+    return () => window.removeEventListener("beforeunload", onUnload);
+  }, [guard]);
+
+  // Clicking a link to another page while it's unlocked → our pop-up first
+  useEffect(() => {
+    if (!guard) return;
+    const onClick = (e) => {
+      if (!guardRef.current || e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      const a = e.target.closest?.("a[href]");
+      if (!a || a.target === "_blank" || a.hasAttribute("download")) return;
+      const url = new URL(a.href, window.location.href);
+      if (url.origin !== window.location.origin) return;
+      // Moving between months of the same brand's calendar is not leaving it
+      const here = new URL(window.location.href);
+      const sameCalendar = url.pathname === here.pathname && (url.searchParams.get("brand") || "") === (here.searchParams.get("brand") || "") && url.searchParams.get("tab") === here.searchParams.get("tab");
+      if (sameCalendar) return;
+      e.preventDefault();
+      e.stopPropagation();
+      setLeaving(url.pathname + url.search + url.hash);
+    };
+    document.addEventListener("click", onClick, true);
+    return () => document.removeEventListener("click", onClick, true);
+  }, [guard]);
+
+  const go = (href) => {
+    guardRef.current = false;
+    setLeaving(null);
+    router.push(href);
+  };
+
+  if (!lock.ready) return null;
+  return (
+    <>
+      <section className={`card flex flex-wrap items-center gap-3 !rounded-3xl px-4 py-3 ${lock.locked ? "" : "shadow-[inset_0_0_0_1.5px_rgb(251_191_36/0.6)]"}`}>
+        <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-full ${lock.locked ? "bg-panel-2 text-muted" : "bg-amber-400/15 text-amber-400"}`}>
+          <Icon name="lock" size={15} />
+        </span>
+        <div className="min-w-0 flex-1">
+          <div className="text-sm font-medium">{lock.locked ? "Calendar locked" : "Calendar unlocked — editing is open"}</div>
+          <div className="text-xs text-muted">
+            {lock.locked
+              ? canLock
+                ? "No one can change it. Unlock it to work on it, and lock it again when you're done."
+                : "No one can change it right now. The creative strategists' team lead unlocks it."
+              : `Unlocked${lock.by ? ` by ${lock.by}` : ""}${lock.at ? ` · ${lockTime.format(new Date(lock.at))}` : ""}. Lock it once the work is done.`}
+          </div>
+          {error && <div className="mt-1 text-xs text-rose-400">{error}</div>}
+        </div>
+        {canLock &&
+          (lock.locked ? (
+            <button type="button" disabled={pending} onClick={() => set(false)} className="btn-ghost btn-sm">
+              {pending ? "Unlocking…" : "Unlock to edit"}
+            </button>
+          ) : (
+            <button type="button" disabled={pending} onClick={() => set(true)} className="btn-primary btn-sm">
+              <Icon name="lock" size={13} /> {pending ? "Locking…" : "Lock calendar"}
+            </button>
+          ))}
+      </section>
+
+      {leaving &&
+        createPortal(
+        <div className="fixed inset-0 z-[70] grid place-items-center p-4">
+          <button aria-label="Stay" onClick={() => setLeaving(null)} className="absolute inset-0 bg-black/55 backdrop-blur-[2px]" />
+          <div className="pop relative flex w-full max-w-sm flex-col gap-4 p-5">
+            <div className="flex items-start gap-3">
+              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-amber-400/15 text-amber-400">
+                <Icon name="lock" size={17} />
+              </span>
+              <div>
+                <h2 className="text-[15px] font-medium">Lock the calendar before you leave</h2>
+                <p className="mt-1 text-xs text-muted">The content calendar is still unlocked, so anyone can change it. Lock it once your work is done.</p>
+              </div>
+            </div>
+            {error && <p className="text-xs text-rose-400">{error}</p>}
+            <div className="flex flex-col gap-2">
+              <button type="button" disabled={pending} onClick={() => set(true, () => go(leaving))} className="btn-primary justify-center">
+                <Icon name="lock" size={14} /> {pending ? "Locking…" : "Lock and leave"}
+              </button>
+              <button type="button" onClick={() => go(leaving)} className="btn-ghost justify-center">
+                Leave it unlocked
+              </button>
+              <button type="button" onClick={() => setLeaving(null)} className="text-xs text-muted hover:text-ink">
+                Stay here
+              </button>
+            </div>
+          </div>
+        </div>
+,
+          document.body
+        )}
+    </>
+  );
+}
+
 /* ------------------------------ Calendar ------------------------------ */
 
-export default function ContentCalendar({ brand, month, monthName, items: initial, plan, progress, people = [], canEdit, canAssign, canPlan }) {
+export default function ContentCalendar({ brand, month, monthName, items: initial, plan, progress, people = [], canEdit: mayEdit, canAssign, canPlan, lock = { locked: false, ready: false }, canLock = false }) {
+  // A locked calendar can't be changed by anyone (assigning and marking posted still work)
+  const canEdit = mayEdit && !lock.locked;
   const router = useRouter();
   const [items, setItems] = useState(initial);
   const [synced, setSynced] = useState(initial);
@@ -417,6 +568,7 @@ export default function ContentCalendar({ brand, month, monthName, items: initia
 
   return (
     <div className="flex flex-col gap-4">
+      <LockBar brandId={brand.id} lock={lock} canLock={canLock} />
       <PlanCard key={`${brand.id}-${month}-${plan?.updated_at || ""}`} brandId={brand.id} month={month} monthName={monthName} plan={plan} progress={progress} canPlan={canPlan} />
 
       <section className="card !rounded-3xl p-3 sm:p-4">
@@ -491,7 +643,7 @@ export default function ContentCalendar({ brand, month, monthName, items: initia
                         <div className="min-w-0 flex-1">
                           <div className={`truncate text-sm font-medium ${i.status === "posted" ? "line-through opacity-60" : ""}`}>{i.title}</div>
                           <div className="text-xs text-muted">
-                            {taskKindLabel(i.kind)} · {PLATFORMS.find((p) => p.id === i.platform)?.label}
+                            {taskKindLabel(i.kind)} · {platformLabel(i.platform)}
                             {i.task?.assignee && ` · ${i.task.assignee.name.split(" ")[0]}`}
                           </div>
                         </div>
@@ -511,7 +663,7 @@ export default function ContentCalendar({ brand, month, monthName, items: initia
         )}
       </section>
 
-      {open && <Drawer key={open.id || open.publish_on} item={open} brandId={brand.id} people={people} canEdit={canEdit} canAssign={canAssign} onClose={() => setOpen(null)} />}
+      {open && <Drawer key={open.id || open.publish_on} item={open} brandId={brand.id} people={people} canEdit={canEdit} canPost={mayEdit} canAssign={canAssign} onClose={() => setOpen(null)} />}
     </div>
   );
 }

@@ -188,3 +188,70 @@ export async function markBrandRead(brandId) {
   revalidatePath("/brands");
   return { ok: true };
 }
+
+/**
+ * Admin: add a brand Inloop already works with (no lead / MOU flow). Makes a "Won" lead for it, the brand
+ * (active straight away, no celebration pop-up) and its monthly deliverables from `month` on.
+ * input: { name, contact, phone, email, services: [names], deliverables: { post, carousel, story, reel, video }, month: "2026-11" }
+ */
+export async function addExistingBrand(input) {
+  const me = await requireMember();
+  if (me.role !== "admin") return { ok: false, error: "Only an admin can add brands." };
+  const name = str(input?.name, 200);
+  if (!name) return { ok: false, error: "Write the brand name." };
+  const { data: dup } = await db().from("brands").select("id").ilike("name", name).maybeSingle();
+  if (dup) return { ok: false, error: `${name} is already in Kyro.` };
+  const services = (Array.isArray(input.services) ? input.services : []).map((s) => str(s, 120)).filter(Boolean).slice(0, 12);
+  const [first, ...rest] = (str(input.contact, 200) || name).split(/\s+/);
+  const now = new Date().toISOString();
+
+  const { data: lead, error: leadErr } = await db()
+    .from("leads")
+    .insert({
+      first_name: first,
+      last_name: rest.join(" "),
+      phone: str(input.phone, 40),
+      email: str(input.email, 200),
+      brand: name,
+      service: services.join(", "),
+      details: "Existing client, added to Kyro directly.",
+      source: "existing",
+      status: "Won",
+    })
+    .select("id, code")
+    .single();
+  if (leadErr) return { ok: false, error: leadErr.message };
+  await addEvents(lead.id, me.id, [{ type: "created", data: { source: "existing client" } }]);
+
+  const { data: brand, error } = await db()
+    .from("brands")
+    .insert({
+      lead_id: lead.id,
+      name,
+      stage: "active",
+      services: services.map((s) => ({ name: s, scope: "", fee: "", billing: "Monthly" })),
+      onboarded_at: now,
+      created_by: me.id,
+    })
+    .select("id")
+    .single();
+  if (error) {
+    await db().from("leads").delete().eq("id", lead.id);
+    return { ok: false, error: error.message };
+  }
+
+  const kinds = ["post", "carousel", "story", "reel", "video"];
+  const targets = {};
+  for (const k of kinds) {
+    const n = Math.max(0, Math.min(200, Math.round(Number(input.deliverables?.[k]) || 0)));
+    if (n) targets[k] = n;
+  }
+  const month = /^\d{4}-(0[1-9]|1[0-2])$/.test(String(input.month || "")) ? input.month : now.slice(0, 7);
+  if (Object.keys(targets).length) {
+    await db().from("brand_plans").upsert({ brand_id: brand.id, month: `${month}-01`, targets, notes: "", updated_by: me.id, updated_at: now });
+  }
+  revalidatePath("/brands");
+  revalidatePath("/calendar");
+  revalidatePath("/");
+  return { ok: true, id: brand.id };
+}

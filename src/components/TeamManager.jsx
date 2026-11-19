@@ -3,7 +3,9 @@
 import { useActionState, useState, useTransition } from "react";
 import Icon from "@/components/Icon";
 import { Avatar } from "@/components/ui";
-import { addGuest, addMember, createGroup, setTeamLead, updateGroup, updateGuest, updateMember } from "@/app/(crm)/actions";
+import GroupPeople from "@/components/GroupPeople";
+import { addGuest, addMember, createGroup, updateGroup, updateGuest, updateMember } from "@/app/(crm)/actions";
+import { operationsHeadIds, sortGroups } from "@/lib/groups";
 import { GROUP_KINDS, ROLES, UPDATE_EVENTS } from "@/lib/constants";
 
 const KIND_TONE = {
@@ -146,11 +148,10 @@ function AddPerson({ groups }) {
 
 /* ------------------------------ Groups ------------------------------ */
 
-function GroupCard({ g, members }) {
+function GroupCard({ g, members, opsHeads }) {
   const { pending, error, change } = useChange(updateGroup);
-  const lead = useChange(setTeamLead);
   const kind = GROUP_KINDS.find((k) => k.id === g.kind);
-  const outside = members.filter((m) => m.active && !g.members.some((x) => x.id === m.id));
+  const everyone = members.filter((m) => m.active).map((m) => ({ id: m.id, name: m.name }));
 
   return (
     <div className="card card-hover flex flex-col p-6">
@@ -169,46 +170,6 @@ function GroupCard({ g, members }) {
         </button>
       </div>
       <p className="mt-3 text-xs leading-relaxed text-muted">{kind?.help}</p>
-      <label className="mt-4 flex items-center gap-3 rounded-2xl bg-panel-2 px-3 py-2.5">
-        <span className="text-xs font-medium text-muted">Head</span>
-        <select
-          value={g.lead_id || ""}
-          disabled={pending}
-          onChange={(e) => change(g.id, { lead_id: e.target.value || null })}
-          className="min-w-0 flex-1 bg-transparent text-sm outline-none"
-        >
-          <option value="">No head</option>
-          {members
-            .filter((m) => m.active)
-            .map((m) => (
-              <option key={m.id} value={m.id}>
-                {m.name}
-              </option>
-            ))}
-        </select>
-      </label>
-      <p className="mt-1.5 px-1 text-[11px] text-faint">The head&apos;s dashboard, Tasks and Leads show this group&apos;s work.</p>
-      <label className="mt-3 flex items-center gap-3 rounded-2xl bg-panel-2 px-3 py-2.5">
-        <span className="text-xs font-medium text-muted">Team lead</span>
-        <select
-          value={g.team_lead_id || ""}
-          disabled={lead.pending}
-          onChange={(e) => lead.change(g.id, e.target.value || null)}
-          className="min-w-0 flex-1 bg-transparent text-sm outline-none"
-        >
-          <option value="">No team lead</option>
-          {g.members
-            .filter((m) => m.active)
-            .map((m) => (
-              <option key={m.id} value={m.id}>
-                {m.name}
-              </option>
-            ))}
-        </select>
-      </label>
-      <p className="mt-1.5 px-1 text-[11px] text-faint">The group can message its team lead and head directly. The head can change this on the group page too.</p>
-      {lead.error && <p className="mt-1.5 px-1 text-xs text-rose-400">{lead.error}</p>}
-      {error && <p className="mt-1.5 px-1 text-xs text-rose-400">{error}</p>}
       <div className="mt-4">
         <div className="mb-2 text-xs font-medium text-muted">Posts here</div>
         <div className="flex flex-wrap gap-1.5">
@@ -230,40 +191,15 @@ function GroupCard({ g, members }) {
           })}
         </div>
       </div>
-      <div className="mb-1.5 mt-5 text-xs font-medium text-muted">Members</div>
-      <ul className="flex flex-1 flex-col gap-1.5">
-        {g.members.map((m) => (
-          <li key={m.id} className="flex items-center gap-2.5 rounded-xl px-1.5 py-1.5 text-sm transition hover:bg-panel-2">
-            <Avatar name={m.name} size={24} />
-            <span className="min-w-0 flex-1 truncate">{m.name}</span>
-            <button disabled={pending} onClick={() => change(g.id, { removeMember: m.id })} title="Remove from group" className="grid h-6 w-6 place-items-center rounded-full text-faint hover:bg-panel hover:text-rose-400">
-              <Icon name="x" size={13} />
-            </button>
-          </li>
-        ))}
-        {!g.members.length && <li className="text-xs text-faint">No one yet.</li>}
-      </ul>
-      {outside.length > 0 && (
-        <select
-          value=""
-          disabled={pending}
-          onChange={(e) => e.target.value && change(g.id, { addMember: e.target.value })}
-          className="field mt-4 rounded-full py-2 text-xs"
-        >
-          <option value="">+ Add someone…</option>
-          {outside.map((m) => (
-            <option key={m.id} value={m.id}>
-              {m.name}
-            </option>
-          ))}
-        </select>
-      )}
+      <div className="mt-5 flex-1">
+        <GroupPeople group={g} members={g.members} everyone={everyone} opsHeads={opsHeads} admin />
+      </div>
       {error && <p className="mt-2 text-xs text-rose-400">{error}</p>}
     </div>
   );
 }
 
-function NewGroup() {
+function NewGroup({ opsHeads }) {
   const [state, action, pending] = useActionState(createGroup, {});
   return (
     <form action={action} key={state?.message} className="well-empty flex flex-col gap-3 bg-panel/40 p-6">
@@ -272,6 +208,14 @@ function NewGroup() {
         <div className="text-lg font-medium">New group</div>
       </div>
       <input name="name" required placeholder="e.g. Performance Team" className="field bg-panel" />
+      <select name="owner" defaultValue="" className="field bg-panel">
+        <option value="">Comes under: Admin</option>
+        {opsHeads.map((m) => (
+          <option key={m.id} value={m.id}>
+            Comes under: {m.name}
+          </option>
+        ))}
+      </select>
       <select name="kind" defaultValue="other" className="field bg-panel">
         {GROUP_KINDS.map((k) => (
           <option key={k.id} value={k.id}>
@@ -366,7 +310,10 @@ function GuestsSection({ guests }) {
   );
 }
 
-export default function TeamManager({ members, groups, guests = [], meId }) {
+export default function TeamManager({ members, groups: raw, guests = [], meId }) {
+  const groups = sortGroups(raw);
+  const name = Object.fromEntries(members.map((m) => [m.id, m.name]));
+  const opsHeads = operationsHeadIds(groups).filter((id) => name[id]).map((id) => ({ id, name: name[id] }));
   return (
     <div className="flex flex-col gap-10">
       <section className="flex flex-col gap-4">
@@ -394,14 +341,14 @@ export default function TeamManager({ members, groups, guests = [], meId }) {
         <div>
           <h2 className="text-2xl font-medium tracking-tight">Groups</h2>
           <p className="text-sm text-muted">
-            What a member can do comes from their groups. &quot;Posts here&quot; picks which bot updates show up in the group&apos;s feed under Updates.
+            What a member can do comes from their groups, and one person can be in many groups. The CBO group (Udit sir, Krish sir, Arushi ma&apos;am) comes under Admin; every other group comes under one CBO, and if it has no manager of its own, that CBO manages it. &quot;Posts here&quot; picks which bot updates show up in the group&apos;s feed under Updates.
           </p>
         </div>
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {groups.map((g) => (
-            <GroupCard key={g.id} g={g} members={members} />
+            <GroupCard key={g.id} g={g} members={members} opsHeads={opsHeads} />
           ))}
-          <NewGroup />
+          <NewGroup opsHeads={opsHeads} />
         </div>
       </section>
 

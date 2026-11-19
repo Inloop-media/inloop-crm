@@ -37,7 +37,7 @@ export const ROLES = [
 export const GROUP_KINDS = [
   { id: "sales", label: "Sales executives", help: "Get leads assigned, update status up to Discovery Call, book the discovery call" },
   { id: "strategy", label: "Creative strategists", help: "See shared briefs, pick one up and upload the 4 documents" },
-  { id: "execution", label: "Execution heads", help: "See every brand, assign tasks to the team, review work and share it with the client" },
+  { id: "execution", label: "CBO", help: "Chief Business Officers: see every brand, make groups under themselves, pick their heads and team leads, assign and review work" },
   { id: "design", label: "Designers", help: "Get design tasks (posts, carousels, stories) and deliver them" },
   { id: "development", label: "Developers", help: "Get website / development tasks and deliver them" },
   { id: "video", label: "Video editors", help: "Get reels and video tasks and deliver them" },
@@ -178,6 +178,16 @@ export const PLATFORMS = [
   { id: "x", label: "X", short: "X" },
   { id: "other", label: "Other", short: "•" },
 ];
+/** A calendar post can go out on several platforms; stored as "instagram,facebook". */
+export const platformList = (v) => {
+  const ids = String(v || "").split(/[,\s/&+|]+/).map((x) => x.trim().toLowerCase()).filter((x) => PLATFORMS.some((p) => p.id === x));
+  return [...new Set(ids)];
+};
+export const platformValue = (list) => {
+  const ids = platformList(Array.isArray(list) ? list.join(",") : list);
+  return ids.length ? ids.join(",") : "instagram";
+};
+export const platformLabel = (v) => platformList(v).map((id) => PLATFORMS.find((p) => p.id === id).label).join(", ");
 export const kindPlural = (id) => ({ post: "Static posts", story: "Stories", other: "Other" })[id] || `${taskKindLabel(id)}s`;
 
 /** One colour per kind of content (calendar chips, task tags) */

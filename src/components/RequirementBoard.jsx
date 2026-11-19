@@ -1,10 +1,123 @@
 "use client";
 // The list of requirements (click one to see its story and act on it) + the "New requirement" form.
-import { useState, useTransition } from "react";
+// The receiver can upload files / assets and submit: they go back to the person who asked.
+import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Icon from "@/components/Icon";
 import { Avatar } from "@/components/ui";
-import { addRequirement, changeRequirement } from "@/app/(crm)/requirements/actions";
+import { addRequirement, changeRequirement, requirementUploadUrl } from "@/app/(crm)/requirements/actions";
+import { createClient } from "@/lib/supabase/browser";
+
+const MAX_FILE = 50 * 1024 * 1024;
+const size = (n) => (n >= 1048576 ? `${(n / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(n / 1024))} KB`);
+
+/** Files (and links) sent back on a requirement, with open + download. */
+function Delivered({ files = [], links = [] }) {
+  return (
+    <ul className="mt-1 flex flex-col gap-1">
+      {files.map((f) => (
+        <li key={f.path} className="flex items-center gap-2 rounded-lg bg-panel-2 px-2.5 py-1.5 text-[12.5px]">
+          <Icon name="paperclip" size={13} className="shrink-0 text-muted" />
+          <a href={f.href || undefined} target="_blank" rel="noreferrer" className="min-w-0 flex-1 truncate hover:underline">
+            {f.name}
+          </a>
+          <span className="shrink-0 text-[10.5px] text-faint">{f.size ? size(f.size) : ""}</span>
+          {f.download && (
+            <a href={f.download} className="grid h-6 w-6 shrink-0 place-items-center rounded-full text-muted hover:bg-panel hover:text-ink" title="Download">
+              <Icon name="download" size={13} />
+            </a>
+          )}
+        </li>
+      ))}
+      {links.map((l) => (
+        <li key={l} className="flex items-center gap-2 rounded-lg bg-panel-2 px-2.5 py-1.5 text-[12.5px]">
+          <Icon name="link" size={13} className="shrink-0 text-muted" />
+          <a href={l} target="_blank" rel="noreferrer" className="min-w-0 flex-1 truncate hover:underline">
+            {l}
+          </a>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/** Receiver: upload the files / assets (or paste a link) and submit — it goes back to the requester. */
+function Submit({ r, note, onDone }) {
+  const input = useRef(null);
+  const [files, setFiles] = useState([]);
+  const [link, setLink] = useState("");
+  const [busy, setBusy] = useState("");
+  const [error, setError] = useState("");
+  const add = (list) => {
+    const picked = [...list];
+    const big = picked.find((f) => f.size > MAX_FILE);
+    if (big) setError(`${big.name} is over 50 MB.`);
+    setFiles((cur) => [...cur, ...picked.filter((f) => f.size > 0 && f.size <= MAX_FILE)].slice(0, 20));
+  };
+  const submit = async () => {
+    setError("");
+    try {
+      const uploaded = [];
+      for (let i = 0; i < files.length; i++) {
+        const f = files[i];
+        setBusy(`Uploading ${i + 1} of ${files.length}…`);
+        const u = await requirementUploadUrl(r.id, f.name, f.size);
+        if (!u.ok) throw new Error(u.error);
+        const { error: upErr } = await createClient().storage.from("lead-docs").uploadToSignedUrl(u.path, u.token, f, { contentType: f.type || undefined });
+        if (upErr) throw new Error(upErr.message);
+        uploaded.push({ path: u.path, name: f.name, size: f.size, type: f.type });
+      }
+      setBusy("Submitting…");
+      const res = await changeRequirement(r.id, { deliver: { files: uploaded, links: link.trim() ? [link.trim()] : [] }, ...(note.trim() ? { note } : {}) });
+      if (!res.ok) throw new Error(res.error);
+      setFiles([]);
+      setLink("");
+      onDone();
+    } catch (e) {
+      setError(e.message || "Couldn't upload. Try again.");
+    } finally {
+      setBusy("");
+    }
+  };
+  return (
+    <div
+      className="rounded-2xl border border-dashed border-line-strong p-3"
+      onDragOver={(e) => e.preventDefault()}
+      onDrop={(e) => {
+        e.preventDefault();
+        add(e.dataTransfer.files);
+      }}
+    >
+      <div className="mb-2 text-[12.5px] font-medium">Upload &amp; submit</div>
+      <p className="mb-2 text-[11.5px] text-muted">Add the files or assets {first(r.from?.name) || "they"} asked for. Submitting marks it done and sends them back.</p>
+      {files.length > 0 && (
+        <ul className="mb-2 flex flex-col gap-1">
+          {files.map((f, i) => (
+            <li key={`${f.name}-${i}`} className="flex items-center gap-2 rounded-lg bg-panel-2 px-2.5 py-1.5 text-[12.5px]">
+              <Icon name="paperclip" size={13} className="shrink-0 text-muted" />
+              <span className="min-w-0 flex-1 truncate">{f.name}</span>
+              <span className="shrink-0 text-[10.5px] text-faint">{size(f.size)}</span>
+              <button type="button" disabled={!!busy} onClick={() => setFiles(files.filter((_, j) => j !== i))} className="grid h-5 w-5 place-items-center rounded-full text-faint hover:text-rose-400" title="Remove">
+                <Icon name="x" size={11} />
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+      <input ref={input} type="file" multiple hidden onChange={(e) => (add(e.target.files), (e.target.value = ""))} />
+      <div className="flex flex-wrap items-center gap-2">
+        <button type="button" disabled={!!busy} onClick={() => input.current?.click()} className="btn-ghost btn-sm">
+          <Icon name="paperclip" size={13} /> Add files
+        </button>
+        <input className="field min-w-[180px] flex-1 py-1.5 text-[12.5px]" placeholder="…or paste a link (Drive, Figma)" value={link} onChange={(e) => setLink(e.target.value)} disabled={!!busy} />
+        <button type="button" disabled={!!busy || (!files.length && !/^https?:\/\//i.test(link.trim()))} onClick={submit} className="btn-primary btn-sm">
+          <Icon name="arrow" size={13} /> {busy || `Submit to ${first(r.from?.name) || "them"}`}
+        </button>
+      </div>
+      {error && <p className="mt-2 text-xs text-rose-400">{error}</p>}
+    </div>
+  );
+}
 
 const STATUS = {
   open: { label: "New", color: "#3b82f6" },
@@ -160,6 +273,7 @@ function Detail({ r, meId, staff, recipients, names }) {
     if (h.type === "created") return `${who} asked`;
     if (h.type === "status") return `${who} → ${STATUS[h.status]?.label}`;
     if (h.type === "forward") return `${who} passed it to ${first(names[h.to])}`;
+    if (h.type === "delivered") return `${who} submitted ${(h.files || []).length ? `${h.files.length} file${h.files.length > 1 ? "s" : ""}` : "a link"} — done`;
     return `${who} wrote`;
   };
   return (
@@ -173,10 +287,21 @@ function Detail({ r, meId, staff, recipients, names }) {
               <span className="text-muted">{line(h)}</span>
               <span className="ml-2 text-[10.5px] text-faint">{dtFmt.format(new Date(h.at))}</span>
               {h.note && <span className="mt-0.5 block whitespace-pre-wrap rounded-lg bg-panel-2 px-2.5 py-1.5 text-[12.5px] text-ink/90">{h.note}</span>}
+              {h.type === "delivered" && <Delivered files={h.files} links={h.links} />}
             </span>
           </li>
         ))}
       </ol>
+      {receiver && open && (
+        <Submit
+          r={r}
+          note={note}
+          onDone={() => {
+            setNote("");
+            router.refresh();
+          }}
+        />
+      )}
       <textarea className="field min-h-[56px] text-[13px]" placeholder={receiver ? "Add a note (optional) — e.g. ordered, arriving Friday" : "Add a note"} value={note} onChange={(e) => setNote(e.target.value)} />
       {error && <p className="text-xs text-rose-400">{error}</p>}
       <div className="flex flex-wrap items-center gap-2">
@@ -259,6 +384,11 @@ export default function RequirementBoard({ items, meId, staff, recipients, names
                   {r.needed_by && <span className={late ? "font-medium text-rose-400" : ""}> · needed by {dateFmt.format(new Date(`${r.needed_by}T00:00:00+05:30`))}</span>}
                 </span>
               </span>
+              {(r.history || []).some((h) => h.type === "delivered") && (
+                <span className="flex shrink-0 items-center gap-1 rounded-full bg-emerald-500/12 px-2 py-0.5 text-[11px] font-medium text-emerald-400" title="Files sent back">
+                  <Icon name="paperclip" size={11} /> {(r.history || []).filter((h) => h.type === "delivered").reduce((n, h) => n + (h.files || []).length + (h.links || []).length, 0)}
+                </span>
+              )}
               <Pill status={r.status} />
               <Icon name="chevron" size={14} className={`shrink-0 text-faint transition ${isOpen ? "rotate-180" : ""}`} />
             </button>

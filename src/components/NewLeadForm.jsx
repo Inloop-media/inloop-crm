@@ -3,8 +3,7 @@
 import { useActionState } from "react";
 import { createLead } from "@/app/(crm)/actions";
 import { BUDGETS, SERVICES } from "@/lib/constants";
-
-const SOURCES = ["manual", "call", "referral", "whatsapp", "instagram", "linkedin", "event"];
+import { LEAD_SOURCES as SOURCES } from "@/lib/leadShare";
 
 export default function NewLeadForm({ members }) {
   const [state, action, pending] = useActionState(createLead, {});

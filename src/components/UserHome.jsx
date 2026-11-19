@@ -123,7 +123,7 @@ function PipelineCard({ stages, top, max, open, className = "xl:col-span-9" }) {
  *   data   dashboardData(me) — leads, upcoming, meetings, proposals, activity, now
  *   tasks  this person's tasks
  */
-export default function UserHome({ me, data, tasks = [], followUps = [] }) {
+export default function UserHome({ me, data, tasks = [], followUps = [], meetings = null }) {
   const { leads, upcoming, proposals, activity, now } = data;
   const today = dayKey(now);
   const d0 = new Date(now);
@@ -212,7 +212,7 @@ export default function UserHome({ me, data, tasks = [], followUps = [] }) {
         <Bar pct={tasks.length ? (approved.length / tasks.length) * 100 : 0} label={`${approved.length} of ${tasks.length} tasks approved so far`} />
         <div className="mt-4 grid gap-2.5 sm:grid-cols-3">
           <Tile icon="refresh" label="Fix needed" value={fixTasks.length} note={fixTasks.length ? "Sent back to you" : "Nothing to fix"} href="/tasks" />
-          <Tile icon="clock" label="Waiting on others" value={waiting.length} note="With your head or the client" href="/tasks" />
+          <Tile icon="clock" label="Waiting on others" value={waiting.length} note="With your manager or the client" href="/tasks" />
           <Tile icon="check" label="Approved this week" value={approvedWeek.length} note={`${approved.length} in total`} href="/tasks" />
         </div>
       </>
@@ -319,6 +319,7 @@ export default function UserHome({ me, data, tasks = [], followUps = [] }) {
       <h1 className="rise text-[26px] font-normal tracking-[-0.02em]">
         {greeting()}, {me.name.split(" ")[0]} 👋
       </h1>
+      {meetings && <div className="mt-4">{meetings}</div>}
 
       <div className="mt-4 grid gap-4 xl:grid-cols-12">
         <Card className="rise xl:col-span-8">{hero}</Card>

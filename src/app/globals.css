@@ -349,8 +349,10 @@ html.theme-switching * {
     transform: none;
   }
 }
+/* "backwards" (not "both"): once it has risen nothing stays on the element — a leftover transform would
+   trap pop-ups (position: fixed) inside the card instead of covering the screen. */
 .rise {
-  animation: rise 0.5s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  animation: rise 0.5s cubic-bezier(0.2, 0.7, 0.2, 1) backwards;
 }
 .rise-1 { animation-delay: 0.04s; }
 .rise-2 { animation-delay: 0.08s; }

@@ -5,7 +5,8 @@ import DirectChat from "@/components/DirectChat";
 import { Avatar } from "@/components/ui";
 import { requireMember } from "@/lib/auth";
 import { dmContacts, loadConversation, threads } from "@/lib/dm";
-import { canCreateLead, isSales } from "@/lib/permissions";
+import { canCreateLead, isSales, salesTeam } from "@/lib/permissions";
+import { listAssignees } from "@/lib/leads";
 
 export const metadata = { title: "Direct messages" };
 
@@ -36,6 +37,9 @@ export default async function DmPage({ searchParams }) {
   const canAddLeads = canCreateLead(me);
   // Sales executives share leads with their head; a head can also pass one to another head
   const canShareLead = Boolean(other) && isSales(me) && !canAddLeads;
+  // Who the sales head can give a published lead to: themselves and their team (admin / ops: all of sales)
+  const staff = me.role === "admin" || me.role === "ops";
+  const assignees = canAddLeads && other ? (await listAssignees()).filter((m) => staff || m.id === me.id || salesTeam(me).includes(m.id)).map((m) => ({ id: m.id, name: m.name })) : [];
 
   return (
     <div className="page">
@@ -44,7 +48,7 @@ export default async function DmPage({ searchParams }) {
         <aside className={`min-h-0 flex-col border-line md:flex md:border-r ${other ? "hidden" : "flex"}`}>
           <div className="border-b border-line px-4 py-3.5">
             <h1 className="text-[17px] font-semibold tracking-tight">Direct messages</h1>
-            <p className="text-xs text-muted">Your head, your team and the other heads.</p>
+            <p className="text-xs text-muted">Your manager, your team and the other managers.</p>
           </div>
           <ul className="min-h-0 flex-1 overflow-y-auto p-2">
             {list.map((c) => {
@@ -70,7 +74,7 @@ export default async function DmPage({ searchParams }) {
             })}
             {!list.length && (
               <li className="px-4 py-10 text-center text-sm text-muted">
-                No one to message yet. Once you&apos;re in a group with a head (Team page), they show up here.
+                No one to message yet. Once you&apos;re in a group with a manager (Team page), they show up here.
               </li>
             )}
           </ul>
@@ -79,7 +83,7 @@ export default async function DmPage({ searchParams }) {
         {/* The conversation */}
         <section className={`min-h-0 ${other ? "flex" : "hidden md:flex"} flex-col`}>
           {other ? (
-            <DirectChat key={other.id} meId={me.id} other={other} initial={initial} canAddLeads={canAddLeads} canShareLead={canShareLead} />
+            <DirectChat key={other.id} meId={me.id} other={other} initial={initial} canAddLeads={canAddLeads} canShareLead={canShareLead} assignees={assignees} />
           ) : (
             <div className="m-auto max-w-xs p-6 text-center text-sm text-muted">
               <div className="mx-auto mb-3 grid h-12 w-12 place-items-center rounded-2xl bg-panel-2 text-brand">

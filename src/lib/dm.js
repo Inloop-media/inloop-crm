@@ -3,11 +3,14 @@ import { after } from "next/server";
 import { db } from "@/lib/supabase/server";
 import { pushTo } from "@/lib/push";
 import { addEvents } from "@/lib/leads";
+import { headIdsOf, isOperationsGroup, ownHeadIds, runnersOf, teamLeadIdsOf } from "@/lib/groups";
+import { leadName, leadProblem, normalizeLead } from "@/lib/leadShare";
 
 // Direct messages inside the team. Who can talk to whom:
-//   • a person ↔ the head of any group they are in (Udit sir's team ↔ Udit sir, Aryan ↔ Arushi ma'am…)
-//   • a person ↔ their group's team lead (picked by the head, e.g. the senior designer)
-//   • heads ↔ each other
+//   • a person ↔ the manager of any group they are in (or its CBO when it has no manager)
+//   • a person ↔ their group's team leads (picked by the CBO, e.g. the senior designer)
+//   • a person ↔ the CBO their group comes under
+//   • managers / CBOs ↔ each other
 //   • admin / ops ↔ anyone, and anyone can reply to someone who already wrote to them
 // Live updates: a Realtime broadcast on `dm-{memberId}` that only says "something changed"; the page then
 // reloads through its permission-checked server action (same pattern as the client chat).
@@ -47,16 +50,30 @@ export async function dmContacts(me) {
     if (!cur || rank < cur.rank) out.set(id, { id, name: byId.get(id).name, label, rank });
   };
   const ledBy = {}; // head id → names of the groups they run
-  for (const g of groups) if (g.lead_id) (ledBy[g.lead_id] ||= []).push(g.name);
+  for (const g of groups) for (const h of runnersOf(g)) (ledBy[h] ||= []).push(g.name);
+  const cbos = new Set(groups.filter(isOperationsGroup).flatMap(headIdsOf));
+  const headLabel = (id) => (cbos.has(id) ? "CBO" : `Manager · ${ledBy[id].join(", ")}`);
   for (const g of groups) {
     const ids = (g.group_members || []).map((x) => x.member_id);
-    if (g.lead_id && (ids.includes(me.id) || g.team_lead_id === me.id)) add(g.lead_id, `Your head · ${g.name}`, 0);
-    if (g.team_lead_id && ids.includes(me.id)) add(g.team_lead_id, `Team lead · ${g.name}`, 1);
-    if (g.lead_id === me.id || g.team_lead_id === me.id) for (const id of ids) add(id, id === g.team_lead_id ? `Team lead · ${g.name}` : g.name, id === g.team_lead_id ? 1 : 2);
+    const heads = headIdsOf(g);
+    const leads = teamLeadIdsOf(g);
+    const inIt = ids.includes(me.id) || leads.includes(me.id);
+    // the group's heads, and the CBO it comes under
+    // a group with no manager of its own is managed by its CBO
+    if (inIt) for (const h of heads) add(h, isOperationsGroup(g) || !ownHeadIds(g).length ? `CBO · ${g.name}` : `Your manager · ${g.name}`, 0);
+    if (inIt && g.owner_id && !heads.includes(g.owner_id)) add(g.owner_id, `CBO · ${g.name}`, 0);
+    if (ids.includes(me.id)) for (const t of leads) add(t, `Team lead · ${g.name}`, 1);
+    if (runnersOf(g).includes(me.id) || leads.includes(me.id)) {
+      for (const id of ids) add(id, leads.includes(id) ? `Team lead · ${g.name}` : g.name, leads.includes(id) ? 1 : 2);
+      if (runnersOf(g).includes(me.id)) for (const h of heads) add(h, isOperationsGroup(g) ? "CBO" : `Manager · ${g.name}`, 0);
+    }
   }
-  if (ledBy[me.id]) for (const id of Object.keys(ledBy)) add(id, `Head · ${ledBy[id].join(", ")}`, 0);
-  if (isStaff(me)) for (const p of people || []) add(p.id, ROLE[p.role] || (ledBy[p.id] ? `Head · ${ledBy[p.id].join(", ")}` : "Team"), 3);
-  for (const w of wrote || []) add(w.from_id, ROLE[byId.get(w.from_id)?.role] || (ledBy[w.from_id] ? `Head · ${ledBy[w.from_id].join(", ")}` : "Team"), 3);
+  // CBO comes under the admins: its heads and members can message them (and send them requirements)
+  if (groups.some((g) => isOperationsGroup(g) && (runnersOf(g).includes(me.id) || (g.group_members || []).some((x) => x.member_id === me.id))))
+    for (const p of people || []) if (p.role === "admin") add(p.id, "Admin", 0);
+  if (ledBy[me.id]) for (const id of Object.keys(ledBy)) add(id, headLabel(id), 0);
+  if (isStaff(me)) for (const p of people || []) add(p.id, ROLE[p.role] || (ledBy[p.id] ? headLabel(p.id) : "Team"), 3);
+  for (const w of wrote || []) add(w.from_id, ROLE[byId.get(w.from_id)?.role] || (ledBy[w.from_id] ? headLabel(w.from_id) : "Team"), 3);
   return [...out.values()].sort((a, b) => a.rank - b.rank || a.name.localeCompare(b.name));
 }
 
@@ -139,9 +156,9 @@ export async function send(me, otherId, { body, attachments, lead }) {
   let kind = "text";
   let meta = {};
   if (lead) {
-    meta = { brand: clean(lead.brand, 200), name: clean(lead.name, 200), phone: clean(lead.phone, 40), email: clean(lead.email, 200), service: clean(lead.service, 200), details: clean(lead.details, 2000) };
-    if (!meta.name && !meta.brand) return { ok: false, error: "Add the brand or the contact's name." };
-    if (!meta.phone && !meta.email) return { ok: false, error: "Add a phone number or an email." };
+    meta = normalizeLead(lead);
+    const problem = leadProblem(meta);
+    if (problem) return { ok: false, error: problem };
     kind = "lead";
   } else if (!text && !files.length) return { ok: false, error: "Write a message first." };
 
@@ -157,7 +174,7 @@ export async function send(me, otherId, { body, attachments, lead }) {
   after(() =>
     pushTo([otherId], {
       title: kind === "lead" ? `🟢 ${me.name} shared a lead` : me.name,
-      body: (kind === "lead" ? `${meta.brand || meta.name}${meta.service ? ` · ${meta.service}` : ""}` : text || (files.length === 1 ? `📎 ${files[0].name}` : `📎 ${files.length} files`)).slice(0, 140),
+      body: (kind === "lead" ? `${meta.brand || leadName(meta)}${meta.service ? ` · ${meta.service}` : ""}` : text || (files.length === 1 ? `📎 ${files[0].name}` : `📎 ${files.length} files`)).slice(0, 140),
       url: `/dm?with=${me.id}`,
       tag: `dm-${me.id}`,
     })
@@ -165,34 +182,41 @@ export async function send(me, otherId, { body, attachments, lead }) {
   return { ok: true, id: data.id };
 }
 
-/** Turns a lead card into a real lead, given to the person who shared it (if they're in sales). */
-export async function addSharedLead(me, messageId) {
+/**
+ * Publishes a lead card as a real lead in the CRM. The sales head may correct the fields first (`edits`)
+ * and pick who gets it (`assignee`: a member id, "" for nobody; left out → the person who shared it, if
+ * they're in sales). Callers check that `me` may give leads to that person.
+ */
+export async function addSharedLead(me, messageId, edits = null, assignee) {
   const { data: m } = await db().from("direct_messages").select("*").eq("id", messageId).maybeSingle();
   if (!m || m.kind !== "lead") return { ok: false, error: "That isn't a lead card." };
-  if (m.to_id !== me.id && !isStaff(me)) return { ok: false, error: "Only the person it was shared with can add it." };
-  if (m.meta?.lead_id) return { ok: false, error: `Already added as ${m.meta.lead_code || "a lead"}.` };
-  const meta = m.meta || {};
-  const [first, ...rest] = String(meta.name || meta.brand || "").trim().split(/\s+/);
+  if (m.to_id !== me.id && !isStaff(me)) return { ok: false, error: "Only the person it was shared with can publish it." };
+  if (m.meta?.lead_id) return { ok: false, error: `Already published as ${m.meta.lead_code || "a lead"}.` };
+  const fields = normalizeLead({ ...(m.meta || {}), ...(edits || {}) });
+  const problem = leadProblem(fields);
+  if (problem) return { ok: false, error: problem };
   const { data: sharer } = await db().from("members").select("id, name, active, group_members(group:groups(kind))").eq("id", m.from_id).maybeSingle();
-  const inSales = sharer?.active && (sharer.group_members || []).some((g) => g.group?.kind === "sales");
-  const row = {
-    first_name: first || "—",
-    last_name: rest.join(" "),
-    phone: meta.phone || "",
-    email: meta.email || "",
-    brand: meta.brand || "",
-    service: meta.service || "",
-    details: meta.details || "",
-    source: "team",
-    ...(inSales ? { assigned_to: sharer.id, assigned_at: new Date().toISOString() } : {}),
+  const salesPerson = async (id) => {
+    if (!id) return false;
+    const { data } = await db().from("members").select("id, active, group_members(group:groups(kind))").eq("id", id).maybeSingle();
+    return !!data?.active && (data.group_members || []).some((g) => g.group?.kind === "sales");
   };
+  const to = assignee === undefined ? ((await salesPerson(sharer?.id)) ? sharer.id : null) : assignee || null;
+  if (to && !(await salesPerson(to))) return { ok: false, error: "Leads can only go to active members of a sales group." };
+  const row = { ...fields, ...(to ? { assigned_to: to, assigned_at: new Date().toISOString() } : {}) };
   const { data: lead, error } = await db().from("leads").insert(row).select("id, code").single();
   if (error) return { ok: false, error: error.message };
-  await addEvents(lead.id, me.id, [{ type: "created", data: { source: `shared by ${sharer?.name || "the team"}` } }]);
-  await db().from("direct_messages").update({ meta: { ...meta, lead_id: lead.id, lead_code: lead.code } }).eq("id", m.id);
+  await addEvents(lead.id, me.id, [{ type: "created", data: { source: `${fields.source} · shared by ${sharer?.name || "the team"}` } }]);
+  await db().from("direct_messages").update({ meta: { ...fields, lead_id: lead.id, lead_code: lead.code, published_by: me.name } }).eq("id", m.id);
   await ping([m.from_id, m.to_id], "msg", { from: me.id });
+  const tell = [...new Set([m.from_id, to].filter((x) => x && x !== me.id))];
   after(() =>
-    pushTo([m.from_id], { title: `✅ ${me.name} added your lead (${lead.code})`, body: meta.brand || meta.name || "", url: `/leads/${lead.id}`, tag: `lead-${lead.id}` })
+    pushTo(tell, {
+      title: to && to !== m.from_id ? `✅ ${me.name} published a lead (${lead.code})` : `✅ ${me.name} published your lead (${lead.code})`,
+      body: fields.brand || leadName(fields),
+      url: `/leads/${lead.id}`,
+      tag: `lead-${lead.id}`,
+    })
   );
   return { ok: true, id: lead.id, code: lead.code };
 }

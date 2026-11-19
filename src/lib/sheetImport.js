@@ -123,13 +123,17 @@ export function parseType(value) {
   if (/video|youtube/.test(s)) return "video";
   return "post";
 }
+/** "Instagram + FB", "IG, LinkedIn" → "instagram,facebook" (several platforms allowed). */
 function parsePlatform(value) {
   const s = norm(value);
-  if (/face|fb/.test(s)) return "facebook";
-  if (/linked/.test(s)) return "linkedin";
-  if (/you ?tube|yt/.test(s)) return "youtube";
-  if (/twitter|^x$/.test(s)) return "x";
-  return s ? "instagram" : undefined;
+  if (!s) return undefined;
+  const out = [];
+  if (/insta|\big\b/.test(s)) out.push("instagram");
+  if (/face|\bfb\b/.test(s)) out.push("facebook");
+  if (/linked/.test(s)) out.push("linkedin");
+  if (/you ?tube|\byt\b/.test(s)) out.push("youtube");
+  if (/twitter|(^|[^a-z])x([^a-z]|$)/.test(s)) out.push("x");
+  return out.length ? out.join(",") : "instagram";
 }
 
 /**

@@ -5,7 +5,7 @@ import { BrandMark, Empty, Panel } from "@/components/ui";
 import TaskBoard from "@/components/TaskBoard";
 import QuickAssign from "@/components/QuickAssign";
 import ContentCalendar from "@/components/ContentCalendar";
-import { loadItems, loadPlans, monthLabel, planProgress, shiftMonth, validMonth } from "@/lib/calendar";
+import { calendarLock, loadItems, loadPlans, monthLabel, planProgress, shiftMonth, validMonth } from "@/lib/calendar";
 import BrandChat from "@/components/BrandChat";
 import { brandChat, brandChatUpload, markBrandRead, sendBrandMessage } from "../actions";
 import { chatMembers, loadChat, unreadCounts } from "@/lib/chat";
@@ -13,7 +13,7 @@ import { requireMember } from "@/lib/auth";
 import { getBrand } from "@/lib/brands";
 import { listMakers, listTasks } from "@/lib/tasks";
 import { db } from "@/lib/supabase/server";
-import { canAssignTasks, canEditCalendar, canOnboard, canSeeBrands, canSetPlan } from "@/lib/permissions";
+import { canAssignTasks, canEditCalendar, canOnboard, canSeeBrands, canLockCalendar, canSetPlan } from "@/lib/permissions";
 import { OPEN_TASK, taskKindLabel } from "@/lib/constants";
 import { fmtDay } from "@/lib/format";
 
@@ -72,7 +72,7 @@ export default async function BrandPage({ params, searchParams }) {
   const files = current === "files" ? await library(tasks) : [];
   const [chat, members] = current === "chat" ? await Promise.all([loadChat(id), chatMembers()]) : [null, []];
   const unread = current === "chat" ? 0 : (await unreadCounts([id], me.id))[id] || 0;
-  const [items, plans] = current === "calendar" ? await Promise.all([loadItems([id], month), loadPlans([id], month)]) : [[], {}];
+  const [items, plans, lock] = current === "calendar" ? await Promise.all([loadItems([id], month), loadPlans([id], month), calendarLock(id)]) : [[], {}, null];
   const active = brand.stage === "active";
   const tabHref = (k) => `/brands/${id}${k === "tasks" ? "" : `?tab=${k}`}`;
 
@@ -159,6 +159,8 @@ export default async function BrandPage({ params, searchParams }) {
               canEdit={canEditCalendar(me)}
               canAssign={canAssignTasks(me)}
               canPlan={canSetPlan(me)}
+              lock={lock}
+              canLock={canLockCalendar(me)}
             />
           </div>
         )}

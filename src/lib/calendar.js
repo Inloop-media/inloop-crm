@@ -74,3 +74,13 @@ export function planProgress(plan, items) {
   const sum = (f) => rows.reduce((n, r) => n + r[f], 0);
   return { rows, target: sum("target"), planned: sum("planned"), assigned: sum("assigned"), done: sum("done") };
 }
+
+/**
+ * Is this brand's content calendar locked? { locked, by, at } — by = who unlocked it.
+ * Before migration 023 there is no lock: it reads as unlocked so nothing stops working.
+ */
+export async function calendarLock(brandId) {
+  const { data, error } = await db().from("brands").select("calendar_unlocked_at, unlocker:members!brands_calendar_unlocked_by_fkey(name)").eq("id", brandId).maybeSingle();
+  if (error) return { locked: false, by: "", at: null, ready: false };
+  return { locked: !data?.calendar_unlocked_at, by: data?.unlocker?.name || "", at: data?.calendar_unlocked_at || null, ready: true };
+}

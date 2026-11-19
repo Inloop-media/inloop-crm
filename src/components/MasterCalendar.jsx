@@ -121,7 +121,7 @@ export default function MasterCalendar({ month, brands, items }) {
                             <div className={`text-[13px] leading-snug ${i.status === "posted" ? "text-muted line-through" : ""}`}>{i.title}</div>
                             <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-muted">
                               <span>{taskKindLabel(i.kind)}</span>
-                              {i.platform && <span>· {PLATFORM[i.platform] || i.platform}</span>}
+                              {i.platform && <span>· {String(i.platform).split(",").map((x) => PLATFORM[x] || x).join(", ")}</span>}
                               <span className="flex items-center gap-1">
                                 · <span className="h-1.5 w-1.5 rounded-full" style={{ background: st.color }} />
                                 {st.label}

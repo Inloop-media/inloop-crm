@@ -65,7 +65,7 @@ export function Ring({ value, total, label, icon }) {
  *   brands  listBrands()
  *   tasks   every task (empty if this member can't see tasks)
  */
-export default function AdminHome({ me, data, brands = [], tasks = [], actions, salesOnly = false }) {
+export default function AdminHome({ me, data, brands = [], tasks = [], actions, salesOnly = false, meetings = null }) {
   const { leads, upcoming, proposals, members, now } = data;
   const today = dayKey(now);
   const d0 = new Date(now);
@@ -151,6 +151,7 @@ export default function AdminHome({ me, data, brands = [], tasks = [], actions, 
       <h1 className="rise text-[26px] font-normal tracking-[-0.02em]">
         {greeting()}, {me.name.split(" ")[0]} 👋
       </h1>
+      {meetings && <div className="mt-4">{meetings}</div>}
 
       <div className="mt-4 grid gap-4 xl:grid-cols-12">
         {/* Hero */}

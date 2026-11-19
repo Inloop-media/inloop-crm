@@ -5,12 +5,33 @@ import { requireMember } from "@/lib/auth";
 import { db } from "@/lib/supabase/server";
 import { getBrand } from "@/lib/brands";
 import { createTask } from "@/app/(crm)/tasks/actions";
-import { PLAN_KINDS, PLATFORMS, TASK_KINDS } from "@/lib/constants";
-import { canEditCalendar, canSetPlan, canAssignTasks } from "@/lib/permissions";
+import { PLAN_KINDS, TASK_KINDS, platformValue } from "@/lib/constants";
+import { canEditCalendar, canLockCalendar, canSetPlan, canAssignTasks } from "@/lib/permissions";
+import { calendarLock } from "@/lib/calendar";
 
 const str = (v, max = 4000) => String(v ?? "").trim().slice(0, max);
 const isUuid = (v) => /^[0-9a-f-]{36}$/i.test(String(v || ""));
 const isDay = (v) => /^\d{4}-\d{2}-\d{2}$/.test(String(v || "")) && !Number.isNaN(Date.parse(v));
+
+const LOCKED = "This calendar is locked. Ask the creative strategists' team lead to unlock it.";
+/** Error message when the brand's calendar is locked, else "". */
+async function lockedError(brandId) {
+  return (await calendarLock(brandId)).locked ? LOCKED : "";
+}
+
+/** Team lead (creative strategists) / admin: lock the calendar when the work is done, unlock to work on it. */
+export async function setCalendarLock(brandId, locked) {
+  const me = await requireMember();
+  if (!canLockCalendar(me)) return { ok: false, error: "Only the creative strategists' team lead can lock or unlock the calendar." };
+  if (!isUuid(brandId)) return { ok: false, error: "Brand not found." };
+  const { error } = await db()
+    .from("brands")
+    .update(locked ? { calendar_unlocked_at: null, calendar_unlocked_by: null } : { calendar_unlocked_at: new Date().toISOString(), calendar_unlocked_by: me.id })
+    .eq("id", brandId);
+  if (error) return { ok: false, error: /calendar_unlocked/.test(error.message) ? "Calendar lock needs migration 023 — run it in Supabase first." : error.message };
+  refresh(brandId);
+  return { ok: true };
+}
 
 function refresh(brandId) {
   revalidatePath("/calendar");
@@ -54,7 +75,7 @@ export async function saveCalendarItem(input) {
     notes: str(input.notes, 4000),
     ...briefFields(input),
     kind: TASK_KINDS.some((k) => k.id === input.kind) ? input.kind : "post",
-    platform: PLATFORMS.some((p) => p.id === input.platform) ? input.platform : "instagram",
+    platform: platformValue(input.platform),
     updated_at: new Date().toISOString(),
   };
   if (!row.title) return { ok: false, error: "Write the content idea." };
@@ -64,6 +85,8 @@ export async function saveCalendarItem(input) {
   if (input.id) {
     const item = await loadItem(input.id);
     if (!item) return { ok: false, error: "Not found." };
+    const locked = await lockedError(item.brand_id);
+    if (locked) return { ok: false, error: locked };
     let { error } = await db().from("calendar_items").update(row).eq("id", item.id);
     if (error && isMissingColumn(error)) ({ error } = await db().from("calendar_items").update(basic(row)).eq("id", item.id));
     if (error) return { ok: false, error: friendly(error) };
@@ -73,6 +96,10 @@ export async function saveCalendarItem(input) {
     return { ok: true, id: item.id };
   }
   const brand = await getBrand(input.brand_id);
+  if (brand) {
+    const locked = await lockedError(brand.id);
+    if (locked) return { ok: false, error: locked };
+  }
   if (!brand) return { ok: false, error: "Pick a brand." };
   const insert = (r) => db().from("calendar_items").insert({ ...r, brand_id: brand.id, created_by: me.id }).select("id").single();
   let { data, error } = await insert(row);
@@ -89,6 +116,8 @@ export async function moveCalendarItem(id, day) {
   if (!isDay(day)) return { ok: false, error: "Bad date." };
   const item = await loadItem(id);
   if (!item) return { ok: false, error: "Not found." };
+  const locked = await lockedError(item.brand_id);
+  if (locked) return { ok: false, error: locked };
   const { error } = await db().from("calendar_items").update({ publish_on: day, updated_at: new Date().toISOString() }).eq("id", id);
   if (error) return { ok: false, error: error.message };
   refresh(item.brand_id);
@@ -110,6 +139,8 @@ export async function deleteCalendarItem(id) {
   if (!canEditCalendar(me)) return { ok: false, error: "You can't edit the calendar." };
   const item = await loadItem(id);
   if (!item) return { ok: false, error: "Not found." };
+  const locked = await lockedError(item.brand_id);
+  if (locked) return { ok: false, error: locked };
   await db().from("calendar_items").delete().eq("id", id);
   refresh(item.brand_id);
   return { ok: true };
@@ -146,7 +177,7 @@ export async function assignCalendarItem(id, { assignee_id, due_at, brief, prior
 /** Head: what the brand gets this month. */
 export async function savePlan(brandId, month, targets, notes = "") {
   const me = await requireMember();
-  if (!canSetPlan(me)) return { ok: false, error: "Only admin and execution heads set the plan." };
+  if (!canSetPlan(me)) return { ok: false, error: "Only an admin can change the deliverables." };
   const brand = await getBrand(brandId);
   if (!brand) return { ok: false, error: "Brand not found." };
   if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(String(month))) return { ok: false, error: "Bad month." };
@@ -200,6 +231,8 @@ export async function importCalendarItems(brandId, month, items, { replace = fal
   if (!canEditCalendar(me)) return { ok: false, error: "Only strategists and heads edit the calendar." };
   const brand = await getBrand(brandId);
   if (!brand) return { ok: false, error: "Brand not found." };
+  const locked = await lockedError(brand.id);
+  if (locked) return { ok: false, error: locked };
   if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(String(month))) return { ok: false, error: "Bad month." };
   const rows = (Array.isArray(items) ? items : [])
     .slice(0, 400)
@@ -211,7 +244,7 @@ export async function importCalendarItems(brandId, month, items, { replace = fal
       caption: str(input.caption, 6000),
       notes: str(input.notes, 4000),
       kind: TASK_KINDS.some((k) => k.id === input.kind) ? input.kind : "post",
-      platform: PLATFORMS.some((p) => p.id === input.platform) ? input.platform : "instagram",
+      platform: platformValue(input.platform),
       ...briefFields(input),
     }))
     .filter((r) => r.title && isDay(r.publish_on));

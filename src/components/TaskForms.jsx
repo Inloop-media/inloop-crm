@@ -7,7 +7,7 @@ import { createClient } from "@/lib/supabase/browser";
 import { addTaskFile, createTask, deleteTask, removeTaskFile, reviewTask, setTaskStatus, startTaskUpload, updateTask } from "@/app/(crm)/tasks/actions";
 import { MAKER_STATUS_OPTIONS, PRIORITIES, TASK_KINDS, TASK_STATUSES } from "@/lib/constants";
 
-const KIND_GROUP = { head: "Heads", design: "Designers", development: "Developers", video: "Video editors", production: "Production", performance: "Performance", social: "Social media", strategy: "Creative strategists", sales: "Sales", execution: "Execution heads" };
+const KIND_GROUP = { head: "Managers / CBOs", design: "Designers", development: "Developers", video: "Video editors", production: "Production", performance: "Performance", social: "Social media", strategy: "Creative strategists", sales: "Sales", execution: "CBO" };
 const kb = (n) => (n > 1048576 ? `${(n / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(n / 1024))} KB`);
 const isImg = (n) => /\.(jpe?g|png|webp|gif)$/i.test(n || "");
 const isVid = (n) => /\.(mp4|mov|webm|m4v)$/i.test(n || "");

@@ -2,6 +2,7 @@ import "server-only";
 import { cache } from "react";
 import { redirect } from "next/navigation";
 import { createAuthClient, db } from "@/lib/supabase/server";
+import { operationsHeadIds, runsGroup, teamLeadIdsOf } from "@/lib/groups";
 
 // Everything except the Google refresh token, which never leaves the server helpers in lib/google.js
 export const MEMBER_FIELDS = "id, email, name, role, active, created_at, calendar_connected_at";
@@ -36,17 +37,26 @@ export async function memberForEmail(email, fullName) {
     member = data;
   }
   if (!member || !member.active) return null;
-  const [groups, led] = await Promise.all([groupsOf(member.id), ledGroupsOf(member.id)]);
+  const [groups, { led, lead, opsHead }] = await Promise.all([groupsOf(member.id), ledGroupsOf(member.id)]);
   // team: everyone in the groups this person heads (empty for people who head nothing)
   const team = [...new Set(led.flatMap((g) => g.memberIds))].filter((id) => id !== member.id);
-  return { ...member, groups, ledGroups: led, team };
+  return { ...member, groups, ledGroups: led, leadGroups: lead, team, opsHead };
 }
 
-/** Groups this member heads, with who is in them: [{ id, name, kind, memberIds }]. Empty before migration 015. */
+/**
+ * Groups this member runs — as one of its heads, or as the CBO it comes under:
+ * [{ id, name, kind, memberIds, owned }]. Also says whether they head CBO itself.
+ */
 async function ledGroupsOf(memberId) {
-  const { data, error } = await db().from("groups").select("id, name, kind, group_members(member_id)").eq("lead_id", memberId);
-  if (error) return [];
-  return (data || []).map((g) => ({ id: g.id, name: g.name, kind: g.kind, memberIds: (g.group_members || []).map((m) => m.member_id) }));
+  const { data, error } = await db().from("groups").select("*, group_members(member_id)");
+  if (error) return { led: [], lead: [], opsHead: false };
+  const all = data || [];
+  const led = all
+    .filter((g) => runsGroup(g, memberId))
+    .map((g) => ({ id: g.id, name: g.name, kind: g.kind, owned: g.owner_id === memberId, memberIds: (g.group_members || []).map((m) => m.member_id) }));
+  // groups where this person is a team lead
+  const lead = all.filter((g) => teamLeadIdsOf(g).includes(memberId)).map((g) => ({ id: g.id, name: g.name, kind: g.kind }));
+  return { led, lead, opsHead: operationsHeadIds(all).includes(memberId) };
 }
 
 /** [{ id, name, kind }] — what a member can do beyond their role comes from these. */

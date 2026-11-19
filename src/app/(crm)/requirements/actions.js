@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { requireMember } from "@/lib/auth";
-import { createRequirement, updateRequirement } from "@/lib/requirements";
+import { createRequirement, reqUploadUrl, updateRequirement } from "@/lib/requirements";
 
 const isUuid = (v) => /^[0-9a-f-]{36}$/i.test(String(v || ""));
 
@@ -20,4 +20,11 @@ export async function changeRequirement(id, change) {
   const r = await updateRequirement(me, id, change || {});
   if (r.ok) revalidatePath("/", "layout");
   return r;
+}
+
+/** Signed upload URL for a file the receiver sends back with a requirement. */
+export async function requirementUploadUrl(id, name, size) {
+  const me = await requireMember();
+  if (!isUuid(id)) return { ok: false, error: "Invalid request." };
+  return reqUploadUrl(me, id, name, Number(size) || 0);
 }

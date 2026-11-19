@@ -4,6 +4,7 @@ import { canUseAmigo } from "@/lib/amigo";
 import MobileHeader, { AvatarMenu } from "@/components/MobileHeader";
 import PushSetup from "@/components/PushSetup";
 import ThemeToggle from "@/components/ThemeToggle";
+import SwitchAccount from "@/components/SwitchAccount";
 import FeedbackNote from "@/components/FeedbackNote";
 import Celebration from "@/components/Celebration";
 import { unreadCounts } from "@/lib/chat";
@@ -117,9 +118,12 @@ export default async function CrmLayout({ children }) {
         <Sidebar
           groups={groups}
           bottom={
-            <form action="/auth/signout" method="post">
-              <SideButton type="submit" label="Logout" icon="logout" />
-            </form>
+            <>
+              <SwitchAccount variant="side" domain={process.env.ALLOWED_DOMAIN} />
+              <form action="/auth/signout" method="post">
+                <SideButton type="submit" label="Logout" icon="logout" />
+              </form>
+            </>
           }
         />
         <div className="md:flex md:min-w-0 md:flex-1 md:flex-col md:gap-2.5">

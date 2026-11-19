@@ -6,11 +6,13 @@ import { useRouter } from "next/navigation";
 import Icon from "@/components/Icon";
 import { Avatar } from "@/components/ui";
 import { Attachments, Linkified } from "@/components/BrandChat";
+import LeadFields from "@/components/LeadFields";
+import { leadName, leadProblem, normalizeLead } from "@/lib/leadShare";
 import { createClient } from "@/lib/supabase/browser";
 import { addLeadFromDm, dmUploadUrl, loadDm, markDmRead, sendDm } from "@/app/(crm)/dm/actions";
 
 // A one-to-one chat with a teammate (your head, your team, other heads). Text, files, and "lead cards":
-// a sales executive shares a lead, the sales head adds it to the CRM in one click.
+// a sales executive shares a lead in the CRM's lead format, the sales head checks it and publishes it to Leads.
 // Live: Realtime broadcast on `dm-{myId}` ("msg", "read"); a slow poll is the safety net.
 
 const IST = "Asia/Kolkata";
@@ -39,23 +41,28 @@ function Ticks({ m }) {
   );
 }
 
-function LeadCard({ m, mine, other, canAddLeads, onAdd, adding }) {
-  const l = m.meta || {};
+function LeadCard({ m, mine, other, canAddLeads, onPublish }) {
+  const l = normalizeLead(m.meta || {});
   const rows = [
-    ["Contact", l.name],
+    ["Name", leadName(l)],
     ["Phone", l.phone],
     ["Email", l.email],
+    ["Brand", l.brand],
+    ["Location", l.location],
     ["Service", l.service],
+    ["Budget", l.budget],
+    ["Source", l.source && l.source[0].toUpperCase() + l.source.slice(1)],
   ].filter(([, v]) => v);
+  const done = m.meta?.lead_id;
   return (
-    <div className="w-[280px] max-w-full overflow-hidden rounded-xl border border-line bg-panel-2/70">
+    <div className="w-[300px] max-w-full overflow-hidden rounded-xl border border-line bg-panel-2/70">
       <div className="flex items-center gap-2 border-b border-line px-3 py-2">
         <span className="grid h-7 w-7 place-items-center rounded-lg bg-emerald-500/15 text-emerald-400">
           <Icon name="leads" size={14} />
         </span>
         <div className="min-w-0">
-          <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-emerald-400">New lead</div>
-          <div className="truncate text-[14px] font-semibold">{l.brand || l.name}</div>
+          <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-emerald-400">{done ? "Lead published" : "New lead"}</div>
+          <div className="truncate text-[14px] font-semibold">{l.brand || leadName(l)}</div>
         </div>
       </div>
       <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 px-3 py-2 text-[12.5px]">
@@ -68,61 +75,71 @@ function LeadCard({ m, mine, other, canAddLeads, onAdd, adding }) {
       </dl>
       {l.details && <p className="whitespace-pre-wrap border-t border-line px-3 py-2 text-[12.5px] text-ink/80">{l.details}</p>}
       <div className="border-t border-line px-3 py-2">
-        {l.lead_id ? (
-          <Link href={`/leads/${l.lead_id}`} className="flex items-center gap-1.5 text-[12.5px] font-medium text-emerald-400 hover:underline">
-            <Icon name="check" size={13} /> Added as {l.lead_code || "a lead"}
+        {done ? (
+          <Link href={`/leads/${m.meta.lead_id}`} className="flex items-center gap-1.5 text-[12.5px] font-medium text-emerald-400 hover:underline">
+            <Icon name="check" size={13} /> In leads as {m.meta.lead_code || "a lead"}
           </Link>
         ) : !mine && canAddLeads ? (
-          <button type="button" onClick={onAdd} disabled={adding} className="btn-primary btn-sm w-full justify-center">
-            <Icon name="plus" size={13} /> {adding ? "Adding…" : "Add as lead"}
+          <button type="button" onClick={onPublish} className="btn-primary btn-sm w-full justify-center">
+            <Icon name="arrow" size={13} /> Publish
           </button>
         ) : (
-          <span className="text-[12px] text-muted">{mine ? `Waiting for ${other.name.split(" ")[0]} to add it` : "Not added yet"}</span>
+          <span className="text-[12px] text-muted">{mine ? `Waiting for ${other.name.split(" ")[0]} to publish it` : "Not published yet"}</span>
         )}
       </div>
     </div>
   );
 }
 
-function ShareLead({ onClose, onSend }) {
-  const [f, setF] = useState({ brand: "", name: "", phone: "", email: "", service: "", details: "" });
+const EMPTY_LEAD = { first_name: "", last_name: "", phone: "", email: "", brand: "", location: "", service: "", budget: "", source: "manual", details: "" };
+
+function LeadModal({ title, sub, initial, onClose, onSubmit, submitLabel, busyLabel, assignees }) {
+  const [f, setF] = useState(initial);
+  const [to, setTo] = useState(assignees?.default ?? "");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const set = (k) => (e) => setF((v) => ({ ...v, [k]: e.target.value }));
   return (
     <div className="fixed inset-0 z-50 grid place-items-center p-4">
       <button aria-label="Close" onClick={onClose} className="absolute inset-0 bg-black/55 backdrop-blur-[2px]" />
       <form
-        className="pop relative flex w-full max-w-md flex-col gap-3 p-5"
+        className="pop relative flex max-h-[90dvh] w-full max-w-xl flex-col gap-4 overflow-y-auto p-5"
         onSubmit={async (e) => {
           e.preventDefault();
+          const problem = leadProblem(normalizeLead(f));
+          if (problem) return setError(problem);
           setBusy(true);
           setError("");
-          const r = await onSend(f);
+          const r = await onSubmit(f, to);
           setBusy(false);
           if (!r.ok) return setError(r.error);
           onClose();
         }}
       >
         <div>
-          <h2 className="text-[15px] font-medium">Share a lead</h2>
-          <p className="text-xs text-muted">Your head gets a notification and adds it to the CRM. It comes back to you as your lead.</p>
+          <h2 className="text-[15px] font-medium">{title}</h2>
+          <p className="text-xs text-muted">{sub}</p>
         </div>
-        <input className="field" placeholder="Brand / company" value={f.brand} onChange={set("brand")} autoFocus />
-        <input className="field" placeholder="Contact person's name" value={f.name} onChange={set("name")} />
-        <div className="grid grid-cols-2 gap-2">
-          <input className="field" placeholder="Phone" inputMode="tel" value={f.phone} onChange={set("phone")} />
-          <input className="field" placeholder="Email" type="email" value={f.email} onChange={set("email")} />
-        </div>
-        <input className="field" placeholder="What do they need? (e.g. Social media, Website)" value={f.service} onChange={set("service")} />
-        <textarea className="field min-h-[80px]" placeholder="Notes: where you met them, budget, when to call…" value={f.details} onChange={set("details")} />
+        <LeadFields value={f} onChange={setF} autoFocus />
+        {assignees && (
+          <div>
+            <label className="label" htmlFor="lf-to">Assign to</label>
+            <select id="lf-to" className="field" value={to} onChange={(e) => setTo(e.target.value)}>
+              <option value="">Unassigned</option>
+              {assignees.list.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
         {error && <p className="text-xs text-rose-400">{error}</p>}
         <div className="flex justify-end gap-2">
           <button type="button" onClick={onClose} className="btn-ghost btn-sm">
             Cancel
           </button>
           <button disabled={busy} className="btn-primary btn-sm">
-            <Icon name="arrow" size={13} /> {busy ? "Sharing…" : "Share lead"}
+            <Icon name="arrow" size={13} /> {busy ? busyLabel : submitLabel}
           </button>
         </div>
       </form>
@@ -130,7 +147,7 @@ function ShareLead({ onClose, onSend }) {
   );
 }
 
-export default function DirectChat({ meId, other, initial, canAddLeads, canShareLead, live = true }) {
+export default function DirectChat({ meId, other, initial, canAddLeads, canShareLead, assignees = [], live = true }) {
   const router = useRouter();
   const [messages, setMessages] = useState(initial || []);
   const [pending, setPending] = useState([]);
@@ -140,7 +157,7 @@ export default function DirectChat({ meId, other, initial, canAddLeads, canShare
   const [error, setError] = useState("");
   const [lightbox, setLightbox] = useState(null);
   const [sharing, setSharing] = useState(false);
-  const [adding, setAdding] = useState(null);
+  const [publishing, setPublishing] = useState(null);
   const scroller = useRef(null);
   const input = useRef(null);
   const fileInput = useRef(null);
@@ -228,13 +245,10 @@ export default function DirectChat({ meId, other, initial, canAddLeads, canShare
     if (r.ok) await refresh();
     return r;
   };
-  const addLead = async (m) => {
-    setAdding(m.id);
-    setError("");
-    const r = await addLeadFromDm(m.id);
-    setAdding(null);
-    if (!r.ok) return setError(r.error);
-    await refresh();
+  const publishLead = async (m, fields, to) => {
+    const r = await addLeadFromDm(m.id, fields, to);
+    if (r.ok) await refresh();
+    return r;
   };
 
   // The real message often arrives (live update) before the send call returns — hide its "sending" copy then
@@ -286,7 +300,7 @@ export default function DirectChat({ meId, other, initial, canAddLeads, canShare
                 <div className={`flex ${own ? "justify-end" : "justify-start"} ${sameRun ? "mt-0.5" : "mt-2"}`}>
                   {m.kind === "lead" ? (
                     <div className={`flex flex-col gap-1 ${own ? "items-end" : "items-start"}`}>
-                      <LeadCard m={m} mine={own} other={other} canAddLeads={canAddLeads} onAdd={() => addLead(m)} adding={adding === m.id} />
+                      <LeadCard m={m} mine={own} other={other} canAddLeads={canAddLeads} onPublish={() => setPublishing(m)} />
                       <span className="flex items-center gap-1 px-1 text-[10.5px] text-muted">
                         {timeFmt.format(new Date(m.created_at))}
                         {own && <Ticks m={m} />}
@@ -378,7 +392,29 @@ export default function DirectChat({ meId, other, initial, canAddLeads, canShare
       </div>
       {(busy || error) && <div className={`px-4 pb-2 text-[11px] ${error ? "text-rose-400" : "text-muted"}`}>{error || busy}</div>}
 
-      {sharing && <ShareLead onClose={() => setSharing(false)} onSend={shareLead} />}
+      {sharing && (
+        <LeadModal
+          title="Share a lead"
+          sub={`Fill it in the way leads come into the CRM. ${first} gets a notification and publishes it to Leads.`}
+          initial={EMPTY_LEAD}
+          onClose={() => setSharing(false)}
+          onSubmit={(f) => shareLead(f)}
+          submitLabel="Share lead"
+          busyLabel="Sharing…"
+        />
+      )}
+      {publishing && (
+        <LeadModal
+          title="Publish to Leads"
+          sub="Check the details, fix anything that's off, and pick who works on it. It gets the next IM- number."
+          initial={{ ...EMPTY_LEAD, ...normalizeLead(publishing.meta || {}) }}
+          assignees={{ list: assignees, default: assignees.some((a) => a.id === publishing.from_id) ? publishing.from_id : "" }}
+          onClose={() => setPublishing(null)}
+          onSubmit={(f, to) => publishLead(publishing, f, to)}
+          submitLabel="Publish"
+          busyLabel="Publishing…"
+        />
+      )}
       {lightbox && (
         <div className="fixed inset-0 z-[80] grid place-items-center bg-black/90 p-4" onClick={() => setLightbox(null)}>
           {/* eslint-disable-next-line @next/next/no-img-element -- signed storage URL */}

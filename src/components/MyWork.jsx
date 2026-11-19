@@ -20,7 +20,7 @@ function Next({ t }) {
       </Link>
     );
   const s = TASK_STATUSES[t.status];
-  const label = { completed: "With your head", sent_to_client: "With the client", client_rejected: "Client asked for changes", done: "Approved" }[t.status] || s?.label;
+  const label = { completed: "With your manager", sent_to_client: "With the client", client_rejected: "Client asked for changes", done: "Approved" }[t.status] || s?.label;
   return (
     <span className="flex items-center gap-1.5 text-xs text-muted">
       <span className="h-1.5 w-1.5 rounded-full" style={{ background: s?.color }} />
@@ -83,7 +83,7 @@ export default function MyWork({ me, tasks, embedded = false }) {
       <div className="grid items-start gap-4 lg:grid-cols-2">
         <List title="Do today" sub="Fixes, late work, due today" tasks={now_} tone="#e11d2e" empty={open.length ? "Nothing for today — pick something from Coming up." : ""} />
         <List title="Coming up" tasks={coming} tone="#3b82f6" empty={open.length ? "Nothing else planned." : ""} />
-        <List title="Waiting on others" sub="Your head or the client has it" tasks={waiting} tone="#8b5cf6" />
+        <List title="Waiting on others" sub="Your manager or the client has it" tasks={waiting} tone="#8b5cf6" />
         <List title="Done" tasks={done} tone="#10b981" />
       </div>
     </div>

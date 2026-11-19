@@ -1,4 +1,4 @@
-// Requirements: ask your team lead / head for what you need, and track it until it's done.
+// Requirements: ask your team lead (or manager / CBO) for what you need, get the files back, track it till it's done.
 import { FilterPills, PageTop } from "@/components/Desk";
 import RequirementBoard, { NewRequirement } from "@/components/RequirementBoard";
 import { requireMember } from "@/lib/auth";
@@ -12,7 +12,7 @@ export default async function RequirementsPage({ searchParams }) {
   const staff = me.role === "admin" || me.role === "ops";
   const [to, counts] = await Promise.all([recipients(me), requirementCounts(me.id)]);
   // Heads / team leads land on what was sent to them; everyone else on what they asked for
-  const receives = staff || (me.ledGroups || []).length > 0 || counts.inbox > 0;
+  const receives = staff || (me.ledGroups || []).length > 0 || (me.leadGroups || []).length > 0 || counts.inbox > 0;
   const box = ["inbox", "sent", "all"].includes(sp.box) && (sp.box !== "all" || staff) ? sp.box : receives ? "inbox" : "sent";
   const show = sp.show === "closed" ? "closed" : "open";
   const { items, missing } = await listRequirements(me, box);
@@ -24,7 +24,7 @@ export default async function RequirementsPage({ searchParams }) {
     <div className="page">
       <PageTop
         title="Requirements"
-        sub="Need something to do your work? Ask your team lead or head here, and track it till it's done."
+        sub="Need something to do your work? Ask your team lead — or your CBO when they're off — and track it till it's done."
         right={to.length > 0 && <NewRequirement recipients={to} />}
       />
       <div className="rise mb-4 flex flex-wrap items-center gap-2">
@@ -48,7 +48,7 @@ export default async function RequirementsPage({ searchParams }) {
         <RequirementBoard key={`${box}-${show}`} items={shown} meId={me.id} staff={staff} recipients={to} names={names} openId={sp.open} box={box} show={show} />
       )}
       {!to.length && box === "sent" && !missing && (
-        <p className="mt-4 text-center text-xs text-muted">You don&apos;t have a team lead or head yet. Once you&apos;re in a group with a head (Team page), you can send them requirements.</p>
+        <p className="mt-4 text-center text-xs text-muted">You don&apos;t have a team lead or manager yet. Once you&apos;re in a group with one (Team page), you can send them requirements.</p>
       )}
     </div>
   );

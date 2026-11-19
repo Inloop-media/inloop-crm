@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { requireMember } from "@/lib/auth";
-import { canCreateLead } from "@/lib/permissions";
+import { canCreateLead, salesTeam } from "@/lib/permissions";
 import { addSharedLead, canMessage, loadConversation, markRead, send, uploadUrl } from "@/lib/dm";
 
 const isUuid = (v) => /^[0-9a-f-]{36}$/i.test(String(v || ""));
@@ -40,12 +40,18 @@ export async function markDmRead(otherId) {
   return { ok: true };
 }
 
-/** The sales head (or admin) adds a lead someone shared with them. */
-export async function addLeadFromDm(messageId) {
+/**
+ * The sales head (or admin) publishes a lead someone shared with them: optionally corrected (`edits`),
+ * given to someone in their team (`assignee`, "" for nobody).
+ */
+export async function addLeadFromDm(messageId, edits = null, assignee) {
   const me = await requireMember();
-  if (!canCreateLead(me)) return { ok: false, error: "Only admins and the sales head can add leads." };
+  if (!canCreateLead(me)) return { ok: false, error: "Only admins and the sales head can publish leads." };
   if (!isUuid(messageId)) return { ok: false, error: "Invalid request." };
-  const r = await addSharedLead(me, messageId);
+  if (assignee !== undefined && assignee !== "" && !isUuid(assignee)) return { ok: false, error: "Pick who gets the lead." };
+  const staff = me.role === "admin" || me.role === "ops";
+  if (assignee && !staff && assignee !== me.id && !salesTeam(me).includes(assignee)) return { ok: false, error: "You can only give leads to people in your team." };
+  const r = await addSharedLead(me, messageId, edits && typeof edits === "object" ? edits : null, assignee);
   if (r.ok) {
     revalidatePath("/leads");
     revalidatePath("/", "layout");

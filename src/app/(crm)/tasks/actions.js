@@ -55,7 +55,7 @@ export async function createTask(brandId, input) {
   const kind = TASK_KINDS.some((k) => k.id === input.kind) ? input.kind : "other";
   const assignee = await activeMember(input.assignee_id);
   if (!assignee) return { ok: false, error: "Pick who does it." };
-  if (!(await canAssignTo(me, assignee.id))) return { ok: false, error: "You can give tasks to your own team and to the other heads — not to another head's team." };
+  if (!(await canAssignTo(me, assignee.id))) return { ok: false, error: "You can give tasks to your own team and to the other managers — not to another manager's team." };
   const due = dueAt(input.due_at);
   if (due === undefined) return { ok: false, error: "The due date isn't valid." };
 
@@ -94,7 +94,7 @@ export async function updateTask(id, patch) {
   if ("assignee_id" in patch && patch.assignee_id !== task.assignee_id) {
     newAssignee = await activeMember(patch.assignee_id);
     if (!newAssignee) return { ok: false, error: "Pick who does it." };
-    if (!(await canAssignTo(me, newAssignee.id))) return { ok: false, error: "You can give tasks to your own team and to the other heads — not to another head's team." };
+    if (!(await canAssignTo(me, newAssignee.id))) return { ok: false, error: "You can give tasks to your own team and to the other managers — not to another manager's team." };
     changes.assignee_id = newAssignee.id;
   }
   if (!Object.keys(changes).length) return { ok: true };
@@ -169,7 +169,7 @@ export async function reviewTask(id, action, { feedback = "", assignee_id, due_a
       if (!["client_rejected", "completed"].includes(from)) return { ok: false, error: "Nothing to reassign." };
       const person = await activeMember(assignee_id || task.assignee_id);
       if (!person) return { ok: false, error: "Pick who does the revision." };
-      if (person.id !== task.assignee_id && !(await canAssignTo(me, person.id))) return { ok: false, error: "You can give tasks to your own team and to the other heads — not to another head's team." };
+      if (person.id !== task.assignee_id && !(await canAssignTo(me, person.id))) return { ok: false, error: "You can give tasks to your own team and to the other managers — not to another manager's team." };
       const due = due_at ? dueAt(due_at) : task.due_at;
       if (due === undefined) return { ok: false, error: "The due date isn't valid." };
       changes = {
@@ -220,7 +220,7 @@ export async function setTaskStatus(id, status) {
       .eq("revision", task.revision);
     if (!count) return { ok: false, error: task.revision ? "Upload the revised file (or add its link) before marking it completed." : "Upload the file (or add its link) before marking it completed." };
   }
-  if (task.status === "completed" && !canAssignTasks(me)) return { ok: false, error: "It's with the head for review now." };
+  if (task.status === "completed" && !canAssignTasks(me)) return { ok: false, error: "It's with your manager for review now." };
   // A revision stays a revision until it's completed again
   const next = status === "assigned" && task.revision > 0 ? "revision" : status;
   const now = new Date().toISOString();

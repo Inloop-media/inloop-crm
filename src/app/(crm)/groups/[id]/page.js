@@ -1,10 +1,10 @@
-// One team (group) as its head sees it: the people in it, how much each has on, and the team's work.
+// One team (group) as its heads and its CBO see it: the people in it, how much each has on, and the team's work.
 // Making groups (designers, editors, production…) → their tasks. Sales → their leads.
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import Icon from "@/components/Icon";
 import QuickAssign from "@/components/QuickAssign";
-import TeamLeadPicker from "@/components/TeamLeadPicker";
+import GroupPeople from "@/components/GroupPeople";
 import StatusBadge from "@/components/StatusBadge";
 import { PageTop, Section, TaskLine } from "@/components/Desk";
 import { Avatar, BrandMark, Empty, StatCard } from "@/components/ui";
@@ -13,7 +13,8 @@ import { listBrands } from "@/lib/brands";
 import { listLeads } from "@/lib/leads";
 import { listMakers, listTasks } from "@/lib/tasks";
 import { db } from "@/lib/supabase/server";
-import { canSeeAllLeads } from "@/lib/permissions";
+import { canEditGroup, canSeeAllLeads } from "@/lib/permissions";
+import { headIdsOf, operationsHeadIds, ownHeadIds, runsGroup, teamLeadIdsOf } from "@/lib/groups";
 import { CLOSED_STATUSES, GROUP_KINDS, OPEN_TASK, byPriority } from "@/lib/constants";
 import { fullName } from "@/lib/format";
 
@@ -33,12 +34,34 @@ export default async function GroupPage({ params }) {
   if (!/^[0-9a-f-]{36}$/i.test(id)) notFound();
   const { data: group } = await db().from("groups").select("*, group_members(member:members(id, name, active))").eq("id", id).maybeSingle();
   if (!group) notFound();
-  // Admin opens any group; everyone else only the groups they head
-  if (me.role !== "admin" && group.lead_id !== me.id) notFound();
+  // Admin opens any group; everyone else only the groups they run (as a head or the CBO above it)
+  if (me.role !== "admin" && !runsGroup(group, me.id)) notFound();
 
   const members = (group.group_members || []).map((g) => g.member).filter((m) => m?.active).sort((a, b) => a.name.localeCompare(b.name));
   const ids = members.map((m) => m.id);
-  const { data: head } = group.lead_id ? await db().from("members").select("name").eq("id", group.lead_id).maybeSingle() : { data: null };
+  const [{ data: people_ }, { data: allGroups }] = await Promise.all([
+    db().from("members").select("id, name, active").order("name"),
+    db().from("groups").select("*"),
+  ]);
+  const nameOf = Object.fromEntries((people_ || []).map((m) => [m.id, m.name]));
+  const heads = headIdsOf(group).map((h) => nameOf[h]).filter(Boolean);
+  const head = heads.length ? { name: `${heads.join(", ")}${ownHeadIds(group).length ? "" : " (CBO)"}` } : null;
+  const leadIds = teamLeadIdsOf(group);
+  const editable = canEditGroup(me, group);
+  const everyone = (people_ || []).filter((m) => m.active).map((m) => ({ id: m.id, name: m.name }));
+  const opsHeads = operationsHeadIds(allGroups || []).filter((h) => nameOf[h]).map((h) => ({ id: h, name: nameOf[h] }));
+  const groupMembers = (group.group_members || []).map((g) => g.member).filter(Boolean);
+  const peopleBox = editable ? (
+    <div className="card p-4">
+      <div className="mb-3 text-[13px] font-medium">Who runs this group</div>
+      <GroupPeople group={group} members={groupMembers} everyone={everyone} opsHeads={opsHeads} admin={me.role === "admin"} />
+    </div>
+  ) : leadIds.length ? (
+    <div className="card px-4 py-3 text-[13px]">
+      <span className="text-muted">{leadIds.length > 1 ? "Team leads" : "Team lead"}: </span>
+      {leadIds.map((x) => nameOf[x]).filter(Boolean).join(", ")}
+    </div>
+  ) : null;
   const kind = GROUP_KINDS.find((k) => k.id === group.kind);
   const sales = group.kind === "sales";
   const now = nowMs();
@@ -46,7 +69,7 @@ export default async function GroupPage({ params }) {
 
   /* ---------------- Sales: the team's leads ---------------- */
   if (sales) {
-    const all = canSeeAllLeads(me) || group.lead_id === me.id ? await listLeads(me) : [];
+    const all = canSeeAllLeads(me) || runsGroup(group, me.id) ? await listLeads(me) : [];
     const leads = all.filter((l) => ids.includes(l.assigned_to));
     const open = leads.filter((l) => !CLOSED_STATUSES.includes(l.status));
     const won = leads.filter((l) => l.status === "Won");
@@ -54,7 +77,7 @@ export default async function GroupPage({ params }) {
     const newWeek = leads.filter((l) => now - new Date(l.created_at).getTime() < 7 * DAY);
     return (
       <div className="page">
-        <PageTop title={group.name} sub={`${kind?.label || group.kind} · ${members.length} people${head ? ` · Head: ${head.name}` : ""}`} right={<Link href="/leads" className="btn-ghost btn-sm"><Icon name="leads" size={13} /> All leads</Link>} />
+        <PageTop title={group.name} sub={`${kind?.label || group.kind} · ${members.length} people${head ? ` · Manager: ${head.name}` : ""}`} right={<Link href="/leads" className="btn-ghost btn-sm"><Icon name="leads" size={13} /> All leads</Link>} />
         <div className="rise grid grid-cols-2 gap-3 xl:grid-cols-4">
           <StatCard coral label="Open leads" value={open.length} note="Being worked on" />
           <StatCard label="New this week" value={newWeek.length} note="Assigned to the team" />
@@ -62,7 +85,7 @@ export default async function GroupPage({ params }) {
           <StatCard label="Won" value={won.length} bar={leads.length ? Math.round((won.length / leads.length) * 100) : 0} />
         </div>
         <div className="rise mt-4">
-          <TeamLeadPicker groupId={group.id} members={members} current={group.team_lead_id} />
+          {peopleBox}
         </div>
         <section className="rise mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           {members.map((m) => {
@@ -72,7 +95,7 @@ export default async function GroupPage({ params }) {
               <Link key={m.id} href={`/leads?view=list&owner=${m.id}`} className="card card-hover flex items-center gap-3 p-4">
                 <Avatar name={m.name} size={40} />
                 <div className="min-w-0 flex-1">
-                  <div className="truncate text-sm font-medium">{m.name}{m.id === group.team_lead_id && <span className="ml-1.5 rounded-full bg-brand/12 px-1.5 py-0.5 text-[10px] font-medium text-brand">Team lead</span>}</div>
+                  <div className="truncate text-sm font-medium">{m.name}{leadIds.includes(m.id) && <span className="ml-1.5 rounded-full bg-brand/12 px-1.5 py-0.5 text-[10px] font-medium text-brand">Team lead</span>}</div>
                   <div className="text-xs text-muted">
                     {mOpen.length} open · {mine.filter((l) => l.status === "Won").length} won · {stale.filter((l) => l.assigned_to === m.id).length} to follow up
                   </div>
@@ -80,7 +103,7 @@ export default async function GroupPage({ params }) {
               </Link>
             );
           })}
-          {!members.length && <div className="card col-span-full"><Empty icon="team">No one in this group yet — add people on the Team page.</Empty></div>}
+          {!members.length && <div className="card col-span-full"><Empty icon="team">No one in this group yet — add people above.</Empty></div>}
         </section>
         <div className="rise mt-4">
           <Section title="Open leads" count={open.length} tone="#3b82f6" empty="No open leads.">
@@ -117,7 +140,7 @@ export default async function GroupPage({ params }) {
     <div className="page">
       <PageTop
         title={group.name}
-        sub={`${kind?.label || group.kind} · ${members.length} people${head ? ` · Head: ${head.name}` : ""}`}
+        sub={`${kind?.label || group.kind} · ${members.length} people${head ? ` · Manager: ${head.name}` : ""}`}
         right={<QuickAssign brands={active} people={people.filter((p) => ids.includes(p.id))} label="New task for this team" />}
       />
       <div className="rise grid grid-cols-2 gap-3 xl:grid-cols-4">
@@ -128,7 +151,7 @@ export default async function GroupPage({ params }) {
       </div>
 
       <div className="rise mt-4">
-        <TeamLeadPicker groupId={group.id} members={members} current={group.team_lead_id} />
+        {peopleBox}
       </div>
       <section className="rise mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {members.map((m) => {
@@ -138,7 +161,7 @@ export default async function GroupPage({ params }) {
             <div key={m.id} className="card flex items-center gap-3 p-4">
               <Avatar name={m.name} size={40} />
               <div className="min-w-0 flex-1">
-                <div className="truncate text-sm font-medium">{m.name}{m.id === group.team_lead_id && <span className="ml-1.5 rounded-full bg-brand/12 px-1.5 py-0.5 text-[10px] font-medium text-brand">Team lead</span>}</div>
+                <div className="truncate text-sm font-medium">{m.name}{leadIds.includes(m.id) && <span className="ml-1.5 rounded-full bg-brand/12 px-1.5 py-0.5 text-[10px] font-medium text-brand">Team lead</span>}</div>
                 <div className="text-xs text-muted">
                   {mine.length} open{mLate ? <span className="text-rose-400"> · {mLate} late</span> : ""} · {approvedWeek.filter((t) => t.assignee_id === m.id).length} approved this week
                 </div>
@@ -149,7 +172,7 @@ export default async function GroupPage({ params }) {
             </div>
           );
         })}
-        {!members.length && <div className="card col-span-full"><Empty icon="team">No one in this group yet — add people on the Team page.</Empty></div>}
+        {!members.length && <div className="card col-span-full"><Empty icon="team">No one in this group yet — add people above.</Empty></div>}
       </section>
 
       <div className="rise mt-4 grid items-start gap-4 lg:grid-cols-2">

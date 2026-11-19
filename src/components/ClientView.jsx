@@ -4,7 +4,7 @@ import ThemeToggle from "@/components/ThemeToggle";
 import { BrandMark, Empty, StatCard } from "@/components/ui";
 import Decide from "@/app/client/Decide";
 import ClientChatDock from "@/app/client/ClientChatDock";
-import { PLATFORMS, taskKindLabel } from "@/lib/constants";
+import { platformLabel, taskKindLabel } from "@/lib/constants";
 
 
 const KIND_COLOR = { post: "#60a5fa", carousel: "#a78bfa", story: "#f472b6", reel: "#fbbf24", video: "#22d3ee" };
@@ -42,7 +42,7 @@ function UpcomingCalendar({ items }) {
                           <div className={`truncate text-sm font-medium ${i.status === "posted" ? "line-through opacity-60" : ""}`}>{i.title}</div>
                           <div className="text-xs text-muted">
                             {dayFmt.format(date)} · {taskKindLabel(i.kind)}
-                            {PLATFORMS.find((p) => p.id === i.platform) ? ` · ${PLATFORMS.find((p) => p.id === i.platform).label}` : ""}
+                            {platformLabel(i.platform) ? ` · ${platformLabel(i.platform)}` : ""}
                             {i.status === "posted" && " · Posted ✓"}
                           </div>
                         </div>

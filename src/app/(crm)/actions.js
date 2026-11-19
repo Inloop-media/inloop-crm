@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { after } from "next/server";
 import { requireMember } from "@/lib/auth";
+import { teamLeadIdsOf } from "@/lib/groups";
 import { db } from "@/lib/supabase/server";
 import { addEvents } from "@/lib/leads";
 import {
@@ -11,8 +12,11 @@ import {
   canBookDiscovery,
   canBookProposal,
   canCreateLead,
+  canEditGroup,
+  canMakeGroups,
   canManageTeam,
   canSeeLead,
+  isAdmin,
   canSeeAllLeads,
   salesTeam,
   canSetStatus,
@@ -441,58 +445,79 @@ export async function updateMember(id, patch) {
 
 /* ----------------------------- Groups ----------------------------- */
 
+const MIGRATION_021 = "Groups with managers and more than one team lead need migration 021 — run it in Supabase first.";
+const uuids = (v) => [...new Set((Array.isArray(v) ? v : []).filter(isUuid))];
+
+function refreshGroups(id) {
+  revalidatePath("/team");
+  revalidatePath("/groups");
+  if (id) revalidatePath(`/groups/${id}`);
+  revalidatePath("/dm");
+  revalidatePath("/updates");
+}
+
+/** Admin makes any group; a CBO makes groups that come under them. */
 export async function createGroup(_prev, formData) {
   const me = await requireMember();
-  if (!canManageTeam(me)) return { error: "Only admins can manage groups." };
+  if (!canMakeGroups(me)) return { error: "Only admins and CBOs can make groups." };
   const name = str(formData.get("name"), 60);
   const kind = str(formData.get("kind"), 20);
   if (!name) return { error: "Give the group a name." };
   if (!GROUP_KINDS.some((k) => k.id === kind)) return { error: "Pick what the group does." };
+  if (kind === "execution" && !isAdmin(me)) return { error: "Only an admin can make a CBO group." };
   const notify = formData.getAll("notify").map(String).filter((e) => UPDATE_EVENTS.some((u) => u.id === e));
-  const { error } = await db().from("groups").insert({ name, kind, notify });
-  if (error) return { error: error.code === "23505" ? "A group with that name already exists." : error.message };
-  revalidatePath("/team");
-  return { ok: true, message: `${name} created — add people to it below.` };
+  const owner = isAdmin(me) ? (isUuid(String(formData.get("owner") || "")) && kind !== "execution" ? String(formData.get("owner")) : null) : me.id;
+  const row = { name, kind, notify };
+  if (owner) row.owner_id = owner;
+  const { data, error } = await db().from("groups").insert(row).select("id").single();
+  if (error) return { error: error.code === "23505" ? "A group with that name already exists." : /owner_id/.test(error.message) ? MIGRATION_021 : error.message };
+  refreshGroups(data.id);
+  return { ok: true, id: data.id, message: `${name} created — add people to it.` };
 }
 
+/**
+ * Change a group: name, kind, posts, the CBO it comes under (admin only), its heads,
+ * team leads (people in the group) and members. Admin: any group. CBO: their own groups.
+ */
 export async function updateGroup(id, patch) {
   const me = await requireMember();
-  if (!canManageTeam(me)) return { ok: false, error: "Only admins can manage groups." };
   if (!isUuid(id)) return { ok: false, error: "Group not found." };
+  const { data: g } = await db().from("groups").select("*, group_members(member_id)").eq("id", id).maybeSingle();
+  if (!g) return { ok: false, error: "Group not found." };
+  if (!canEditGroup(me, g)) return { ok: false, error: "Only an admin or the group's CBO can change it." };
   if (patch.delete) {
     await db().from("groups").delete().eq("id", id);
-  } else {
-    const changes = {};
-    if (typeof patch.name === "string" && patch.name.trim()) changes.name = str(patch.name, 60);
-    if (patch.kind && GROUP_KINDS.some((k) => k.id === patch.kind)) changes.kind = patch.kind;
-    if (Array.isArray(patch.notify)) changes.notify = patch.notify.filter((e) => UPDATE_EVENTS.some((u) => u.id === e));
-    if ("lead_id" in patch) changes.lead_id = isUuid(patch.lead_id) ? patch.lead_id : null;
-    if (Object.keys(changes).length) {
-      const { error } = await db().from("groups").update(changes).eq("id", id);
-      if (error) return { ok: false, error: error.code === "23505" ? "A group with that name already exists." : /lead_id/.test(error.message) ? "Group heads need migration 015 — run it in Supabase first." : error.message };
-    }
-    if (isUuid(patch.addMember)) await db().from("group_members").upsert({ group_id: id, member_id: patch.addMember });
-    if (isUuid(patch.removeMember)) await db().from("group_members").delete().eq("group_id", id).eq("member_id", patch.removeMember);
+    refreshGroups(id);
+    return { ok: true };
   }
-  revalidatePath("/team");
-  revalidatePath("/updates");
-  return { ok: true };
-}
-
-/** The group's head (or an admin) picks its team lead — someone in the group, or nobody. */
-export async function setTeamLead(groupId, memberId) {
-  const me = await requireMember();
-  if (!isUuid(groupId)) return { ok: false, error: "Group not found." };
-  const { data: g } = await db().from("groups").select("id, lead_id, group_members(member_id)").eq("id", groupId).maybeSingle();
-  if (!g) return { ok: false, error: "Group not found." };
-  if (!canManageTeam(me) && !isStaffMember(me) && g.lead_id !== me.id) return { ok: false, error: "Only the group's head can pick its team lead." };
-  const id = isUuid(memberId) ? memberId : null;
-  if (id && !(g.group_members || []).some((x) => x.member_id === id)) return { ok: false, error: "The team lead has to be someone in this group." };
-  const { error } = await db().from("groups").update({ team_lead_id: id }).eq("id", groupId);
-  if (error) return { ok: false, error: /team_lead_id/.test(error.message) ? "Team leads need migration 018 — run it in Supabase first." : error.message };
-  revalidatePath(`/groups/${groupId}`);
-  revalidatePath("/team");
-  revalidatePath("/dm");
+  const inGroup = new Set((g.group_members || []).map((x) => x.member_id));
+  const changes = {};
+  if (typeof patch.name === "string" && patch.name.trim()) changes.name = str(patch.name, 60);
+  if (patch.kind && GROUP_KINDS.some((k) => k.id === patch.kind) && (isAdmin(me) || patch.kind !== "execution")) changes.kind = patch.kind;
+  if (Array.isArray(patch.notify)) changes.notify = patch.notify.filter((e) => UPDATE_EVENTS.some((u) => u.id === e));
+  if ("owner_id" in patch && isAdmin(me)) changes.owner_id = isUuid(patch.owner_id) ? patch.owner_id : null;
+  if (Array.isArray(patch.head_ids)) {
+    changes.head_ids = uuids(patch.head_ids);
+    changes.lead_id = changes.head_ids[0] || null; // older readers
+  }
+  if (Array.isArray(patch.team_lead_ids)) {
+    const ids = uuids(patch.team_lead_ids);
+    if (ids.some((x) => !inGroup.has(x))) return { ok: false, error: "A team lead has to be someone in this group." };
+    changes.team_lead_ids = ids;
+    changes.team_lead_id = ids[0] || null;
+  }
+  if (Object.keys(changes).length) {
+    const { error } = await db().from("groups").update(changes).eq("id", id);
+    if (error) return { ok: false, error: error.code === "23505" ? "A group with that name already exists." : /head_ids|team_lead_ids|owner_id/.test(error.message) ? MIGRATION_021 : error.message };
+  }
+  if (isUuid(patch.addMember)) await db().from("group_members").upsert({ group_id: id, member_id: patch.addMember });
+  if (isUuid(patch.removeMember)) {
+    await db().from("group_members").delete().eq("group_id", id).eq("member_id", patch.removeMember);
+    // someone who leaves the group stops being its team lead
+    const leads = teamLeadIdsOf(g).filter((x) => x !== patch.removeMember);
+    if (leads.length !== teamLeadIdsOf(g).length) await db().from("groups").update({ team_lead_ids: leads, team_lead_id: leads[0] || null }).eq("id", id);
+  }
+  refreshGroups(id);
   return { ok: true };
 }
 

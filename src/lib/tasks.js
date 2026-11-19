@@ -3,6 +3,7 @@ import { db } from "@/lib/supabase/server";
 import { pushTo } from "@/lib/push";
 import { MAKER_KINDS, OPEN_TASK, taskKindLabel } from "@/lib/constants";
 import { canAssignTasks, canSeeTask, headsTeam, myTeam } from "@/lib/permissions";
+import { runnersOf } from "@/lib/groups";
 
 // "*" so newer columns (priority, migration 017) come along when they exist
 export const TASK_FIELDS =
@@ -51,10 +52,10 @@ export async function getTask(me, id) {
 }
 
 /** People who can take tasks: active members of the designer / developer / video groups (and heads). */
-/** Members who head at least one group (Krish, Udit, Arushi…). Empty before migration 015. */
+/** Members who head at least one group or run groups as CBO (Krish, Udit, Arushi…). */
 export async function headIds() {
-  const { data, error } = await db().from("groups").select("lead_id").not("lead_id", "is", null);
-  return error ? [] : [...new Set((data || []).map((g) => g.lead_id))];
+  const { data, error } = await db().from("groups").select("*");
+  return error ? [] : [...new Set((data || []).flatMap(runnersOf))];
 }
 
 /** A head who runs teams gives work to their own team and to the other heads — not to other heads' teams. */
