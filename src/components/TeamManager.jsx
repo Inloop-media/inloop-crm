@@ -112,7 +112,7 @@ function AddPerson({ groups }) {
       </div>
       <div>
         <label className="label" htmlFor="email">Google account email</label>
-        <input id="email" name="email" type="email" required className="field" placeholder="name@inloopmedia.com" />
+        <input id="email" name="email" type="email" required className="field" placeholder="name@inloopmedia.com or name@amsglobal.io" />
       </div>
       <div>
         <label className="label" htmlFor="role">Access</label>

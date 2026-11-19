@@ -404,6 +404,9 @@ async function setMemberGroups(memberId, groupIds) {
   if (ids.length) await db().from("group_members").insert(ids.map((group_id) => ({ group_id, member_id: memberId })));
 }
 
+/** Work email domains people can be added with (plus any in ALLOWED_DOMAIN, comma-separated). */
+const TEAM_DOMAINS = [...new Set(["inloopmedia.com", "amsglobal.io", ...String(process.env.ALLOWED_DOMAIN || "").split(",").map((d) => d.trim().toLowerCase()).filter(Boolean)])];
+
 export async function addMember(_prev, formData) {
   const me = await requireMember();
   if (!canManageTeam(me)) return { error: "Only admins can manage the team." };
@@ -411,6 +414,7 @@ export async function addMember(_prev, formData) {
   const name = str(formData.get("name"), 100);
   const role = str(formData.get("role"), 20) || "member";
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return { error: "Enter a valid email." };
+  if (!TEAM_DOMAINS.includes(email.split("@")[1])) return { error: `Use a work email (${TEAM_DOMAINS.map((d) => `@${d}`).join(" or ")}).` };
   if (!name) return { error: "Enter a name." };
   if (!ROLES.some((r) => r.id === role)) return { error: "Pick an access level." };
 

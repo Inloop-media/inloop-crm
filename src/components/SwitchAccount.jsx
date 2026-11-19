@@ -6,7 +6,7 @@ import Icon from "@/components/Icon";
 import { SideButton } from "@/components/Nav";
 import { createClient } from "@/lib/supabase/browser";
 
-export function useSwitchAccount(domain) {
+export function useSwitchAccount() {
   const [busy, setBusy] = useState(false);
   const run = async () => {
     setBusy(true);
@@ -16,7 +16,7 @@ export function useSwitchAccount(domain) {
       provider: "google",
       options: {
         redirectTo: `${window.location.origin}/auth/callback`,
-        queryParams: { prompt: "select_account", ...(domain ? { hd: domain } : {}) },
+        queryParams: { prompt: "select_account" },
       },
     });
     if (error) setBusy(false);
@@ -25,8 +25,8 @@ export function useSwitchAccount(domain) {
 }
 
 /** variant "side": a sidebar foot button; "row": a row in the profile menu / phone sheet. */
-export default function SwitchAccount({ domain, variant = "row" }) {
-  const { busy, run } = useSwitchAccount(domain);
+export default function SwitchAccount({ variant = "row" }) {
+  const { busy, run } = useSwitchAccount();
   if (variant === "side") return <SideButton label={busy ? "Opening Google…" : "Switch account"} icon="switch" onClick={run} />;
   return (
     <button type="button" onClick={run} disabled={busy} className="flex w-full items-center gap-3 rounded-2xl bg-panel-2 px-4 py-3 text-left text-sm">

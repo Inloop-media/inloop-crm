@@ -6,7 +6,7 @@ import { createClient } from "@/lib/supabase/browser";
 const SCOPE = "https://www.googleapis.com/auth/calendar.events";
 
 /** Asks Google for calendar access (offline, so meetings can be booked later) and comes back to this page. */
-export default function ConnectCalendar({ domain, className = "btn-primary", children = "Connect Google Calendar" }) {
+export default function ConnectCalendar({ className = "btn-primary", children = "Connect Google Calendar" }) {
   const [busy, setBusy] = useState(false);
 
   const connect = async () => {
@@ -17,7 +17,7 @@ export default function ConnectCalendar({ domain, className = "btn-primary", chi
       options: {
         redirectTo: `${window.location.origin}/auth/callback`,
         scopes: SCOPE,
-        queryParams: { access_type: "offline", prompt: "consent", ...(domain ? { hd: domain } : {}) },
+        queryParams: { access_type: "offline", prompt: "consent" },
       },
     });
     if (error) setBusy(false);

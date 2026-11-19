@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/browser";
 
-export default function GoogleButton({ domain }) {
+export default function GoogleButton() {
   const [busy, setBusy] = useState(false);
 
   const signIn = async () => {
@@ -13,8 +13,8 @@ export default function GoogleButton({ domain }) {
       provider: "google",
       options: {
         redirectTo: `${window.location.origin}/auth/callback`,
-        // Shows only company accounts in Google's account picker
-        queryParams: { prompt: "select_account", ...(domain ? { hd: domain } : {}) },
+        // Any Google account can be picked (team emails are on inloopmedia.com and amsglobal.io); who gets in is decided by the Team list
+        queryParams: { prompt: "select_account" },
       },
     });
     if (error) setBusy(false);
