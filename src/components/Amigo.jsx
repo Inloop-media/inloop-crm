@@ -6,6 +6,8 @@ import { Fragment, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import Icon from "@/components/Icon";
 import QuickAssign from "@/components/QuickAssign";
+import { createTask } from "@/app/(crm)/tasks/actions";
+import { PRIORITIES, TASK_KINDS } from "@/lib/constants";
 
 const COLORS = ["#60a5fa", "#ef3340", "#4ade80", "#fbbf24", "#a78bfa", "#22d3ee", "#f472b6", "#94a3b8"];
 // "Late" is always red, so it reads the same in every chart
@@ -206,6 +208,111 @@ function Chart({ spec }) {
   );
 }
 
+/* ------------------------------ voice ------------------------------ */
+
+// Speech-to-text uses the browser's own recogniser (in Chrome, Google turns the voice into text).
+// Replies are read out by the device itself (speechSynthesis) — nothing else leaves the CRM.
+const Recognition = () => (typeof window === "undefined" ? null : window.SpeechRecognition || window.webkitSpeechRecognition || null);
+const YES = /^(haan|han|ha|haa|yes|yeah|ok|okay|theek|thik|kar do|kardo|assign kar|assign karo|confirm|done|bilkul|sure)\b/;
+const NO = /^(nahi|nahin|na|no|cancel|rehne do|mat karo|chhodo|chodo)\b/;
+
+function spokenText(blocks) {
+  const parts = [];
+  for (const b of blocks || []) {
+    if (b.type === "text") parts.push(b.text);
+    if (b.type === "table" && parts.length < 2) parts.push("Details screen pe hain.");
+  }
+  return parts
+    .join(" ")
+    .replace(/\*\*|`|#/g, "")
+    .replace(/[\u{1F300}-\u{1FAFF}\u2600-\u27BF✓👇]/gu, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 400);
+}
+
+function speak(t) {
+  if (typeof window === "undefined" || !window.speechSynthesis || !t) return;
+  window.speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(t);
+  u.lang = "en-IN";
+  const v = window.speechSynthesis.getVoices().find((x) => x.lang === "en-IN") || window.speechSynthesis.getVoices().find((x) => x.lang === "hi-IN");
+  if (v) u.voice = v;
+  u.rate = 1.05;
+  window.speechSynthesis.speak(u);
+}
+
+/* ------------------------------ assign card ------------------------------ */
+
+function AssignCard({ b, people, brands, onChange, onConfirm }) {
+  const d = b.draft;
+  const done = b.status === "done";
+  const set = (k) => (e) => onChange({ draft: { ...d, [k]: e.target.value }, error: "" });
+  if (b.status === "cancelled") return <p className="mt-2 text-xs text-faint">Cancelled.</p>;
+  return (
+    <div className={`mt-2 rounded-2xl border p-3 ${done ? "border-emerald-500/40 bg-emerald-500/5" : "border-line bg-panel-2"}`}>
+      {done ? (
+        <div className="flex items-center justify-between gap-2 text-sm">
+          <span className="flex items-center gap-1.5 text-emerald-400">
+            <Icon name="check" size={14} /> Assigned to {people.find((p) => p.id === d.assignee_id)?.name || "them"}
+          </span>
+          {b.taskId && (
+            <Link href={`/tasks/${b.taskId}`} className="btn-ghost btn-sm">
+              Open task <Icon name="arrow" size={12} />
+            </Link>
+          )}
+        </div>
+      ) : (
+        <div className="flex flex-col gap-2">
+          <input className="field py-2 text-sm" value={d.title} onChange={set("title")} placeholder="Task title" disabled={b.busy} />
+          <div className="grid gap-2 sm:grid-cols-2">
+            <select className="field py-2 text-sm" value={d.assignee_id} onChange={set("assignee_id")} disabled={b.busy}>
+              <option value="">Who does it…</option>
+              {people.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name} · {p.open} open
+                </option>
+              ))}
+            </select>
+            <select className="field py-2 text-sm" value={d.brand_id} onChange={set("brand_id")} disabled={b.busy}>
+              <option value="">Which brand…</option>
+              {brands.map((x) => (
+                <option key={x.id} value={x.id}>
+                  {x.name}
+                </option>
+              ))}
+            </select>
+            <select className="field py-2 text-sm" value={d.kind} onChange={set("kind")} disabled={b.busy}>
+              {TASK_KINDS.map((k) => (
+                <option key={k.id} value={k.id}>
+                  {k.label}
+                </option>
+              ))}
+            </select>
+            <input type="datetime-local" className="field py-2 text-sm" value={d.due_at} onChange={set("due_at")} disabled={b.busy} />
+            <select className="field py-2 text-sm sm:col-span-2" value={d.priority} onChange={set("priority")} disabled={b.busy}>
+              {PRIORITIES.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.label} priority
+                </option>
+              ))}
+            </select>
+          </div>
+          {b.error && <p className="text-xs text-rose-400">{b.error}</p>}
+          <div className="flex justify-end gap-2">
+            <button type="button" onClick={() => onChange({ status: "cancelled" })} disabled={b.busy} className="btn-ghost btn-sm">
+              Cancel
+            </button>
+            <button type="button" onClick={onConfirm} disabled={b.busy || !d.assignee_id || !d.brand_id || !d.title.trim()} className="btn-primary btn-sm">
+              {b.busy ? "Assigning…" : "Assign"} <Icon name="arrow" size={12} />
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ------------------------------ the chat ------------------------------ */
 
 function Orb({ size = 96 }) {
@@ -261,8 +368,9 @@ function Table({ columns, rows }) {
   );
 }
 
-function Blocks({ blocks, onAsk }) {
+function Blocks({ blocks, onAsk, assign }) {
   return blocks.map((b, i) => {
+    if (b.type === "assign") return assign ? <AssignCard key={i} b={b} people={assign.people} brands={assign.brands} onChange={(patch) => assign.onChange(i, patch)} onConfirm={() => assign.onConfirm(i)} /> : null;
     if (b.type === "text") return <Markdown key={i} text={b.text} />;
     if (b.type === "chart") return <Chart key={i} spec={b.spec} />;
     if (b.type === "table") return <Table key={i} columns={b.columns} rows={b.rows} />;
@@ -286,7 +394,7 @@ function Blocks({ blocks, onAsk }) {
   });
 }
 
-function Turn({ m, initials, onAsk }) {
+function Turn({ m, initials, onAsk, assign }) {
   if (m.role === "user")
     return (
       <div className="flex justify-end gap-3">
@@ -294,12 +402,12 @@ function Turn({ m, initials, onAsk }) {
         <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-panel-3 text-[11px] font-semibold">{initials}</span>
       </div>
     );
-  const wide = m.blocks?.some((b) => b.type === "chart" || b.type === "table");
+  const wide = m.blocks?.some((b) => b.type === "chart" || b.type === "table" || b.type === "assign");
   return (
     <div className="flex gap-3">
       <Orb size={32} />
       <div className={`min-w-0 max-w-[88%] rounded-2xl rounded-tl-md border px-4 py-2.5 ${m.error ? "border-rose-400/30 bg-rose-400/10 text-rose-400" : "border-line bg-panel"} ${wide ? "flex-1" : ""}`}>
-        {m.error ? <p className="text-sm">{m.error}</p> : <Blocks blocks={m.blocks || []} onAsk={onAsk} />}
+        {m.error ? <p className="text-sm">{m.error}</p> : <Blocks blocks={m.blocks || []} onAsk={onAsk} assign={assign} />}
       </div>
     </div>
   );
@@ -341,6 +449,65 @@ export default function Amigo({ meId, firstName, initials, questions = [], brand
   const [showAll, setShowAll] = useState(false);
   const end = useRef(null);
   const total = questions.reduce((n, [, qs]) => n + qs.length, 0);
+  const [listening, setListening] = useState(false);
+  const [voiceOk] = useState(() => !!Recognition());
+  const [mute, setMute] = useState(() => {
+    try {
+      return localStorage.getItem("amigo:mute") === "1";
+    } catch {
+      return false;
+    }
+  });
+  const rec = useRef(null);
+  const latest = useRef(messages);
+  useEffect(() => {
+    latest.current = messages;
+  }, [messages]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("amigo:mute", mute ? "1" : "0");
+    } catch {}
+    if (mute) window.speechSynthesis?.cancel();
+  }, [mute]);
+  useEffect(() => () => rec.current?.abort(), []);
+
+  const say = (t, voice) => voice && !mute && speak(t);
+
+  const updateBlock = (mi, bi, patch) =>
+    setMessages((all) => all.map((m, i) => (i === mi ? { ...m, blocks: m.blocks.map((b, j) => (j === bi ? { ...b, ...patch } : b)) } : m)));
+
+  async function confirmAssign(mi, bi, voice = false) {
+    const b = latest.current[mi]?.blocks?.[bi];
+    if (!b || b.status !== "draft" || b.busy) return;
+    const d = b.draft;
+    if (!d.assignee_id || !d.brand_id) {
+      const err = !d.assignee_id ? "Pick who does it." : "Pick the brand.";
+      updateBlock(mi, bi, { error: err });
+      say(!d.assignee_id ? "Pehle batao kisko dena hai." : "Pehle brand chuno.", voice);
+      return;
+    }
+    updateBlock(mi, bi, { busy: true, error: "" });
+    const r = await createTask(d.brand_id, { title: d.title, kind: d.kind, assignee_id: d.assignee_id, due_at: d.due_at, brief: d.brief, priority: d.priority }).catch(() => ({ ok: false, error: "Couldn't assign — try again." }));
+    if (!r.ok) {
+      updateBlock(mi, bi, { busy: false, error: r.error });
+      say(r.error, voice);
+      return;
+    }
+    updateBlock(mi, bi, { busy: false, status: "done", taskId: r.id });
+    const who = people.find((p) => p.id === d.assignee_id)?.name.split(" ")[0] || "";
+    say(`Ho gaya. Task ${who} ko assign kar diya.`, voice);
+  }
+
+  /** The newest assign card still waiting for a yes / no: [messageIndex, blockIndex]. */
+  const pendingCard = () => {
+    const all = latest.current;
+    for (let i = all.length - 1; i >= Math.max(0, all.length - 2); i--) {
+      const bi = (all[i].blocks || []).findIndex((b) => b.type === "assign" && b.status === "draft");
+      if (bi >= 0) return [i, bi];
+    }
+    return null;
+  };
 
   useEffect(() => {
     try {
@@ -351,23 +518,69 @@ export default function Amigo({ meId, firstName, initials, questions = [], brand
     end.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [messages, busy]);
 
-  async function ask(q) {
+  async function ask(q, voice = false) {
     const question = String(q || "").trim();
     if (!question || busy) return;
     setShowAll(false);
     setText("");
+    // "haan" / "nahi" answers the assign card that's waiting
+    const card = pendingCard();
+    const said = question.toLowerCase().replace(/[^a-z\s]/g, "").trim();
+    if (card && (YES.test(said) || NO.test(said))) {
+      setMessages((m) => [...m, { role: "user", text: question }]);
+      if (NO.test(said)) {
+        updateBlock(card[0], card[1], { status: "cancelled" });
+        say("Theek hai, cancel kar diya.", voice);
+      } else await confirmAssign(card[0], card[1], voice);
+      return;
+    }
     setMessages((m) => [...m, { role: "user", text: question }]);
     setBusy(true);
     try {
       const res = await fetch("/api/amigo", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ question }) });
       const data = await res.json().catch(() => ({ error: "Amigo couldn't answer right now." }));
       setMessages((m) => [...m, data.blocks ? { role: "amigo", blocks: data.blocks } : { role: "amigo", error: data.error || "Amigo couldn't answer right now." }]);
+      say(data.blocks ? spokenText(data.blocks) : data.error, voice);
     } catch {
       setMessages((m) => [...m, { role: "amigo", error: "Network issue — try again." }]);
     } finally {
       setBusy(false);
     }
   }
+
+  function listen() {
+    const R = Recognition();
+    if (!R) return;
+    if (listening) return rec.current?.stop();
+    window.speechSynthesis?.cancel();
+    const r = new R();
+    r.lang = "en-IN";
+    r.interimResults = true;
+    r.continuous = false;
+    let finalText = "";
+    r.onresult = (e) => {
+      let t = "";
+      for (const res of e.results) t += res[0].transcript;
+      setText(t);
+      if (e.results[e.results.length - 1].isFinal) finalText = t;
+    };
+    r.onerror = (e) => {
+      if (e.error === "not-allowed") setMessages((m) => [...m, { role: "amigo", error: "Mic is blocked — allow the microphone for this site in the browser, then try again." }]);
+    };
+    r.onend = () => {
+      setListening(false);
+      rec.current = null;
+      if (finalText.trim()) ask(finalText, true);
+    };
+    rec.current = r;
+    setListening(true);
+    r.start();
+  }
+
+  const assign = {
+    people,
+    brands,
+  };
 
   return (
     <div className="flex h-[calc(100svh-9.5rem)] min-h-[480px] flex-col md:h-[calc(100svh-13rem)]">
@@ -379,6 +592,11 @@ export default function Amigo({ meId, firstName, initials, questions = [], brand
           {messages.length > 0 && (
             <button onClick={() => setShowAll((v) => !v)} className="flex items-center gap-1.5 rounded-full border border-line bg-panel px-3 py-1.5 text-xs text-muted hover:text-ink">
               <Icon name="list" size={12} /> {showAll ? "Back to chat" : `All ${total} questions`}
+            </button>
+          )}
+          {voiceOk && (
+            <button onClick={() => setMute((v) => !v)} title={mute ? "Amigo won't read replies out" : "Amigo reads replies out when you ask by voice"} className="flex items-center gap-1.5 rounded-full border border-line bg-panel px-3 py-1.5 text-xs text-muted hover:text-ink">
+              <Icon name="speaker" size={12} /> {mute ? "Voice replies off" : "Voice replies on"}
             </button>
           )}
           {messages.length > 0 && (
@@ -408,7 +626,7 @@ export default function Amigo({ meId, firstName, initials, questions = [], brand
         ) : (
           <div className="mx-auto flex max-w-3xl flex-col gap-5">
             {messages.map((m, i) => (
-              <Turn key={i} m={m} initials={initials} onAsk={ask} />
+              <Turn key={i} m={m} initials={initials} onAsk={ask} assign={{ ...assign, onChange: (bi, patch) => updateBlock(i, bi, patch), onConfirm: (bi) => confirmAssign(i, bi) }} />
             ))}
             {busy && (
               <div className="flex gap-3">
@@ -434,9 +652,22 @@ export default function Amigo({ meId, firstName, initials, questions = [], brand
           value={text}
           disabled={busy}
           onChange={(e) => setText(e.target.value)}
-          placeholder="Ask me anything… e.g. How much work does Riya have pending?"
+          placeholder={listening ? "Listening… bolo" : "Ask, or say: Abhay ko Shadowe ka reel kal 6 baje tak de do"}
           className="h-10 min-w-0 flex-1 bg-transparent text-[14px] outline-none placeholder:text-faint"
         />
+        {voiceOk && (
+          <button
+            type="button"
+            onClick={listen}
+            disabled={busy}
+            aria-label={listening ? "Stop listening" : "Speak"}
+            title={listening ? "Stop" : "Bolke poocho"}
+            className={`relative grid h-10 w-10 shrink-0 place-items-center rounded-full transition ${listening ? "bg-brand text-white" : "bg-panel-2 text-muted hover:text-ink"}`}
+          >
+            {listening && <span className="absolute inset-0 animate-ping rounded-full bg-brand/40" />}
+            <Icon name="mic" size={16} className="relative" />
+          </button>
+        )}
         <button disabled={busy || !text.trim()} aria-label="Send" className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-solid text-on-solid transition disabled:opacity-40">
           <Icon name="arrow" size={16} className="-rotate-90" />
         </button>

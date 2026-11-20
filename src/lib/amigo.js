@@ -3,8 +3,8 @@ import "server-only";
 // Hinglish), works out what is being asked, and answers straight from the CRM database with text,
 // tables and charts. Nothing leaves the CRM.
 import { db } from "@/lib/supabase/server";
-import { CLOSED_STATUSES, OPEN_TASK, TASK_STATUSES, PROPOSAL_STAGES, kindPlural } from "@/lib/constants";
-import { canSeeAllLeads, inGroupKind } from "@/lib/permissions";
+import { CLOSED_STATUSES, OPEN_TASK, TASK_STATUSES, PROPOSAL_STAGES, kindPlural, taskKindLabel } from "@/lib/constants";
+import { canAssignTasks, canSeeAllLeads, inGroupKind } from "@/lib/permissions";
 
 const IST = "Asia/Kolkata";
 const DAY = 864e5;
@@ -826,6 +826,93 @@ function usefulCharts(blocks, question) {
   });
 }
 
+/* ------------------------------ Assign a task by voice / text ------------------------------ */
+
+const ASSIGN_WORDS = ["assign", "task de", "task do", "task dedo", "task bana", "kaam de", "kaam do", "kaam dedo", "de do", "dedo", "give ", "bana do", "banao"];
+const WEEKDAYS = [
+  ["sunday", "ravivar", "itvaar", "itwar"],
+  ["monday", "somvar", "somwar"],
+  ["tuesday", "mangalvar", "mangalwar"],
+  ["wednesday", "budhvar", "budhwar"],
+  ["thursday", "guruvar", "guruwar", "veervar"],
+  ["friday", "shukravar", "shukrawar"],
+  ["saturday", "shanivar", "shaniwar"],
+];
+const MONTHS = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
+
+export const isAssignAsk = (q) => has(q, ASSIGN_WORDS) && !has(q, W.lead) && !has(q, W.unassigned) && !q.includes(" kitne") && !q.includes(" kis ");
+
+/** "kal 6 baje", "parso", "friday", "25 tarikh", "3 din mein" → "2026-11-21T18:00" (India time), or "". */
+function parseDue(q, now) {
+  const today = new Date(new Date(now).toLocaleString("en-US", { timeZone: IST }));
+  let day = null;
+  const add = (n) => {
+    const d = new Date(today);
+    d.setDate(d.getDate() + n);
+    return d;
+  };
+  if (/ (aaj|aj|today)( |$)/.test(q)) day = add(0);
+  else if (/ (parso|parson|day after)/.test(q)) day = add(2);
+  else if (/ (kal|kl|tomorrow)( |$)/.test(q)) day = add(1);
+  const inDays = q.match(/ (\d{1,2}) (din|days?) (mein|me|main|in|baad)/);
+  if (!day && inDays) day = add(Number(inDays[1]));
+  if (!day) {
+    const wd = WEEKDAYS.findIndex((names) => names.some((n) => q.includes(` ${n}`)));
+    if (wd >= 0) day = add(((wd - today.getDay() + 7) % 7) || 7);
+  }
+  if (!day) {
+    const m = q.match(/ (\d{1,2})(?:st|nd|rd|th)? (tarikh|tareekh|date|jan\w*|feb\w*|mar\w*|apr\w*|may|jun\w*|jul\w*|aug\w*|sep\w*|oct\w*|nov\w*|dec\w*)/);
+    if (m) {
+      const d = new Date(today);
+      const mi = MONTHS.indexOf(m[2].slice(0, 3));
+      if (mi >= 0) d.setMonth(mi);
+      d.setDate(Number(m[1]));
+      if (d < add(0)) mi >= 0 ? d.setFullYear(d.getFullYear() + 1) : d.setMonth(d.getMonth() + 1);
+      day = d;
+    }
+  }
+  if (!day) return "";
+  let hour = 19;
+  let min = 0;
+  const t = q.match(/ (\d{1,2})(?:[ :.](\d{2}))? ?(baje|bje|pm|am|o clock|oclock)/);
+  if (t) {
+    hour = Number(t[1]) % 24;
+    min = Number(t[2] || 0) % 60;
+    const morning = t[3] === "am" || / (subah|morning)/.test(q);
+    if (!morning && hour >= 1 && hour <= 8) hour += 12;
+    if (t[3] === "pm" && hour < 12) hour += 12;
+  } else if (/ (subah|morning)/.test(q)) hour = 11;
+  else if (/ (dopahar|afternoon)/.test(q)) hour = 14;
+  else if (/ (shaam|sham|evening)/.test(q)) hour = 18;
+  const pad = (n) => String(n).padStart(2, "0");
+  return `${day.getFullYear()}-${pad(day.getMonth() + 1)}-${pad(day.getDate())}T${pad(hour)}:${pad(min)}`;
+}
+
+async function assignAnswer(me, question, q, team, brands) {
+  if (!canAssignTasks(me)) return [text("Only admin, managers and team leads can give tasks.")];
+  const person = findPerson(q, team);
+  const brand = findBrand(q, brands);
+  const kind = KIND_WORDS.find(([w]) => q.includes(` ${w}`))?.[1] || "other";
+  const due = parseDue(q, nowMs());
+  const priority = / (urgent|high|jaldi|asap|important)/.test(q) ? "high" : / (low|aaram se|no rush)/.test(q) ? "low" : "medium";
+  const label = kind === "other" ? "Task" : taskKindLabel(kind);
+  const draft = {
+    assignee_id: person?.id || "",
+    brand_id: brand?.id || "",
+    kind,
+    title: brand ? `${label} for ${brand.name}` : label,
+    brief: String(question).trim(),
+    due_at: due,
+    priority,
+  };
+  const missing = [!person && "who does it", !brand && "which brand", !due && "by when"].filter(Boolean);
+  const lead = person && brand ? `${first(person.name)} ko **${brand.name}** ka ${label.toLowerCase()} dena hai.` : "Task bana raha hoon.";
+  return [
+    text(`${lead} ${missing.length ? `Bas ye bata do: ${missing.join(", ")}.` : 'Check karke **Assign** dabao, ya bolo "haan".'}`),
+    { type: "assign", draft, status: "draft" },
+  ];
+}
+
 /** Works out what the question is about and answers it from the CRM. Returns display blocks. */
 export async function answer(question, me) {
   return usefulCharts(grammar(await understand(question, me)), question);
@@ -839,6 +926,8 @@ async function understand(question, me) {
   const p = person ? first(person.name) : "";
   const kind = KIND_WORDS.find(([w]) => q.includes(` ${w}`))?.[1];
   const taskWords = has(q, W.task) || has(q, W.late) || has(q, W.check) || has(q, W.revision);
+
+  if (isAssignAsk(q)) return assignAnswer(me, question, q, team, brandRows || []);
 
   if (has(q, W.meeting)) return meetingsAnswer(me, q);
   if (has(q, W.proposal)) return proposalsAnswer(me);

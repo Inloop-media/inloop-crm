@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 
-const PUBLIC = ["/login", "/auth", "/no-access", "/api/leads", "/api/worker", "/api/cron", "/sw.js", "/manifest.webmanifest"];
+const PUBLIC = ["/login", "/privacy", "/auth", "/no-access", "/api/leads", "/api/worker", "/api/cron", "/sw.js", "/manifest.webmanifest"];
 
 // Refreshes the Supabase session cookie on every request and sends signed-out visitors to /login.
 // Who may see what is decided on the server (src/lib/auth.js), not here.
