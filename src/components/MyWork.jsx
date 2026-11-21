@@ -34,7 +34,7 @@ function List({ title, sub, tasks, tone, empty }) {
   return (
     <Section title={title} count={tasks.length} tone={tone} empty={empty} action={sub && <span className="hidden text-xs text-muted sm:block">{sub}</span>}>
       {tasks.map((t) => (
-        <TaskLine key={t.id} t={t} note={t.status === "revision" ? t.feedback : ""} action={OPEN_TASK.includes(t.status) ? <Next t={t} /> : undefined} />
+        <TaskLine key={t.id} t={t} showAssignee={false} note={t.status === "revision" ? t.feedback : ""} action={OPEN_TASK.includes(t.status) ? <Next t={t} /> : undefined} />
       ))}
     </Section>
   );
@@ -80,7 +80,7 @@ export default function MyWork({ me, tasks, embedded = false }) {
           <Empty icon="tasks">No tasks yet. When someone assigns you work, it shows up here and on your phone.</Empty>
         </div>
       )}
-      <div className="grid items-start gap-4 lg:grid-cols-2">
+      <div className={`grid items-start gap-4 ${embedded ? "" : "lg:grid-cols-2"}`}>
         <List title="Do today" sub="Fixes, late work, due today" tasks={now_} tone="#e11d2e" empty={open.length ? "Nothing for today — pick something from Coming up." : ""} />
         <List title="Coming up" tasks={coming} tone="#3b82f6" empty={open.length ? "Nothing else planned." : ""} />
         <List title="Waiting on others" sub="Your manager or the client has it" tasks={waiting} tone="#8b5cf6" />

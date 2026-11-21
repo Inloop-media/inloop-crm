@@ -8,94 +8,50 @@ import { dashboardData, myFollowUps } from "@/lib/leads";
 import { listBrands } from "@/lib/brands";
 import { listMakers, listTasks, reviewFiles } from "@/lib/tasks";
 import QuickAssign from "@/components/QuickAssign";
-import { PageTop } from "@/components/Desk";
+import { Block, HomeHeader } from "@/components/Home";
 import { canSeeAllLeads, canSeeLeads, headsTeam, isExecHead, isSalesHead, isStrategist, myTeam, salesTeam } from "@/lib/permissions";
-import { Avatar } from "@/components/ui";
-import { GROUP_KINDS, OPEN_TASK } from "@/lib/constants";
 import TeamMeetings from "@/components/TeamMeetings";
 import { canCallMeetings, meetingAudience, myTeamMeetings } from "@/lib/teamMeetings";
 import { listGroups } from "@/lib/leads";
-import { headIdsOf, ownHeadIds, runsGroup, sortGroups, teamLeadIdsOf } from "@/lib/groups";
-import { db } from "@/lib/supabase/server";
+import { ownHeadIds, runsGroup, sortGroups, teamLeadIdsOf } from "@/lib/groups";
 
-/**
- * Every group this person is in (one person can be in several — e.g. Abhay in Creative Strategists and
- * Development): who manages it, the team lead(s), their own role there and who else is in it.
- * Groups they run already show under "Your teams", so those are left out here.
- */
+/** Every group this person is in or runs (one person can be in several), with their role there. */
 async function MyGroups({ me }) {
   const all = await listGroups();
-  const led = new Set((me.ledGroups || []).map((g) => g.id));
-  const mine = sortGroups(all.filter((g) => !led.has(g.id) && (g.members.some((m) => m.id === me.id) || teamLeadIdsOf(g).includes(me.id))));
+  const mine = sortGroups(all.filter((g) => g.members.some((m) => m.id === me.id) || teamLeadIdsOf(g).includes(me.id) || runsGroup(g, me.id)));
   if (!mine.length) return null;
-  const ids = [...new Set(mine.flatMap((g) => [...headIdsOf(g), ...teamLeadIdsOf(g)]))];
-  const { data } = ids.length ? await db().from("members").select("id, name").in("id", ids) : { data: [] };
-  const name = Object.fromEntries([...(data || []), ...mine.flatMap((g) => g.members)].map((m) => [m.id, m.name]));
-  const names = (list) => list.map((id) => name[id]).filter(Boolean).join(", ");
   return (
-    <section className="rise">
-      <h2 className="mb-2 text-[13px] font-medium text-muted">
-        Your groups <span className="text-faint">· {mine.length}</span>
-      </h2>
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+    <Block title="Your groups" count={mine.length}>
+      <ul className="mt-1">
         {mine.map((g) => {
-          const heads = headIdsOf(g);
-          const tl = teamLeadIdsOf(g);
-          const people = g.members.filter((m) => m.active);
-          const role = tl.includes(me.id) ? "Team lead" : runsGroup(g, me.id) ? "Manager" : "Member";
-          const body = (
-            <>
-              <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0">
-                  <div className="truncate text-[15px] font-medium">{g.name}</div>
-                  <div className="text-[11px] text-muted">{GROUP_KINDS.find((k) => k.id === g.kind)?.label || g.kind}</div>
-                </div>
-                <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10.5px] font-medium ${role === "Member" ? "bg-panel-2 text-muted" : "bg-brand/12 text-brand"}`}>{role}</span>
-              </div>
-              <dl className="mt-3 grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 text-[12px]">
-                {g.kind !== "execution" && (
-                  <>
-                    <dt className="text-muted">{ownHeadIds(g).length ? (heads.length > 1 ? "Managers" : "Manager") : "CBO"}</dt>
-                    <dd className="truncate">{names(heads) || <span className="text-faint">Not set</span>}</dd>
-                    <dt className="text-muted">{tl.length > 1 ? "Team leads" : "Team lead"}</dt>
-                    <dd className="truncate">{names(tl) || <span className="text-faint">Not set</span>}</dd>
-                  </>
-                )}
-              </dl>
-              <div className="mt-3 flex items-center gap-2">
-                <span className="flex -space-x-2">
-                  {people.slice(0, 5).map((m) => (
-                    <Avatar key={m.id} name={m.name} size={24} />
-                  ))}
+          const role = teamLeadIdsOf(g).includes(me.id) ? "Team lead" : runsGroup(g, me.id) ? (g.kind !== "execution" && ownHeadIds(g).includes(me.id) ? "Manager" : "CBO") : "Member";
+          const people = g.members.filter((m) => m.active).length;
+          return (
+            <li key={g.id} className="border-b border-line last:border-0">
+              <Link href={runsGroup(g, me.id) || me.role === "admin" ? `/groups/${g.id}` : "/groups"} className="group flex items-center gap-3 py-2.5">
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-[13px] font-medium group-hover:text-brand">{g.name}</span>
+                  <span className="block text-[11px] text-muted">
+                    {people} {people === 1 ? "person" : "people"}
+                  </span>
                 </span>
-                <span className="truncate text-[11px] text-muted">
-                  {people.length} {people.length === 1 ? "person" : "people"}
-                </span>
-              </div>
-            </>
-          );
-          return runsGroup(g, me.id) || me.role === "admin" ? (
-            <Link key={g.id} href={`/groups/${g.id}`} className="card card-hover block p-4">
-              {body}
-            </Link>
-          ) : (
-            <Link key={g.id} href="/groups" className="card card-hover block p-4">
-              {body}
-            </Link>
+                <span className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] ${role === "Member" ? "bg-panel-2 text-muted" : "bg-brand/10 text-brand"}`}>{role}</span>
+              </Link>
+            </li>
           );
         })}
-      </div>
-    </section>
+      </ul>
+    </Block>
   );
 }
 
-/** The top of every dashboard: team meetings, then the groups you're in. */
-function DashTop({ me }) {
+/** The top of the right column on every dashboard: team meetings, then the groups you're in. */
+function Side({ me }) {
   return (
-    <div className="flex flex-col gap-4">
+    <>
       <Meetings me={me} />
       <MyGroups me={me} />
-    </div>
+    </>
   );
 }
 
@@ -115,63 +71,11 @@ async function Meetings({ me }) {
 
 export const metadata = { title: "Dashboard" };
 
-const IST = { timeZone: "Asia/Kolkata" };
-const weekday = new Intl.DateTimeFormat("en-IN", { ...IST, weekday: "long", day: "numeric", month: "long" });
-function greeting() {
-  const h = Number(new Intl.DateTimeFormat("en-IN", { ...IST, hour: "numeric", hour12: false }).format(new Date()));
-  return h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : "Good evening";
-}
-
-/** The groups a head runs, one card each: who's in it and how their work stands. */
-function MyTeams({ me, tasks, members }) {
-  const groups = (me.ledGroups || []).filter((g) => g.kind !== "sales" || (me.ledGroups || []).every((x) => x.kind === "sales"));
-  if (!groups.length) return null;
-  const name = Object.fromEntries(members.map((m) => [m.id, m.name]));
-  const now = nowMs();
-  return (
-    <section className="rise mb-4">
-      <h2 className="mb-2 text-[13px] font-medium text-muted">Your teams</h2>
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        {groups.map((g) => {
-          const mine = tasks.filter((t) => g.memberIds.includes(t.assignee_id));
-          const open = mine.filter((t) => OPEN_TASK.includes(t.status));
-          const late = open.filter((t) => t.due_at && new Date(t.due_at).getTime() < now);
-          return (
-            <Link key={g.id} href={`/tasks?view=team`} className="card card-hover flex flex-col gap-3 p-4">
-              <div className="flex items-center justify-between gap-2">
-                <div className="min-w-0">
-                  <div className="truncate text-[15px] font-medium">{g.name}</div>
-                  <div className="text-[11px] text-muted">{GROUP_KINDS.find((k) => k.id === g.kind)?.label || g.kind}</div>
-                </div>
-                <span className="flex -space-x-2">
-                  {g.memberIds.slice(0, 4).map((id) => (
-                    <Avatar key={id} name={name[id] || "?"} size={26} />
-                  ))}
-                </span>
-              </div>
-              <div className="flex items-center gap-3 text-xs text-muted">
-                <span>
-                  <b className="text-base font-medium text-ink">{g.memberIds.length}</b> people
-                </span>
-                <span>
-                  <b className="text-base font-medium text-ink">{open.length}</b> open
-                </span>
-                <span className={late.length ? "text-rose-400" : ""}>
-                  <b className={`text-base font-medium ${late.length ? "text-rose-400" : "text-ink"}`}>{late.length}</b> late
-                </span>
-              </div>
-            </Link>
-          );
-        })}
-      </div>
-    </section>
-  );
-}
 const nowMs = () => Date.now();
 
 /** Execution heads (Udit, Krish): their teams' work — what to check, what's late, how each brand is doing. */
 async function ExecDashboard({ me }) {
-  const [allTasks, allPeople, brands, data] = await Promise.all([listTasks(me, { view: "all" }), listMakers(me), listBrands(), dashboardData(me)]);
+  const [allTasks, allPeople, brands] = await Promise.all([listTasks(me, { view: "all" }), listMakers(me), listBrands()]);
   // A head who runs groups sees their teams' work (and anything they assigned themselves)
   const team = myTeam(me);
   const scoped = headsTeam(me) && team.length;
@@ -182,10 +86,10 @@ async function ExecDashboard({ me }) {
   const files = await reviewFiles(tasks);
   return (
     <div className="page">
-      <PageTop
-        title={`${greeting()}, ${me.name.split(" ")[0]} 👋`}
-        sub={scoped ? `${weekday.format(new Date())} · ${(me.ledGroups || []).map((g) => g.name).join(", ")}` : weekday.format(new Date())}
-        right={
+      <HomeHeader
+        name={me.name}
+        sub={scoped ? (me.ledGroups || []).map((g) => g.name).join(", ") : ""}
+        actions={
           <>
             <Link href="/calendar" className="btn-ghost btn-sm">
               <Icon name="calendar" size={13} /> Content calendar
@@ -194,13 +98,7 @@ async function ExecDashboard({ me }) {
           </>
         }
       />
-      <div className="mb-4">
-        <DashTop me={me} />
-      </div>
-      <MyTeams me={me} tasks={allTasks} members={data.members} />
-      <div className="rise">
-        <HeadHome tasks={tasks} brands={theirBrands} files={files} />
-      </div>
+      <HeadHome tasks={tasks} brands={theirBrands} files={files} side={<Side me={me} />} />
     </div>
   );
 }
@@ -209,7 +107,7 @@ async function ExecDashboard({ me }) {
 async function SalesHeadDashboard({ me }) {
   const data = await dashboardData(me);
   const team = [me.id, ...salesTeam(me)];
-  return <AdminHome me={me} data={{ ...data, members: data.members.filter((m) => team.includes(m.id)) }} brands={[]} tasks={[]} salesOnly meetings={<DashTop me={me} />} />;
+  return <AdminHome me={me} data={{ ...data, members: data.members.filter((m) => team.includes(m.id)) }} brands={[]} tasks={[]} salesOnly side={<Side me={me} />} />;
 }
 
 export default async function Dashboard() {
@@ -233,12 +131,12 @@ export default async function Dashboard() {
         brands={brands}
         tasks={tasks}
         actions={<QuickAssign brands={active} people={people} label="New task" />}
-        meetings={<DashTop me={me} />}
+        side={<Side me={me} />}
       />
     );
   }
 
   // Everyone else: the admin look, about their own work (tasks, leads and/or briefs — whatever they do)
   const [data, tasks, followUps] = await Promise.all([dashboardData(me), listTasks(me, { view: "mine" }), myFollowUps(me)]);
-  return <UserHome me={me} data={data} tasks={tasks} followUps={followUps} meetings={<DashTop me={me} />} />;
+  return <UserHome me={me} data={data} tasks={tasks} followUps={followUps} side={<Side me={me} />} sub={(me.groups || []).map((g) => g.name).join(", ")} />;
 }

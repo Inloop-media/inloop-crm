@@ -66,70 +66,51 @@ export function Section({ title, count, tone = "#e11d2e", action, children, empt
 const KIND_ICON = { video: "video", reel: "video", website: "link", carousel: "board", story: "sparkle", design: "sparkle" };
 
 function duePill(t) {
-  if (!t.due_at) return { text: "No date", cls: "bg-panel-2 text-faint" };
+  if (!t.due_at) return { text: "No date", tone: "text-faint" };
   const ms = new Date(t.due_at).getTime() - nowMs();
   const open = OPEN_TASK.includes(t.status);
   if (open && ms < 0) {
     const d = Math.floor(-ms / 864e5);
-    return { text: d ? `${d}d overdue` : "Overdue", cls: "bg-rose-400/12 text-rose-400" };
+    return { text: d ? `${d}d late` : "Late", tone: "text-rose-500" };
   }
   const k = dayKey(t.due_at);
-  if (k === dayKey(nowMs())) return { text: "Today", cls: "bg-amber-400/15 text-amber-400" };
-  if (k === dayKey(nowMs() + 864e5)) return { text: "Tomorrow", cls: "bg-panel-2 text-ink/70" };
-  return { text: short.format(new Date(t.due_at)), cls: "bg-panel-2 text-ink/70" };
+  if (k === dayKey(nowMs())) return { text: "Today", tone: "text-amber-500" };
+  if (k === dayKey(nowMs() + 864e5)) return { text: "Tomorrow", tone: "text-ink/70" };
+  return { text: short.format(new Date(t.due_at)), tone: "text-muted" };
 }
 
-/** One task, like a row in the reference "Tasks" page. `action` replaces the open button on the right. */
-export function TaskLine({ t, showBrand = true, action, note }) {
+/**
+ * One task as a calm row: what it is, whose and for which brand, and when it's due. High priority shows
+ * as a small red dot, late work as a red due date. `action` replaces the open arrow on the right.
+ */
+export function TaskLine({ t, showBrand = true, action, note, showAssignee = true, showStatus = false }) {
   const s = TASK_STATUSES[t.status] || { label: t.status, color: "#94a3b8" };
   const c = KIND_COLOR[t.kind] || "#64748b";
   const due = duePill(t);
   const done = t.status === "done";
-  const pr = t.priority && !done ? PRIORITIES.find((p) => p.id === t.priority) : null;
+  const urgent = t.priority === "high" && !done;
+  const meta = [taskKindLabel(t.kind), showBrand && t.brand?.name, showAssignee && t.assignee?.name?.split(" ")[0], showStatus && (t.status === "completed" ? "To check" : t.status === "client_rejected" ? "Client changes" : s.label)].filter(Boolean);
   return (
-    <li className="group relative flex items-center gap-3 border-b border-line py-2.5 last:border-0">
+    <li className="group relative flex items-center gap-3 border-b border-line py-3 last:border-0">
       <Link href={`/tasks/${t.id}`} className="absolute inset-0 z-0" aria-label={t.title} />
-      <span className={`grid h-[18px] w-[18px] shrink-0 place-items-center rounded-full border-[1.5px] ${done ? "border-brand bg-brand text-white" : "border-line-strong"}`}>
-        {done && <Icon name="check" size={10} />}
-      </span>
-      <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full" style={{ background: `color-mix(in srgb, ${c} 13%, transparent)`, color: c }}>
-        <Icon name={KIND_ICON[t.kind] || "file"} size={14} />
+      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl" style={{ background: `color-mix(in srgb, ${c} 12%, transparent)`, color: c }}>
+        <Icon name={done ? "check" : KIND_ICON[t.kind] || "file"} size={15} />
       </span>
       <span className="min-w-0 flex-1">
-        <span className={`block truncate text-[13px] font-medium group-hover:text-brand ${done ? "text-muted line-through" : ""}`}>
-          {t.title}
-          {t.revision > 0 && <span className="ml-1.5 rounded-full bg-rose-400/15 px-1.5 text-[10px] font-semibold text-rose-400 no-underline">R{t.revision}</span>}
+        <span className={`flex items-center gap-1.5 text-[14px] font-medium group-hover:text-brand ${done ? "text-muted" : ""}`}>
+          {urgent && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-rose-500" title="High priority" />}
+          <span className="truncate">{t.title}</span>
+          {t.revision > 0 && <span className="shrink-0 text-[11px] font-normal text-muted">· v{t.revision + 1}</span>}
         </span>
-        <span className="block truncate text-[11px] text-muted">
-          {taskKindLabel(t.kind)}
-          {showBrand && t.brand ? ` · ${t.brand.name}` : ""}
-        </span>
+        <span className="block truncate text-[12px] text-muted">{meta.join(" · ")}</span>
         {note && <span className="mt-1 line-clamp-2 block rounded-lg bg-rose-400/10 px-2 py-1 text-[11px] text-rose-400">“{note}”</span>}
       </span>
-      {pr && (
-        <span className="shrink-0 rounded-full px-2 py-0.5 text-[10.5px] font-semibold" style={{ background: `color-mix(in srgb, ${pr.color} 16%, transparent)`, color: pr.color }}>
-          {pr.label}
-        </span>
+      {!done && <span className={`shrink-0 text-[12px] font-medium ${due.tone}`}>{due.text}</span>}
+      {action ? (
+        <span className="relative z-[1] shrink-0">{action}</span>
+      ) : (
+        <Icon name="chevron" size={14} className="shrink-0 -rotate-90 text-faint transition group-hover:text-ink" />
       )}
-      <span
-        className="hidden shrink-0 rounded-full px-2 py-0.5 text-[10.5px] font-medium sm:inline"
-        style={{ background: `color-mix(in srgb, ${s.color} 15%, transparent)`, color: `color-mix(in oklab, ${s.color} 62%, var(--color-ink))` }}
-      >
-        {t.status === "completed" ? "To check" : t.status === "client_rejected" ? "Client changes" : s.label}
-      </span>
-      <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10.5px] font-medium ${due.cls}`}>{due.text}</span>
-      {t.assignee && (
-        <span className="hidden shrink-0 sm:block" title={t.assignee.name}>
-          <Avatar name={t.assignee.name} size={24} />
-        </span>
-      )}
-      <span className="relative z-[1] shrink-0">
-        {action || (
-          <Link href={`/tasks/${t.id}`} aria-label="Open" className="grid h-7 w-7 place-items-center rounded-full bg-panel-2 text-muted transition hover:bg-panel-3 hover:text-ink">
-            <Icon name="arrow" size={12} className="-rotate-45" />
-          </Link>
-        )}
-      </span>
     </li>
   );
 }

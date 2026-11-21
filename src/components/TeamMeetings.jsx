@@ -28,8 +28,8 @@ function MeetingRow({ m, now }) {
   const k = dayKey(m.starts_at);
   const day = k === dayKey(now) ? "Today" : k === dayKey(now + 864e5) ? "Tomorrow" : dayFmt.format(new Date(m.starts_at));
   return (
-    <li className="flex items-center gap-3 rounded-2xl bg-panel-2 px-3 py-2.5">
-      <span className={`w-[76px] shrink-0 rounded-xl px-2 py-1.5 text-center leading-tight ${live ? "bg-brand text-white" : "bg-panel"}`}>
+    <li className="flex items-center gap-3 border-b border-line py-2.5 last:border-0">
+      <span className={`w-[64px] shrink-0 rounded-xl px-2 py-1.5 text-center leading-tight ${live ? "bg-brand text-white" : "bg-panel-2"}`}>
         <span className={`block text-[10px] ${live ? "text-white/80" : "text-muted"}`}>{live ? "Now" : day}</span>
         <span className="block whitespace-nowrap text-xs font-medium tabular-nums">{timeFmt.format(new Date(m.starts_at))}</span>
       </span>
@@ -201,25 +201,24 @@ export default function TeamMeetings({ meetings, audience, connected, domain, no
   if (!meetings.length && !audience) return null;
   return (
     <section className="card rise min-w-0 p-5">
-      <div className="mb-3 flex items-start justify-between gap-3">
-        <div>
-          <h2 className="text-xl font-normal tracking-[-0.01em]">Meetings</h2>
-          <p className="text-xs text-muted">{meetings.length ? "Team meetings you're in" : "Nothing coming up"}</p>
-        </div>
+      <div className="mb-2 flex items-center justify-between gap-3">
+        <h2 className="text-[15px] font-medium">
+          Meetings {meetings.length > 0 && <span className="font-normal text-muted">{meetings.length}</span>}
+        </h2>
         {audience && (
-          <button type="button" onClick={() => setOpen(true)} className="btn-primary btn-sm">
-            <Icon name="plus" size={13} /> Schedule meeting
+          <button type="button" onClick={() => setOpen(true)} className="btn-ghost btn-sm">
+            <Icon name="plus" size={13} /> Schedule
           </button>
         )}
       </div>
       {meetings.length > 0 ? (
-        <ul className="grid gap-2 lg:grid-cols-2">
+        <ul className="grid gap-2">
           {meetings.map((m) => (
             <MeetingRow key={m.id} m={m} now={now} />
           ))}
         </ul>
       ) : (
-        <p className="rounded-2xl bg-panel-2 px-3 py-3 text-xs text-muted">Call a meeting with your groups, or a one-on-one with anyone in your team.</p>
+        <p className="py-2 text-[13px] text-muted">Nothing coming up.</p>
       )}
       {open && audience && createPortal(<Scheduler audience={audience} connected={connected} domain={domain} onClose={() => setOpen(false)} />, document.body)}
     </section>

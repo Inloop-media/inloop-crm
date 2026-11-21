@@ -39,7 +39,7 @@ export function PersonSelect({ people, value, onChange, kind }) {
   const order = [...known, ...Object.keys(groups)].filter((g, i, a) => g && a.indexOf(g) === i && groups[g]);
   return (
     <select className="field" value={value} onChange={(e) => onChange(e.target.value)} required>
-      <option value="">Assign to…</option>
+      <option value="">Pick a person…</option>
       {order.map((g) => (
         <optgroup key={g} label={KIND_GROUP[g] || g}>
           {groups[g].map((p) => (
