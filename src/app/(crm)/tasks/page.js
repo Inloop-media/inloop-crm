@@ -1,6 +1,10 @@
+// Tasks (layout "B"): a title with one row of views, a short filter row (team / brand / type as
+// dropdowns, not long pill rows), three numbers, then one list per stage. Empty stages hide.
 import Link from "next/link";
-import { Avatar, Panel, StatCard } from "@/components/ui";
+import { Avatar, Panel } from "@/components/ui";
 import { FilterPills, PageTop, Section, TaskLine } from "@/components/Desk";
+import { Counts } from "@/components/Home";
+import LinkSelect from "@/components/LinkSelect";
 import TaskBoard from "@/components/TaskBoard";
 import QuickAssign from "@/components/QuickAssign";
 import { listBrands } from "@/lib/brands";
@@ -13,58 +17,50 @@ import { OPEN_TASK, kindPlural, byPriority } from "@/lib/constants";
 export const metadata = { title: "Tasks" };
 const nowMs = () => Date.now();
 
+const overdue = (t) => OPEN_TASK.includes(t.status) && t.due_at && new Date(t.due_at).getTime() < nowMs();
+const KIND_LABEL = { design: "Designer", development: "Developer", video: "Video editor", performance: "Performance", social: "Social media", production: "Production", execution: "CBO", strategy: "Creative strategist", sales: "Sales", head: "Manager" };
 
-const overdue = (t) => OPEN_TASK.includes(t.status) && t.due_at && new Date(t.due_at).getTime() < Date.now();
-const KIND_LABEL = { design: "Designer", development: "Developer", video: "Video editor", performance: "Performance", social: "Social media", production: "Production", execution: "Execution head" };
-
+/** Everyone you look after, one row each: what they have open, what's late, what got approved. */
 function Workload({ people, tasks }) {
   const open = tasks.filter((t) => OPEN_TASK.includes(t.status));
+  const rows = people
+    .map((p) => {
+      const mine = open.filter((t) => t.assignee_id === p.id);
+      return { ...p, mine, late: mine.filter(overdue).length, done: tasks.filter((t) => t.assignee_id === p.id && t.status === "done").length };
+    })
+    .sort((a, b) => b.late - a.late || b.mine.length - a.mine.length || a.name.localeCompare(b.name));
+  const max = Math.max(1, ...rows.map((r) => r.mine.length));
   return (
-    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-      {people.map((p) => {
-        const mine = open.filter((t) => t.assignee_id === p.id);
-        const late = mine.filter(overdue).length;
-        const done = tasks.filter((t) => t.assignee_id === p.id && t.status === "done").length;
-        const revs = tasks.filter((t) => t.assignee_id === p.id).reduce((n, t) => n + t.revision, 0);
-        return (
-          <section key={p.id} className="card p-5">
-            <div className="flex items-center gap-3">
-              <Avatar name={p.name} size={40} />
-              <div className="min-w-0 flex-1">
-                <div className="truncate text-sm font-medium">{p.name}</div>
-                <div className="truncate text-xs text-muted">{p.kinds.map((k) => KIND_LABEL[k] || k).join(" · ")}</div>
-              </div>
-              <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${mine.length >= 6 ? "bg-rose-400/15 text-rose-400" : mine.length >= 3 ? "bg-amber-400/15 text-amber-400" : "bg-emerald-400/15 text-emerald-400"}`}>
-                {mine.length} open
+    <Section title="Team" count={rows.length}>
+      {rows.map((p) => (
+        <li key={p.id} className="flex items-center gap-3 border-b border-line py-3 last:border-0">
+          <Avatar name={p.name} size={34} />
+          <div className="min-w-0 flex-1">
+            <div className="flex items-baseline justify-between gap-3">
+              <span className="truncate text-[14px] font-medium">{p.name}</span>
+              <span className="shrink-0 text-[12px] tabular-nums text-muted">
+                {p.mine.length} open{p.late ? <span className="text-rose-500"> · {p.late} late</span> : ""} · {p.done} approved
               </span>
             </div>
-            <dl className="mt-4 grid grid-cols-3 gap-2 text-center">
-              {[
-                ["Overdue", late, late ? "text-rose-400" : ""],
-                ["Approved", done, ""],
-                ["Revisions", revs, ""],
-              ].map(([l, v, c]) => (
-                <div key={l} className="well px-2 py-2.5">
-                  <dd className={`text-lg font-medium ${c}`}>{v}</dd>
-                  <dt className="text-[11px] text-muted">{l}</dt>
-                </div>
-              ))}
-            </dl>
-            {mine.length > 0 && (
-              <ul className="mt-3 flex flex-col gap-1 text-xs text-muted">
-                {mine.slice(0, 3).map((t) => (
-                  <li key={t.id} className="truncate">
-                    <Link href={`/tasks/${t.id}`} className="hover:text-ink">
-                      · {t.title} <span className="text-faint">({t.brand?.name})</span>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
-        );
-      })}
-    </div>
+            <div className="mt-0.5 truncate text-[12px] text-muted">
+              {p.mine.length
+                ? p.mine.slice(0, 3).map((t, i) => (
+                    <span key={t.id}>
+                      {i > 0 && " · "}
+                      <Link href={`/tasks/${t.id}`} className="hover:text-ink">
+                        {t.title}
+                      </Link>
+                    </span>
+                  ))
+                : p.kinds.map((k) => KIND_LABEL[k] || k).join(" · ") || "No open work"}
+            </div>
+            <div className="mt-2 h-1 overflow-hidden rounded-full bg-panel-2">
+              <span className={`block h-full rounded-full ${p.late ? "bg-rose-500" : "bg-ink/70"}`} style={{ width: `${(p.mine.length / max) * 100}%` }} />
+            </div>
+          </div>
+        </li>
+      ))}
+    </Section>
   );
 }
 
@@ -78,6 +74,7 @@ export default async function TasksPage({ searchParams }) {
   if (!head) {
     return (
       <div className="page max-w-5xl">
+        <PageTop title="My tasks" sub="Press Start when you begin. When it's ready, open the task, upload the file and submit." />
         <div className="rise">
           <MyWork me={me} tasks={mine} />
         </div>
@@ -91,8 +88,6 @@ export default async function TasksPage({ searchParams }) {
   const teamView = me.role !== "admin" && headsTeam(me) && team.length > 0;
   const whole = sp.who === "all" || !teamView;
   const all = whole ? everything : everything.filter((t) => team.includes(t.assignee_id) || t.assigned_by === me.id);
-  // Who you can give work to (a head: own team + other heads) vs whose workload you're looking at
-  const assignable = everyone;
   const people = whole ? everyone : everyone.filter((p) => team.includes(p.id) || p.id === me.id);
   const active = brands.filter((b) => b.stage === "active").map((b) => ({ id: b.id, name: b.name }));
   const myOpen = mine.filter((t) => t.status !== "done").length;
@@ -122,75 +117,79 @@ export default async function TasksPage({ searchParams }) {
   const working = shown.filter((t) => OPEN_TASK.includes(t.status) && !isLate(t)).sort(byPriority);
   const withClient = shown.filter((t) => t.status === "sent_to_client");
   const approved = shown.filter((t) => t.status === "done").sort((a, b) => (b.done_at || "").localeCompare(a.done_at || ""));
-  const doneShare = shown.length ? Math.round((approved.length / shown.length) * 100) : 0;
-  const open = shown.filter((t) => t.status !== "done").length;
+  const filtered = Boolean(brand || kind);
+  const showFilters = current === "list" || current === "board";
 
   return (
     <div className="page">
       <PageTop
         title="Tasks"
-        sub={`${teamView && !whole ? `${(me.ledGroups || []).map((g) => g.name).join(", ")} · ` : ""}${open} open · ${late.length} late · ${doneShare}% approved`}
+        sub={teamView && !whole ? (me.ledGroups || []).map((g) => g.name).join(", ") : "Everyone's work"}
         right={
           <>
-            {teamView && (
-              <FilterPills
-                items={[
-                  { label: "My team", href: href({ who: "" }), on: !whole },
-                  { label: "Everyone", href: href({ who: "all" }), on: whole },
-                ]}
-              />
-            )}
             <FilterPills items={views.map((v) => ({ label: v.label, count: v.count, href: href({ view: v.id === "list" ? "" : v.id }), on: current === v.id }))} />
-            <QuickAssign brands={active} people={assignable} defaultBrand={brand} label="New task" />
+            <QuickAssign brands={active} people={everyone} defaultBrand={brand} label="New task" />
           </>
         }
       />
 
-      {(current === "list" || current === "board") && (
-        <>
-          <div className="rise grid grid-cols-2 gap-3 xl:grid-cols-4">
-            <StatCard coral label="To check" value={toCheck.length} note={toCheck.length ? "Finished, waiting for you" : "Nothing waiting"} />
-            <StatCard label="Late" value={late.length} tone="#e11d48" note={late.length ? "Past the due date" : "Nothing late"} />
-            <StatCard label="In progress" value={working.length} note={`${withClient.length} with clients`} />
-            <StatCard label="Approved" value={approved.length} bar={doneShare} />
-          </div>
-
-          <div className="rise mt-4 flex flex-wrap items-center gap-2">
+      {(showFilters || (current === "team" && teamView)) && (
+        <div className="rise mb-5 flex flex-wrap items-center gap-2">
+          {teamView && (
             <FilterPills
-              items={[{ label: "All", count: byBrand.length, href: href({ kind: "" }), on: !kind }, ...kinds.map((k) => ({ label: kindPlural(k), count: byBrand.filter((t) => t.kind === k).length, href: href({ kind: k }), on: kind === k }))]}
+              items={[
+                { label: "My team", href: href({ who: "" }), on: !whole },
+                { label: "Everyone", href: href({ who: "all" }), on: whole },
+              ]}
             />
-            {active.length > 1 && (
-              <FilterPills className="ml-auto" items={[{ label: "All brands", href: href({ brand: "" }), on: !brand }, ...active.map((b) => ({ label: b.name, href: href({ brand: b.id }), on: brand === b.id }))]} />
-            )}
-          </div>
-        </>
+          )}
+          {showFilters && active.length > 1 && (
+            <LinkSelect label="Brand" value={brand} options={[{ value: "", label: "All brands", href: href({ brand: "", kind: "" }) }, ...active.map((b) => ({ value: b.id, label: b.name, href: href({ brand: b.id, kind: "" }) }))]} />
+          )}
+          {showFilters && kinds.length > 1 && (
+            <LinkSelect label="Type" value={kind} options={[{ value: "", label: "All types", href: href({ kind: "" }) }, ...kinds.map((k) => ({ value: k, label: kindPlural(k), href: href({ kind: k }) }))]} />
+          )}
+          {showFilters && filtered && (
+            <Link href={href({ brand: "", kind: "" })} className="px-2 text-[12.5px] text-muted hover:text-ink">
+              Clear
+            </Link>
+          )}
+        </div>
       )}
 
-      <div className="rise mt-4">
-        {current === "list" && (
-          <div className="grid items-start gap-4 lg:grid-cols-2">
-            <Section title="To check" count={toCheck.length} tone="#8b5cf6" empty="Nothing to check ✓">
-              {toCheck.map((t) => (
-                <TaskLine key={t.id} t={t} showBrand={!brand} />
-              ))}
-            </Section>
-            <Section title="Late" count={late.length} tone="#e11d48" empty="Nothing late ✓">
-              {late.map((t) => (
-                <TaskLine key={t.id} t={t} showBrand={!brand} />
-              ))}
-            </Section>
-            <Section title="In progress" count={working.length} tone="#f59e0b" empty="No open work">
-              {working.map((t) => (
-                <TaskLine key={t.id} t={t} showBrand={!brand} />
-              ))}
-            </Section>
-            <Section title="With client & approved" count={withClient.length + approved.length} tone="#10b981" empty="Nothing yet">
-              {[...withClient, ...approved.slice(0, 12)].map((t) => (
-                <TaskLine key={t.id} t={t} showBrand={!brand} />
-              ))}
-            </Section>
-          </div>
-        )}
+      {showFilters && (
+        <Counts
+          items={[
+            { label: "To check", value: toCheck.length, tone: "red" },
+            { label: "Late", value: late.length, tone: "red" },
+            { label: "In progress", value: working.length },
+          ]}
+        />
+      )}
+
+      <div className="rise">
+        {current === "list" &&
+          (shown.length ? (
+            <div className="grid items-start gap-5 lg:grid-cols-2">
+              {[
+                ["To check", toCheck],
+                ["Late", late],
+                ["In progress", working],
+                ["With the client", withClient],
+                ["Approved", approved.slice(0, 12)],
+              ]
+                .filter(([, list]) => list.length)
+                .map(([title, list]) => (
+                  <Section key={title} title={title} count={title === "Approved" ? approved.length : list.length}>
+                    {list.map((t) => (
+                      <TaskLine key={t.id} t={t} showBrand={!brand} />
+                    ))}
+                  </Section>
+                ))}
+            </div>
+          ) : (
+            <p className="card p-6 text-[13px] text-muted">{filtered ? "No tasks match these filters." : "No tasks yet. Press New task to give someone work."}</p>
+          ))}
         {current === "board" && <TaskBoard tasks={shown} showBrand={!brand} />}
         {current === "team" &&
           (people.length ? (

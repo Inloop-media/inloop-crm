@@ -2,8 +2,9 @@
 // waiting on someone else. One clear next step on every row.
 import Link from "next/link";
 import Icon from "@/components/Icon";
-import { Empty, StatCard } from "@/components/ui";
-import { PageTop, Section, TaskLine } from "@/components/Desk";
+import { Empty } from "@/components/ui";
+import { Counts } from "@/components/Home";
+import { Section, TaskLine } from "@/components/Desk";
 import StartTask from "@/components/StartTask";
 import { OPEN_TASK, TASK_STATUSES, byPriority } from "@/lib/constants";
 
@@ -60,19 +61,17 @@ export default function MyWork({ me, tasks, embedded = false }) {
   // High priority first, whenever it was assigned
   const now_ = [...fix, ...overdue, ...dueToday].sort(byPriority);
   const coming = [...week, ...later].sort(byPriority);
-  const first = me.name.split(" ")[0];
 
   return (
     <div className="flex flex-col gap-4">
-      {!embedded && <PageTop title={`Hi ${first} 👋`} sub="Press Start when you begin. When it’s ready, open the task, upload the file and submit." />}
-
       {!embedded && (
-      <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
-        <StatCard coral label="Do today" value={now_.length} note={now_.length ? "Fixes, late & due today" : "Nothing urgent"} />
-        <StatCard label="Late" value={overdue.length} tone="#e11d48" note={overdue.length ? "Past the due date" : "Nothing late"} />
-        <StatCard label="Coming up" value={coming.length} note="This week & later" />
-        <StatCard label="Done" value={tasks.filter((t) => t.status === "done").length} bar={tasks.length ? Math.round((tasks.filter((t) => t.status === "done").length / tasks.length) * 100) : 0} />
-      </div>
+        <Counts
+          items={[
+            { label: "Do today", value: now_.length, tone: "red" },
+            { label: "Late", value: overdue.length, tone: "red" },
+            { label: "Waiting on others", value: waiting.length },
+          ]}
+        />
       )}
 
       {!tasks.length && !embedded && (

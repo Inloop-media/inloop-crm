@@ -46,19 +46,15 @@ export function FilterPills({ items, className = "" }) {
   );
 }
 
-export function Section({ title, count, tone = "#e11d2e", action, children, empty, className = "" }) {
+export function Section({ title, count, action, children, empty, className = "" }) {
   return (
-    <section className={`card min-w-0 p-4 sm:p-5 ${className}`}>
-      <header className="mb-2 flex items-center gap-2">
-        <h2 className="text-[17px] font-normal tracking-[-0.01em]">{title}</h2>
-        {count !== undefined && (
-          <span className="grid h-5 min-w-5 place-items-center rounded-full px-1.5 text-[11px] font-semibold tabular-nums" style={{ background: `color-mix(in srgb, ${tone} 14%, transparent)`, color: tone }}>
-            {count}
-          </span>
-        )}
+    <section className={`card min-w-0 p-5 ${className}`}>
+      <header className="mb-1 flex items-center gap-2">
+        <h2 className="text-[15px] font-medium">{title}</h2>
+        {count > 0 && <span className="text-[13px] tabular-nums text-muted">{count}</span>}
         {action && <span className="ml-auto">{action}</span>}
       </header>
-      {count === 0 && empty ? <p className="py-6 text-center text-[13px] text-muted">{empty}</p> : <ul className="flex flex-col">{children}</ul>}
+      {count === 0 && empty ? <p className="py-4 text-[13px] text-muted">{empty}</p> : <ul className="flex flex-col">{children}</ul>}
     </section>
   );
 }
