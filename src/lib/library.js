@@ -53,14 +53,14 @@ export async function libraryBrands() {
     b.files += 1;
     b.folders[a.folder] = (b.folders[a.folder] || 0) + 1;
     if (isPic(a) && b.covers.length < 3) {
-      b.covers.push(a.storage_path);
+      b.covers.push({ path: a.storage_path, logo: a.folder === "identity" });
       coverPaths.push(a.storage_path);
     }
   }
   const signed = await sign(coverPaths);
   return (brands || []).map((b) => {
     const x = by[b.id] || { files: 0, folders: {}, updated: null, covers: [] };
-    return { ...b, files: x.files, folders: x.folders, updated: x.updated, covers: x.covers.map((p) => signed[p]).filter(Boolean), completed: work[b.id] || 0 };
+    return { ...b, files: x.files, folders: x.folders, updated: x.updated, covers: x.covers.map((c) => ({ src: signed[c.path], logo: c.logo })).filter((c) => c.src), completed: work[b.id] || 0 };
   });
 }
 

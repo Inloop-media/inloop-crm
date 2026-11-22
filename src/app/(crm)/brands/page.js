@@ -2,6 +2,7 @@
 // grid of brand cards (clients first, then the ones still onboarding).
 import Link from "next/link";
 import BrandCard from "@/components/BrandCard";
+import Icon from "@/components/Icon";
 import AddBrands from "@/components/AddBrands";
 import { FilterPills } from "@/components/Desk";
 import { Empty } from "@/components/ui";
@@ -12,22 +13,37 @@ import { canOnboard, canSeeBrands } from "@/lib/permissions";
 
 export const metadata = { title: "Brands" };
 
+const TONE = {
+  red: ["bg-rose-500/12 text-rose-500", "text-rose-500"],
+  amber: ["bg-amber-500/12 text-amber-500", "text-amber-500"],
+  green: ["bg-emerald-500/12 text-emerald-500", ""],
+};
+
+/** One card split in four: each number with a small icon tile; zero stays quiet. */
 function Summary({ items }) {
   return (
-    <div className="rise mb-5 grid grid-cols-2 gap-3 md:grid-cols-4">
-      {items.map((s) => {
+    <div className="rise card mb-6 grid grid-cols-2 overflow-hidden !p-0 md:grid-cols-4">
+      {items.map((s, i) => {
+        const [tile, num] = (s.value && TONE[s.tone]) || ["bg-panel-2 text-muted", ""];
         const body = (
           <>
-            <span className="text-[12px] text-muted">{s.label}</span>
-            <span className={`text-[26px] font-light leading-none tracking-[-0.02em] tabular-nums ${s.value && s.tone === "red" ? "text-rose-500" : s.value && s.tone === "amber" ? "text-amber-500" : ""}`}>{s.value}</span>
+            <span className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl ${tile}`}>
+              <Icon name={s.icon || "tasks"} size={16} />
+            </span>
+            <span className="min-w-0">
+              <span className={`block text-[24px] font-light leading-none tracking-[-0.02em] tabular-nums ${num}`}>{s.value}</span>
+              <span className="mt-1 block truncate text-[12px] text-muted">{s.label}</span>
+            </span>
+            {s.href && <Icon name="arrow" size={12} className="ml-auto -rotate-45 text-faint opacity-0 transition group-hover:opacity-100" />}
           </>
         );
+        const cls = `group flex items-center gap-3.5 px-5 py-4 ${i % 2 ? "border-l border-line" : ""} ${i > 1 ? "border-t border-line md:border-t-0" : ""} ${i === 2 ? "md:border-l" : ""}`;
         return s.href ? (
-          <Link key={s.label} href={s.href} className="card card-hover flex flex-col gap-2 px-4 py-3.5">
+          <Link key={s.label} href={s.href} className={`${cls} transition hover:bg-panel-2/60`}>
             {body}
           </Link>
         ) : (
-          <div key={s.label} className="card flex flex-col gap-2 px-4 py-3.5">
+          <div key={s.label} className={cls}>
             {body}
           </div>
         );
@@ -80,10 +96,10 @@ export default async function BrandsPage({ searchParams }) {
         <>
           <Summary
             items={[
-              { label: "Tasks in work", value: sum("open"), href: "/tasks" },
-              { label: "To check", value: sum("review"), tone: "amber", href: "/tasks" },
-              { label: "Late", value: sum("overdue"), tone: "red", href: "/tasks" },
-              { label: "Approved so far", value: sum("done") },
+              { label: "Tasks in work", value: sum("open"), icon: "tasks", href: "/tasks" },
+              { label: "To check", value: sum("review"), tone: "amber", icon: "check", href: "/tasks" },
+              { label: "Late", value: sum("overdue"), tone: "red", icon: "clock", href: "/tasks" },
+              { label: "Approved so far", value: sum("done"), tone: "green", icon: "sparkle" },
             ]}
           />
 
@@ -97,7 +113,7 @@ export default async function BrandsPage({ searchParams }) {
           />
 
           {list.length ? (
-            <div className="rise grid gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
+            <div className="rise grid gap-5 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
               {list.map((b) => (
                 <BrandCard key={b.id} b={b} unread={unread[b.id]} />
               ))}
