@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { pingLive } from "@/lib/live";
 import { requireMember } from "@/lib/auth";
 import { db } from "@/lib/supabase/server";
 import { getBrand } from "@/lib/brands";
@@ -34,6 +35,7 @@ export async function setCalendarLock(brandId, locked) {
 }
 
 function refresh(brandId) {
+  pingLive("calendar");
   revalidatePath("/calendar");
   revalidatePath(`/brands/${brandId}`);
   revalidatePath("/client");

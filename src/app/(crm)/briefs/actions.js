@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { pingLive } from "@/lib/live";
 import { requireMember } from "@/lib/auth";
 import { db } from "@/lib/supabase/server";
 import { addEvents } from "@/lib/leads";
@@ -20,6 +21,7 @@ async function loadProposal(leadId) {
 }
 
 const refresh = (leadId) => {
+  pingLive("proposals");
   revalidatePath("/briefs");
   revalidatePath(`/briefs/${leadId}`);
   revalidatePath(`/leads/${leadId}`);

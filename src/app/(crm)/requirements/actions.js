@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { pingLive } from "@/lib/live";
 import { requireMember } from "@/lib/auth";
 import { createRequirement, reqUploadUrl, updateRequirement } from "@/lib/requirements";
 
@@ -9,7 +10,10 @@ const isUuid = (v) => /^[0-9a-f-]{36}$/i.test(String(v || ""));
 export async function addRequirement(input) {
   const me = await requireMember();
   const r = await createRequirement(me, input || {});
-  if (r.ok) revalidatePath("/", "layout");
+  if (r.ok) {
+    revalidatePath("/", "layout");
+    pingLive("requirements");
+  }
   return r;
 }
 
@@ -18,7 +22,10 @@ export async function changeRequirement(id, change) {
   if (!isUuid(id)) return { ok: false, error: "Invalid request." };
   if (change?.forward && !isUuid(change.forward)) return { ok: false, error: "Pick someone." };
   const r = await updateRequirement(me, id, change || {});
-  if (r.ok) revalidatePath("/", "layout");
+  if (r.ok) {
+    revalidatePath("/", "layout");
+    pingLive("requirements");
+  }
   return r;
 }
 

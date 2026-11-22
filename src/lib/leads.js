@@ -1,4 +1,5 @@
 import "server-only";
+import { unstable_cache } from "next/cache";
 import { db } from "@/lib/supabase/server";
 import { MEMBER_FIELDS } from "@/lib/auth";
 import { CLOSED_STATUSES } from "@/lib/constants";
@@ -83,7 +84,9 @@ export async function listAssignees() {
   return (await listMembers({ activeOnly: true })).filter((m) => m.groups.some((g) => g.kind === "sales"));
 }
 
-export async function listGroups() {
+export const listGroups = unstable_cache(loadGroups, ["groups-with-members-v1"], { tags: ["groups"], revalidate: 300 });
+
+async function loadGroups() {
   const fields = "*, group_members(member:members(id, name, email, active))"; // * → lead_id / team_lead_id once their migrations ran
   let { data, error } = await db().from("groups").select(`${fields}, lead_id`).order("created_at");
   if (error) ({ data, error } = await db().from("groups").select(fields).order("created_at")); // before migration 015

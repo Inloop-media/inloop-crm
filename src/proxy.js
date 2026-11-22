@@ -24,9 +24,11 @@ export async function proxy(request) {
     },
   });
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // Verifies the signed login token locally (and refreshes it when it's about to expire)
+  const { data } = await supabase.auth.getClaims().catch(() => ({ data: null }));
+  let user = data?.claims || null;
+  // Safety net: only ask the auth server when the local check couldn't confirm a login
+  if (!user && request.cookies.getAll().some((c) => c.name.startsWith("sb-"))) user = (await supabase.auth.getUser()).data?.user || null;
 
   const path = request.nextUrl.pathname;
   if (!user && !PUBLIC.some((p) => path === p || path.startsWith(p + "/"))) {

@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { pingLive } from "@/lib/live";
 import { requireMember } from "@/lib/auth";
 import { cancelTeamMeeting, createTeamMeeting } from "@/lib/teamMeetings";
 
@@ -8,7 +9,10 @@ import { cancelTeamMeeting, createTeamMeeting } from "@/lib/teamMeetings";
 export async function scheduleTeamMeeting(input) {
   const me = await requireMember();
   const r = await createTeamMeeting(me, input && typeof input === "object" ? input : {});
-  if (r.ok) revalidatePath("/");
+  if (r.ok) {
+    revalidatePath("/");
+    pingLive("meetings");
+  }
   return r;
 }
 
@@ -16,6 +20,9 @@ export async function cancelMeeting(id) {
   const me = await requireMember();
   if (!/^[0-9a-f-]{36}$/i.test(String(id || ""))) return { ok: false, error: "Meeting not found." };
   const r = await cancelTeamMeeting(me, id);
-  if (r.ok) revalidatePath("/");
+  if (r.ok) {
+    revalidatePath("/");
+    pingLive("meetings");
+  }
   return r;
 }

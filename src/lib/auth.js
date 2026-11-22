@@ -1,5 +1,6 @@
 import "server-only";
 import { cache } from "react";
+import { unstable_cache } from "next/cache";
 import { redirect } from "next/navigation";
 import { createAuthClient, db } from "@/lib/supabase/server";
 import { operationsHeadIds, runsGroup, teamLeadIdsOf } from "@/lib/groups";
@@ -47,10 +48,21 @@ export async function memberForEmail(email, fullName) {
  * Groups this member runs — as one of its heads, or as the CBO it comes under:
  * [{ id, name, kind, memberIds, owned }]. Also says whether they head CBO itself.
  */
+// Every group with its member ids. Asked on every click and changes rarely, so it's kept for 5 minutes;
+// anything that changes groups or members calls updateTag("groups") and the next click gets it fresh.
+const allGroups = unstable_cache(
+  async () => {
+    const { data, error } = await db().from("groups").select("*, group_members(member_id)");
+    if (error) throw new Error(error.message);
+    return data || [];
+  },
+  ["groups-with-member-ids-v1"],
+  { tags: ["groups"], revalidate: 300 }
+);
+
 async function ledGroupsOf(memberId) {
-  const { data, error } = await db().from("groups").select("*, group_members(member_id)");
-  if (error) return { led: [], lead: [], opsHead: false };
-  const all = data || [];
+  const all = await allGroups().catch(() => null);
+  if (!all) return { led: [], lead: [], opsHead: false };
   const led = all
     .filter((g) => runsGroup(g, memberId))
     .map((g) => ({ id: g.id, name: g.name, kind: g.kind, owned: g.owner_id === memberId, memberIds: (g.group_members || []).map((m) => m.member_id) }));
@@ -69,11 +81,16 @@ async function groupsOf(memberId) {
 /** Signed-in member for this request (cached per render). */
 export const getCurrentMember = cache(async () => {
   const supabase = await createAuthClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return null;
-  return memberForEmail(user.email, user.user_metadata?.full_name);
+  // getClaims checks the signed login token right here (Supabase signing keys) — no trip to the auth server
+  const { data } = await supabase.auth.getClaims().catch(() => ({ data: null }));
+  let claims = data?.claims;
+  if (!claims?.email) {
+    // Safety net: if the local check couldn't decide, ask the auth server like before
+    const { data: u } = await supabase.auth.getUser();
+    if (!u?.user) return null;
+    claims = { email: u.user.email, user_metadata: u.user.user_metadata };
+  }
+  return memberForEmail(claims.email, claims.user_metadata?.full_name);
 });
 
 /**

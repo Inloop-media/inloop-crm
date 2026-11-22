@@ -1,6 +1,7 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, updateTag } from "next/cache";
+import { pingLive } from "@/lib/live";
 import { redirect } from "next/navigation";
 import { after } from "next/server";
 import { getCurrentMember, requireMember } from "@/lib/auth";
@@ -103,6 +104,7 @@ export async function updateLead(id, patch) {
   if (changes.status === "Won") await onboardLead(id, me.id).catch((e) => console.error("Onboarding failed:", e));
 
   revalidatePath("/leads");
+  pingLive("leads");
   revalidatePath(`/leads/${id}`);
   revalidatePath("/");
   return { ok: true };
@@ -239,6 +241,7 @@ export async function createLead(_prev, formData) {
   await addEvents(data.id, me.id, [{ type: "created", data: { source: row.source } }]);
   if (row.assigned_to && row.assigned_to !== me.id) after(() => pushNewLead([row.assigned_to], { ...row, ...data }, "New lead assigned to you"));
   revalidatePath("/leads");
+  pingLive("leads");
   redirect(`/leads/${data.id}`);
 }
 
@@ -486,6 +489,7 @@ export async function addMember(_prev, formData) {
   if (error) return { error: error.code === "23505" ? "That email is already on the team." : error.message };
   await setMemberGroups(data.id, formData.getAll("groups").map(String));
   revalidatePath("/team");
+  updateTag("groups");
   return { ok: true, message: `${name} added — they can now sign in with ${email}.` };
 }
 
@@ -507,7 +511,9 @@ export async function updateMember(id, patch) {
   }
   if (Array.isArray(patch.groups)) await setMemberGroups(id, patch.groups);
   revalidatePath("/team");
+  updateTag("groups");
   revalidatePath("/leads");
+  pingLive("leads");
   return { ok: true };
 }
 
@@ -517,7 +523,9 @@ const MIGRATION_021 = "Groups with managers and more than one team lead need mig
 const uuids = (v) => [...new Set((Array.isArray(v) ? v : []).filter(isUuid))];
 
 function refreshGroups(id) {
+  pingLive("groups");
   revalidatePath("/team");
+  updateTag("groups");
   revalidatePath("/groups");
   if (id) revalidatePath(`/groups/${id}`);
   revalidatePath("/dm");
@@ -601,6 +609,7 @@ export async function addGuest(_prev, formData) {
   const { error } = await db().from("meeting_guests").upsert({ name, email, active: true }, { onConflict: "email" });
   if (error) return { error: error.message };
   revalidatePath("/team");
+  updateTag("groups");
   return { ok: true, message: `${name} can now be added to discovery calls.` };
 }
 
@@ -614,6 +623,7 @@ export async function updateGuest(id, patch) {
   const { error } = await db().from("meeting_guests").update(changes).eq("id", id);
   if (error) return { ok: false, error: error.message };
   revalidatePath("/team");
+  updateTag("groups");
   return { ok: true };
 }
 

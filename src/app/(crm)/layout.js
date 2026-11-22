@@ -7,6 +7,7 @@ import ThemeToggle from "@/components/ThemeToggle";
 import SwitchAccount from "@/components/SwitchAccount";
 import FeedbackNote from "@/components/FeedbackNote";
 import Celebration from "@/components/Celebration";
+import LiveRefresh from "@/components/LiveRefresh";
 import { unreadCounts } from "@/lib/chat";
 import { unseenCelebrations } from "@/lib/brands";
 import { taskBadge } from "@/lib/tasks";
@@ -156,6 +157,7 @@ export default async function CrmLayout({ children }) {
       <PhoneTabs items={items.filter((it) => it.href !== "/leads/new")} bottom={bottom} />
       {me.role !== "admin" && <FeedbackNote />}
       <Celebration initial={celebrations} />
+      <LiveRefresh />
     </div>
   );
 }

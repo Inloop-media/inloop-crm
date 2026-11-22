@@ -5,6 +5,7 @@ import { after } from "next/server";
 import { requireMember } from "@/lib/auth";
 import { db } from "@/lib/supabase/server";
 import { getBrand } from "@/lib/brands";
+import { pingLive } from "@/lib/live";
 import { canAssignTo, logTask, notifyTask, TASK_FIELDS } from "@/lib/tasks";
 import { MAKER_STATUS_OPTIONS, OPEN_TASK, PRIORITIES, TASK_KINDS, TASK_STATUSES } from "@/lib/constants";
 import { canAssignTasks, canReviewTask } from "@/lib/permissions";
@@ -36,6 +37,7 @@ async function loadTask(id) {
 }
 
 function refresh(task) {
+  pingLive("tasks");
   revalidatePath("/tasks");
   revalidatePath(`/tasks/${task.id}`);
   revalidatePath(`/brands/${task.brand_id}`);
