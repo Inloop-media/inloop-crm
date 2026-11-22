@@ -2,7 +2,7 @@
 // grid of brand cards (clients first, then the ones still onboarding).
 import Link from "next/link";
 import BrandCard from "@/components/BrandCard";
-import Icon from "@/components/Icon";
+import { HatchBar, RoundLink, Tile } from "@/components/Bold";
 import AddBrands from "@/components/AddBrands";
 import { FilterPills } from "@/components/Desk";
 import { Empty } from "@/components/ui";
@@ -12,45 +12,6 @@ import { unreadCounts } from "@/lib/chat";
 import { canOnboard, canSeeBrands } from "@/lib/permissions";
 
 export const metadata = { title: "Brands" };
-
-const TONE = {
-  red: ["bg-rose-500/12 text-rose-500", "text-rose-500"],
-  amber: ["bg-amber-500/12 text-amber-500", "text-amber-500"],
-  green: ["bg-emerald-500/12 text-emerald-500", ""],
-};
-
-/** One card split in four: each number with a small icon tile; zero stays quiet. */
-function Summary({ items }) {
-  return (
-    <div className="rise card mb-6 grid grid-cols-2 overflow-hidden !p-0 md:grid-cols-4">
-      {items.map((s, i) => {
-        const [tile, num] = (s.value && TONE[s.tone]) || ["bg-panel-2 text-muted", ""];
-        const body = (
-          <>
-            <span className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl ${tile}`}>
-              <Icon name={s.icon || "tasks"} size={16} />
-            </span>
-            <span className="min-w-0">
-              <span className={`block text-[24px] font-light leading-none tracking-[-0.02em] tabular-nums ${num}`}>{s.value}</span>
-              <span className="mt-1 block truncate text-[12px] text-muted">{s.label}</span>
-            </span>
-            {s.href && <Icon name="arrow" size={12} className="ml-auto -rotate-45 text-faint opacity-0 transition group-hover:opacity-100" />}
-          </>
-        );
-        const cls = `group flex items-center gap-3.5 px-5 py-4 ${i % 2 ? "border-l border-line" : ""} ${i > 1 ? "border-t border-line md:border-t-0" : ""} ${i === 2 ? "md:border-l" : ""}`;
-        return s.href ? (
-          <Link key={s.label} href={s.href} className={`${cls} transition hover:bg-panel-2/60`}>
-            {body}
-          </Link>
-        ) : (
-          <div key={s.label} className={cls}>
-            {body}
-          </div>
-        );
-      })}
-    </div>
-  );
-}
 
 export default async function BrandsPage({ searchParams }) {
   const me = await requireMember(canSeeBrands);
@@ -68,6 +29,10 @@ export default async function BrandsPage({ searchParams }) {
   const busy = (b) => (b.counts?.overdue || 0) * 1e4 + (b.counts?.review || 0) * 100 + (b.counts?.open || 0);
   const sortedActive = [...active].sort((a, b) => busy(b) - busy(a) || a.name.localeCompare(b.name));
   const list = show === "active" ? sortedActive : show === "onboarding" ? onboarding : [...sortedActive, ...onboarding];
+  const approvedPct = sum("total") ? Math.round((sum("done") / sum("total")) * 100) : 0;
+  const attention = sortedActive.filter((b) => (b.counts?.overdue || 0) + (b.counts?.review || 0) > 0);
+  const maxAttention = Math.max(1, ...attention.map((b) => (b.counts?.overdue || 0) + (b.counts?.review || 0)));
+  const busiest = busy(sortedActive[0] || {}) > 0 ? sortedActive[0].id : "";
   const totalUnread = Object.values(unread).reduce((n, c) => n + c, 0);
 
   return (
@@ -94,14 +59,69 @@ export default async function BrandsPage({ searchParams }) {
         </div>
       ) : (
         <>
-          <Summary
-            items={[
-              { label: "Tasks in work", value: sum("open"), icon: "tasks", href: "/tasks" },
-              { label: "To check", value: sum("review"), tone: "amber", icon: "check", href: "/tasks" },
-              { label: "Late", value: sum("overdue"), tone: "red", icon: "clock", href: "/tasks" },
-              { label: "Approved so far", value: sum("done"), tone: "green", icon: "sparkle" },
-            ]}
-          />
+          <div className="rise mb-6 grid gap-4 xl:grid-cols-12">
+            {/* Hero */}
+            <section className="card p-5 xl:col-span-8">
+              <div className="flex flex-wrap items-start justify-between gap-4">
+                <div>
+                  <p className="text-xs text-muted">Client work · {active.length} clients</p>
+                  <h2 className="mt-1 text-[26px] font-normal leading-tight tracking-[-0.02em]">
+                    Keep every brand <span className="text-brand">on track</span>
+                  </h2>
+                </div>
+                <RoundLink href="/tasks" label="All tasks" />
+              </div>
+              <div className="mt-3 flex flex-wrap items-end gap-x-3 gap-y-1">
+                <span className="text-[52px] font-normal leading-none tracking-[-0.03em] tabular-nums">{sum("total")}</span>
+                <span className="mb-1.5 text-sm text-muted">tasks across clients</span>
+                <span className="mb-2 rounded-full bg-emerald-400/15 px-2 py-0.5 text-[11px] font-medium text-emerald-500">{approvedPct}% approved</span>
+              </div>
+              <div className="relative mt-8">
+                <HatchBar pct={approvedPct} />
+                <span className="absolute -top-7 flex -translate-x-1/2 flex-col items-center" style={{ left: `${Math.min(94, Math.max(6, approvedPct))}%` }}>
+                  <span className="rounded-md bg-solid px-1.5 py-0.5 text-[10px] font-medium text-on-solid">{sum("done")} approved</span>
+                  <span className="h-6 w-px bg-ink" />
+                </span>
+              </div>
+              <div className="mt-4 grid gap-2.5 sm:grid-cols-3">
+                <Tile icon="tasks" label="In work" value={sum("open")} note="being made now" href="/tasks" />
+                <Tile icon="check" label="To check" value={sum("review")} note="finished, waiting for you" href="/tasks" />
+                <Tile icon="clock" label="Late" value={sum("overdue")} note="past their due date" href="/tasks" tone="red" />
+              </div>
+            </section>
+
+            {/* Needs attention */}
+            <section className="card-coral flex flex-col p-5 xl:col-span-4">
+              <div className="flex items-start justify-between">
+                <h2 className="text-xl font-normal tracking-[-0.01em]">Needs attention</h2>
+                <RoundLink href="/tasks" label="Open tasks" light />
+              </div>
+              <div className="mt-5 flex items-end gap-2">
+                <span className="text-[64px] font-light leading-none tabular-nums">{attention.length}</span>
+                <span className="mb-2 text-xs leading-tight text-white/80">
+                  of {active.length}
+                  <br />
+                  clients
+                </span>
+              </div>
+              <p className="mt-1 text-[11px] text-white/75">Late work or work waiting to be checked</p>
+              <div className="mt-auto flex flex-col gap-2.5 pt-5">
+                {attention.slice(0, 4).map((b) => {
+                  const n = (b.counts?.overdue || 0) + (b.counts?.review || 0);
+                  return (
+                    <Link key={b.id} href={`/brands/${b.id}`} className="flex items-center gap-3 text-[11px] hover:opacity-90">
+                      <span className="w-24 shrink-0 truncate text-white/90">{b.name}</span>
+                      <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-white/25">
+                        <span className="block h-full rounded-full bg-white" style={{ width: `${(n / maxAttention) * 100}%` }} />
+                      </span>
+                      <span className="w-5 text-right font-medium tabular-nums">{n}</span>
+                    </Link>
+                  );
+                })}
+                {!attention.length && <p className="text-[12px] text-white/85">All clear — nothing late or waiting ✓</p>}
+              </div>
+            </section>
+          </div>
 
           <FilterPills
             className="rise mb-5"
@@ -115,7 +135,7 @@ export default async function BrandsPage({ searchParams }) {
           {list.length ? (
             <div className="rise grid gap-5 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
               {list.map((b) => (
-                <BrandCard key={b.id} b={b} unread={unread[b.id]} />
+                <BrandCard key={b.id} b={b} unread={unread[b.id]} dark={b.id === busiest} />
               ))}
             </div>
           ) : (

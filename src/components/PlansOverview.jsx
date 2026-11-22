@@ -1,8 +1,10 @@
-// Content calendar → "Brand plans": every brand's month at a glance.
-//   Four numbers on top, then rich cards for brands that have a plan (or posts) this month, and one
-//   compact row of chips for brands with nothing set yet. Every card / chip opens that brand's calendar.
+// Content calendar → "Brand plans", in the Overview's bold style:
+//   a hero with posts planned against the month's target, a coral card of brands that still need a plan,
+//   a card per brand with a plan (ring + one hatched bar per post type; the furthest along is the black
+//   card), and grey tiles for brands with nothing set yet. Everything opens that brand's calendar.
 import Link from "next/link";
 import Icon from "@/components/Icon";
+import { DARK, HatchBar, Ring, RoundLink, Tile } from "@/components/Bold";
 import { BrandMark, Empty } from "@/components/ui";
 import { planProgress } from "@/lib/calendar";
 import { kindPlural } from "@/lib/constants";
@@ -12,91 +14,61 @@ const href = (p) => {
   const s = q.toString();
   return `/calendar${s ? `?${s}` : ""}`;
 };
+const share = (p) => (p.target ? Math.min(100, Math.round((p.planned / p.target) * 100)) : p.planned ? 100 : 0);
 
-/** A small ring with the planned share in the middle. */
-function Ring({ pct, tone, label }) {
-  const r = 17;
-  const c = 2 * Math.PI * r;
+function PlanCard({ b, plan, p, month, dark }) {
+  const pct = share(p);
+  const muted = dark ? "text-white/60" : "text-muted";
+  const note = !p.target ? "No targets set" : p.planned >= p.target ? "Fully planned" : p.planned ? `${p.target - p.planned} still to plan` : "Not started";
   return (
-    <span className="relative grid h-12 w-12 shrink-0 place-items-center">
-      <svg viewBox="0 0 40 40" className="absolute inset-0 h-12 w-12 -rotate-90">
-        <circle cx="20" cy="20" r={r} fill="none" stroke="var(--color-panel-2)" strokeWidth="3.5" />
-        {pct > 0 && <circle cx="20" cy="20" r={r} fill="none" stroke={tone} strokeWidth="3.5" strokeLinecap="round" strokeDasharray={`${(c * pct) / 100} ${c}`} />}
-      </svg>
-      <span className="text-[11px] font-medium tabular-nums">{label ?? `${pct}%`}</span>
-    </span>
-  );
-}
-
-/** Planned → assigned → done as three stacked layers of one bar. */
-function Stages({ max, planned, assigned, done }) {
-  const w = (n) => `${max ? Math.min(100, (n / max) * 100) : 0}%`;
-  return (
-    <div className="relative h-2 overflow-hidden rounded-full bg-panel-2">
-      <span className="absolute inset-y-0 left-0 rounded-full bg-ink/15" style={{ width: w(planned) }} />
-      <span className="absolute inset-y-0 left-0 rounded-full bg-ink/40" style={{ width: w(assigned) }} />
-      <span className="absolute inset-y-0 left-0 rounded-full bg-emerald-500" style={{ width: w(done) }} />
-    </div>
-  );
-}
-
-function PlanCard({ b, plan, p, month }) {
-  const pct = p.target ? Math.min(100, Math.round((p.planned / p.target) * 100)) : 100;
-  const status = !p.target
-    ? ["No deliverables set", "bg-panel-2 text-muted", "var(--color-faint)"]
-    : p.planned >= p.target
-      ? ["Fully planned", "bg-emerald-500/12 text-emerald-600 dark:text-emerald-400", "#10b981"]
-      : p.planned
-        ? [`${p.target - p.planned} still to plan`, "bg-amber-500/12 text-amber-600 dark:text-amber-400", "#f59e0b"]
-        : ["Not started", "bg-rose-500/12 text-rose-500", "#f43f5e"];
-  const max = Math.max(p.target, p.planned, 1);
-  return (
-    <Link href={href({ brand: b.id, month })} className="group card card-hover flex flex-col gap-4 p-5">
-      <div className="flex items-center gap-3">
+    <Link href={href({ brand: b.id, month })} className={`group flex flex-col p-5 transition duration-300 hover:-translate-y-1 ${dark ? DARK : "card hover:shadow-[0_20px_40px_-22px_rgb(0_0_0/0.3)]"}`}>
+      <div className="flex items-start gap-3">
         <BrandMark name={b.name} size={40} />
         <div className="min-w-0 flex-1">
-          <div className="truncate text-[15px] font-medium group-hover:text-brand">{b.name}</div>
-          <span className={`mt-0.5 inline-block rounded-full px-2 py-0.5 text-[10.5px] font-medium ${status[1]}`}>{status[0]}</span>
+          {dark && (
+            <span className="mb-0.5 flex items-center gap-1.5 text-[11px] text-white/60">
+              <span className="h-1.5 w-1.5 rounded-full bg-brand" /> Furthest along
+            </span>
+          )}
+          <div className="truncate text-[16px] font-medium tracking-[-0.01em]">{b.name}</div>
+          <div className={`text-[11.5px] ${!dark && p.target && !p.planned ? "text-brand" : muted}`}>{note}</div>
         </div>
-        <Ring pct={p.target ? pct : 0} tone={status[2]} label={p.target ? undefined : "—"} />
+        <Ring pct={pct} light={dark} />
       </div>
 
-      <div>
-        <Stages max={max} planned={p.planned} assigned={p.assigned} done={p.done} />
-        <div className="mt-2 grid grid-cols-3 text-[11.5px] text-muted">
-          <span>
-            <b className="text-[14px] font-medium tabular-nums text-ink">{p.planned}</b>
-            {p.target ? <span className="text-faint">/{p.target}</span> : ""} planned
-          </span>
-          <span className="text-center">
-            <b className="text-[14px] font-medium tabular-nums text-ink">{p.assigned}</b> assigned
-          </span>
-          <span className="text-right">
-            <b className="text-[14px] font-medium tabular-nums text-emerald-600 dark:text-emerald-400">{p.done}</b> done
-          </span>
-        </div>
+      <div className="mt-4 flex items-end gap-2">
+        <span className="text-[34px] font-light leading-none tabular-nums tracking-[-0.03em]">{p.planned}</span>
+        <span className={`mb-1 text-[12px] ${muted}`}>{p.target ? `of ${p.target} posts planned` : "posts planned"}</span>
       </div>
 
-      {p.rows.length > 0 && (
-        <ul className="flex flex-col gap-2 border-t border-line pt-3">
-          {p.rows.map((r) => {
-            const of = Math.max(r.target, r.planned, 1);
-            return (
-              <li key={r.kind} className="grid grid-cols-[6.5rem_1fr_auto] items-center gap-3 text-[12px]">
-                <span className="truncate text-muted">{kindPlural(r.kind)}</span>
-                <span className="h-1 overflow-hidden rounded-full bg-panel-2">
-                  <span className={`block h-full rounded-full ${r.target && r.planned >= r.target ? "bg-emerald-500" : "bg-ink/50"}`} style={{ width: `${Math.min(100, (r.planned / of) * 100)}%` }} />
-                </span>
-                <span className="tabular-nums">
-                  {r.planned}
-                  {r.target ? <span className="text-faint">/{r.target}</span> : ""}
-                </span>
-              </li>
-            );
-          })}
-        </ul>
-      )}
-      {plan?.inherited && <span className="-mt-2 text-[10.5px] text-faint">Deliverables carried over from an earlier month</span>}
+      <ul className="mt-4 flex flex-col gap-2.5">
+        {p.rows.map((r) => {
+          const of = Math.max(r.target, r.planned, 1);
+          return (
+            <li key={r.kind} className="grid grid-cols-[5.5rem_1fr_2.5rem] items-center gap-3 text-[11.5px]">
+              <span className={`truncate ${muted}`}>{kindPlural(r.kind)}</span>
+              <HatchBar pct={(r.planned / of) * 100} className="h-2" light={dark} />
+              <span className="text-right tabular-nums">
+                <b className="font-medium">{r.planned}</b>
+                {r.target ? <span className={muted}>/{r.target}</span> : ""}
+              </span>
+            </li>
+          );
+        })}
+      </ul>
+
+      <div className="mt-auto grid grid-cols-2 gap-1.5 pt-4">
+        {[
+          ["Assigned", p.assigned, ""],
+          ["Done", p.done, "text-emerald-500"],
+        ].map(([l, v, tone]) => (
+          <span key={l} className={`flex items-center justify-between rounded-xl px-3 py-2 text-[11px] ${dark ? "bg-white/10 text-white/60" : "bg-panel-2 text-muted"}`}>
+            {l}
+            <b className={`text-[13px] font-medium tabular-nums ${v && tone ? tone : dark ? "text-white" : "text-ink"}`}>{v}</b>
+          </span>
+        ))}
+      </div>
+      {plan?.inherited && <span className={`mt-2 text-[10.5px] ${muted}`}>Targets carried over from an earlier month</span>}
     </Link>
   );
 }
@@ -109,54 +81,103 @@ export default function PlansOverview({ brands, plans, items, month }) {
       </div>
     );
   const rows = brands.map((b) => ({ b, plan: plans[b.id], p: planProgress(plans[b.id], items.filter((i) => i.brand_id === b.id)) }));
-  const live = rows.filter((r) => r.p.target || r.p.planned).sort((x, y) => (x.p.target ? x.p.planned / x.p.target : 2) - (y.p.target ? y.p.planned / y.p.target : 2));
+  const live = rows.filter((r) => r.p.target || r.p.planned).sort((x, y) => share(y.p) - share(x.p) || y.p.planned - x.p.planned);
   const idle = rows.filter((r) => !r.p.target && !r.p.planned);
   const sum = (f) => live.reduce((n, r) => n + r.p[f], 0);
   const target = sum("target");
+  const planned = sum("planned");
+  const pct = target ? Math.min(100, Math.round((planned / target) * 100)) : 0;
+  const behind = live.filter((r) => r.p.target && r.p.planned < r.p.target).sort((x, y) => share(x.p) - share(y.p));
+  const lead = live[0] && share(live[0].p) > 0 ? live[0].b.id : "";
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        {[
-          ["Brands with a plan", live.length, `of ${rows.length}`],
-          ["Posts planned", sum("planned"), target ? `of ${target}` : ""],
-          ["Assigned", sum("assigned"), "to the team"],
-          ["Done", sum("done"), "posted or approved", "text-emerald-600 dark:text-emerald-400"],
-        ].map(([l, v, note, cls]) => (
-          <div key={l} className="card px-4 py-3.5">
-            <div className="text-[12px] text-muted">{l}</div>
-            <div className="mt-1 flex items-baseline gap-1.5">
-              <span className={`text-[26px] font-light leading-none tabular-nums tracking-[-0.02em] ${cls || ""}`}>{v}</span>
-              {note && <span className="text-[11.5px] text-faint">{note}</span>}
-            </div>
+      <div className="grid gap-4 xl:grid-cols-12">
+        {/* Hero */}
+        <section className="card p-5 xl:col-span-8">
+          <p className="text-xs text-muted">
+            Posts planned this month{target ? ` · target ${target}` : ""}
+          </p>
+          <h2 className="mt-1 text-[26px] font-normal leading-tight tracking-[-0.02em]">
+            Plan every brand&apos;s <span className="text-brand">month</span>
+          </h2>
+          <div className="mt-3 flex flex-wrap items-end gap-x-3 gap-y-1">
+            <span className="text-[52px] font-normal leading-none tracking-[-0.03em] tabular-nums">{planned}</span>
+            <span className="mb-1.5 text-sm text-muted">posts planned</span>
+            {target > 0 && <span className={`mb-2 rounded-full px-2 py-0.5 text-[11px] font-medium ${pct >= 100 ? "bg-emerald-400/15 text-emerald-500" : "bg-brand/10 text-brand"}`}>{pct}% of target</span>}
           </div>
-        ))}
+          <div className="relative mt-8">
+            <HatchBar pct={pct} />
+            <span className="absolute -top-7 right-[3%] flex flex-col items-center">
+              <span className="rounded-md bg-solid px-1.5 py-0.5 text-[10px] font-medium text-on-solid">Target {target}</span>
+              <span className="h-6 w-px bg-ink" />
+            </span>
+          </div>
+          <div className="mt-4 grid gap-2.5 sm:grid-cols-3">
+            <Tile icon="calendar" label="Brands with a plan" value={live.length} note={`of ${rows.length} brands`} />
+            <Tile icon="team" label="Assigned" value={sum("assigned")} note="given to the team" />
+            <Tile icon="check" label="Done" value={sum("done")} note="posted or approved" />
+          </div>
+        </section>
+
+        {/* Still to plan */}
+        <section className="card-coral flex flex-col p-5 xl:col-span-4">
+          <h2 className="text-xl font-normal tracking-[-0.01em]">Still to plan</h2>
+          <div className="mt-5 flex items-end gap-2">
+            <span className="text-[64px] font-light leading-none tabular-nums">{behind.length + idle.length}</span>
+            <span className="mb-2 text-xs leading-tight text-white/80">
+              of {rows.length}
+              <br />
+              brands
+            </span>
+          </div>
+          <p className="mt-1 text-[11px] text-white/75">Behind on posts, or no plan set yet</p>
+          <div className="mt-auto flex flex-col gap-2.5 pt-5">
+            {behind.slice(0, 4).map(({ b, p }) => (
+              <Link key={b.id} href={href({ brand: b.id, month })} className="flex items-center gap-3 text-[11px] hover:opacity-90">
+                <span className="w-24 shrink-0 truncate text-white/90">{b.name}</span>
+                <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-white/25">
+                  <span className="block h-full rounded-full bg-white" style={{ width: `${share(p)}%` }} />
+                </span>
+                <span className="w-9 text-right font-medium tabular-nums">
+                  {p.planned}/{p.target}
+                </span>
+              </Link>
+            ))}
+            {idle.length > 0 && <p className="text-[11px] text-white/85">+ {idle.length} brands with no plan yet — set them below</p>}
+            {!behind.length && !idle.length && <p className="text-[12px] text-white/85">Every brand is planned ✓</p>}
+          </div>
+        </section>
       </div>
 
-      {live.length > 0 ? (
-        <div className="grid items-start gap-4 sm:grid-cols-2 xl:grid-cols-3">
+      {live.length > 0 && (
+        <div className="grid items-stretch gap-5 sm:grid-cols-2 xl:grid-cols-3">
           {live.map(({ b, plan, p }) => (
-            <PlanCard key={b.id} b={b} plan={plan} p={p} month={month} />
+            <PlanCard key={b.id} b={b} plan={plan} p={p} month={month} dark={b.id === lead} />
           ))}
         </div>
-      ) : (
-        <p className="card px-5 py-4 text-[13px] text-muted">No brand has a plan for this month yet. Pick one below to set its deliverables.</p>
       )}
 
       {idle.length > 0 && (
         <section className="card p-5">
-          <header className="mb-3 flex items-baseline justify-between gap-3">
-            <h2 className="text-[14px] font-medium">
-              Not set up yet <span className="text-[13px] font-normal tabular-nums text-muted">{idle.length}</span>
-            </h2>
-            <span className="text-[12px] text-faint">Open a brand to set this month&apos;s deliverables</span>
-          </header>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <h2 className="text-xl font-normal tracking-[-0.01em]">No plan yet</h2>
+              <p className="text-xs text-muted">Open a brand to set this month&apos;s deliverables</p>
+            </div>
+            <span className="grid h-9 min-w-9 place-items-center rounded-full bg-brand px-2 text-sm font-medium text-white">{idle.length}</span>
+          </div>
+          <div className="mt-4 grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
             {idle.map(({ b }) => (
-              <Link key={b.id} href={href({ brand: b.id, month })} className="group flex items-center gap-2 rounded-full border border-line bg-panel py-1 pl-1 pr-3 text-[12.5px] transition hover:border-line-strong hover:bg-panel-2">
-                <BrandMark name={b.name} size={22} />
-                <span className="group-hover:text-brand">{b.name}</span>
-                <Icon name="plus" size={11} className="text-faint" />
+              <Link key={b.id} href={href({ brand: b.id, month })} className="group flex items-center gap-3 rounded-2xl bg-panel-2 p-3 transition hover:bg-panel-3">
+                <BrandMark name={b.name} size={34} />
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-[13px] font-medium">{b.name}</span>
+                  <span className="block text-[11px] text-muted">Set deliverables</span>
+                </span>
+                <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-panel text-ink shadow-[var(--card-shadow)] transition group-hover:bg-solid group-hover:text-on-solid">
+                  <Icon name="plus" size={13} />
+                </span>
               </Link>
             ))}
           </div>

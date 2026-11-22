@@ -15,21 +15,6 @@ export const initials = (name) =>
 const AVATAR_TINTS = ["#e11d2e", "#3b82f6", "#10b981", "#f59e0b", "#8b5cf6", "#ec4899", "#06b6d4", "#64748b"];
 export const tint = (s) => AVATAR_TINTS[[...String(s || "")].reduce((n, c) => n + c.charCodeAt(0), 0) % AVATAR_TINTS.length];
 
-/** Soft light in a brand's colour over a faint grid — the backdrop of brand covers (library, brands). */
-export const brandBackdrop = (name) => {
-  const c = tint(name);
-  return {
-    backgroundImage: [
-      `radial-gradient(90% 120% at 0% 0%, color-mix(in srgb, ${c} 26%, transparent), transparent 55%)`,
-      `radial-gradient(80% 100% at 100% 100%, color-mix(in srgb, ${c} 16%, transparent), transparent 60%)`,
-      "linear-gradient(to right, color-mix(in srgb, var(--color-ink) 5%, transparent) 1px, transparent 1px)",
-      "linear-gradient(to bottom, color-mix(in srgb, var(--color-ink) 5%, transparent) 1px, transparent 1px)",
-    ].join(","),
-    backgroundSize: "auto, auto, 18px 18px, 18px 18px",
-    backgroundColor: "var(--color-panel-2)",
-  };
-};
-
 export function Avatar({ name, size = 28 }) {
   const c = tint(name);
   return (
