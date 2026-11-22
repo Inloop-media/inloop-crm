@@ -157,7 +157,7 @@ export default async function CrmLayout({ children }) {
       <PhoneTabs items={items.filter((it) => it.href !== "/leads/new")} bottom={bottom} />
       {me.role !== "admin" && <FeedbackNote />}
       <Celebration initial={celebrations} />
-      <LiveRefresh />
+      <LiveRefresh meId={me.id} />
     </div>
   );
 }

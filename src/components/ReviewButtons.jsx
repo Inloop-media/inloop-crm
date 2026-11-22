@@ -17,7 +17,6 @@ export default function ReviewButtons({ task }) {
       const res = await reviewTask(task.id, action, { feedback });
       if (!res.ok) return setError(res.error);
       setNote(null);
-      router.refresh();
     });
 
   if (note !== null)

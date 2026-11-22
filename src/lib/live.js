@@ -1,5 +1,6 @@
 import "server-only";
 import { after } from "next/server";
+import { getCurrentMember } from "@/lib/auth";
 
 // Live updates: after anything changes (a task, a calendar post, a requirement, a lead), the server sends
 // a "changed" ping on the Supabase Realtime channel `crm-live`. Every open CRM tab listens (LiveRefresh)
@@ -13,11 +14,15 @@ export function pingLive(scope = "all") {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !key) return;
-  const send = () =>
+  // Who made the change: their own tab already has the new page (from the action), so it skips the ping
+  const by = getCurrentMember()
+    .then((m) => m?.id || null)
+    .catch(() => null);
+  const send = async () =>
     fetch(`${url}/realtime/v1/api/broadcast`, {
       method: "POST",
       headers: { apikey: key, Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ messages: [{ topic: LIVE_CHANNEL, event: "changed", payload: { scope, at: Date.now() } }] }),
+      body: JSON.stringify({ messages: [{ topic: LIVE_CHANNEL, event: "changed", payload: { scope, by: await by, at: Date.now() } }] }),
     }).catch(() => {});
   try {
     after(send);

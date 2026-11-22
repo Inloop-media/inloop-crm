@@ -22,7 +22,6 @@ function useRun() {
       const res = await fn();
       if (res && !res.ok) return setError(res.error || "Something went wrong.");
       after?.(res);
-      router.refresh();
     });
   return { pending, error, setError, run };
 }
@@ -157,6 +156,34 @@ export function StatusSelect({ task, canChange }) {
   );
 }
 
+/** The one big button for the person doing the task: start it, or submit it for review. */
+export function MainAction({ task }) {
+  const { pending, error, run } = useRun();
+  const s = task.status;
+  if (s === "assigned" || s === "revision")
+    return (
+      <div>
+        <button onClick={() => run(() => setTaskStatus(task.id, "in_progress"))} disabled={pending} className="btn-primary w-full justify-center py-3 text-[14px]">
+          <Icon name="arrow" size={15} /> {pending ? "Starting…" : s === "revision" ? "Start fixing" : "Start working"}
+        </button>
+        <p className="mt-2 text-center text-[11.5px] text-muted">Tell your manager you&apos;ve begun</p>
+        {error && <p className="mt-2 text-center text-xs text-rose-400">{error}</p>}
+      </div>
+    );
+  if (s === "in_progress")
+    return (
+      <div>
+        <button onClick={() => run(() => setTaskStatus(task.id, "completed"))} disabled={pending} className="btn-primary w-full justify-center py-3 text-[14px]">
+          <Icon name="check" size={15} /> {pending ? "Submitting…" : "Submit for review"}
+        </button>
+        <p className="mt-2 text-center text-[11.5px] text-muted">Add your work first, then submit</p>
+        {error && <p className="mt-2 text-center text-xs text-rose-400">{error}</p>}
+      </div>
+    );
+  const msg = { completed: "Submitted — your manager is checking it", client_rejected: "The client asked for changes — your manager will send it back", sent_to_client: "With the client for approval", done: "Approved 🎉", on_hold: "On hold" }[s];
+  return msg ? <p className="rounded-xl bg-panel-2 px-4 py-3 text-center text-[13px] font-medium">{msg}</p> : null;
+}
+
 /**
  * Pause / resume. Anyone working on it or managing it can put it on hold, but has to say why
  * (e.g. "Urgent Diwali post came in, doing that first"). heldBy: name of who paused it.
@@ -228,6 +255,7 @@ export function TaskFiles({ task, canUpload }) {
   const [showLink, setShowLink] = useState(false);
   const [showNote, setShowNote] = useState(false);
   const [noteText, setNoteText] = useState("");
+  const [drag, setDrag] = useState(false);
   const locked = ["sent_to_client", "done"].includes(task.status);
   const byRev = {};
   // The assigner's reference files show with the brief, not here
@@ -264,7 +292,7 @@ export function TaskFiles({ task, canUpload }) {
 
   return (
     <div className="flex flex-col gap-4">
-      {revs.length === 0 && <p className="well-empty rounded-2xl p-6 text-center text-sm text-muted">Nothing yet{canUpload ? " — upload the work, add a link or write a note when it's ready." : "."}</p>}
+      {revs.length === 0 && !(canUpload && !locked) && <p className="well-empty rounded-2xl p-6 text-center text-sm text-muted">Nothing added yet.</p>}
       {revs.map((r) => (
         <div key={r}>
           <div className="mb-2 text-xs font-medium text-muted">{r === 0 ? "First version" : `Revision ${r}`}{r === task.revision ? " · current" : ""}</div>
@@ -312,17 +340,43 @@ export function TaskFiles({ task, canUpload }) {
       ))}
 
       {canUpload && !locked && (
-        <div className="flex flex-wrap items-center gap-2">
+        // Drop zone: drag files in, or use the buttons
+        <div
+          onDragOver={(e) => {
+            e.preventDefault();
+            setDrag(true);
+          }}
+          onDragLeave={(e) => e.currentTarget === e.target && setDrag(false)}
+          onDrop={(e) => {
+            e.preventDefault();
+            setDrag(false);
+            if (e.dataTransfer?.files?.length) upload([...e.dataTransfer.files]);
+          }}
+          className={`flex flex-col items-center gap-3 rounded-2xl border-2 border-dashed px-6 text-center transition ${revs.length ? "py-5" : "py-10"} ${drag ? "border-brand bg-brand/[0.05]" : "border-line-strong bg-panel-2/40"}`}
+        >
           <input ref={fileRef} type="file" multiple className="hidden" onChange={(e) => e.target.files?.length && upload([...e.target.files])} />
-          <button onClick={() => fileRef.current?.click()} disabled={Boolean(progress) || pending} className="btn-ghost">
-            <Icon name="upload" size={14} /> {progress ? "Uploading…" : task.revision ? `Upload revision ${task.revision}` : "Upload work"}
-          </button>
-          <button onClick={() => setShowLink((v) => !v)} className="btn-ghost">
-            <Icon name="link" size={14} /> Add a link
-          </button>
-          <button onClick={() => setShowNote((v) => !v)} className="btn-ghost">
-            <Icon name="brief" size={14} /> Write a note
-          </button>
+          {!revs.length && (
+            <>
+              <span className="grid h-12 w-12 place-items-center rounded-2xl bg-brand/10 text-brand">
+                <Icon name="upload" size={20} />
+              </span>
+              <div>
+                <p className="text-[14px] font-medium">{progress || (task.revision ? `Drop revision ${task.revision} here` : "Drop your files here")}</p>
+                <p className="mt-0.5 text-[12px] text-muted">Images, videos, PDFs — up to 50 MB each</p>
+              </div>
+            </>
+          )}
+          <div className="flex flex-wrap justify-center gap-2">
+            <button onClick={() => fileRef.current?.click()} disabled={Boolean(progress) || pending} className="btn-ghost btn-sm bg-panel">
+              <Icon name="upload" size={13} /> {progress ? "Uploading…" : revs.length ? "Upload more" : "Browse files"}
+            </button>
+            <button onClick={() => setShowLink((v) => !v)} className="btn-ghost btn-sm bg-panel">
+              <Icon name="link" size={13} /> Add a link
+            </button>
+            <button onClick={() => setShowNote((v) => !v)} className="btn-ghost btn-sm bg-panel">
+              <Icon name="brief" size={13} /> Write a note
+            </button>
+          </div>
         </div>
       )}
       {showNote && (

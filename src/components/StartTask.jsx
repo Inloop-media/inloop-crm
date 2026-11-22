@@ -16,8 +16,8 @@ export default function StartTask({ id, label = "Start" }) {
       onClick={() =>
         start(async () => {
           const res = await setTaskStatus(id, "in_progress");
+          // The action already sends back the updated page — no second reload needed
           if (!res.ok) setError(res.error);
-          router.refresh();
         })
       }
       className={`btn-ghost btn-sm ${error ? "!border-rose-400 text-rose-400" : ""}`}

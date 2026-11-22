@@ -71,7 +71,7 @@ export async function createTask(brandId, input) {
   }
   if (error) return { ok: false, error: error.message };
   await logTask(task.id, me.id, "created", { to: assignee.name });
-  if (assignee.id !== me.id) after(() => notifyTask([assignee.id], task, priority === "high" ? "🔴 New HIGH priority task" : "New task"));
+  if (assignee.id !== me.id) after(() => notifyTask([assignee.id], task, priority === "high" ? "🔴 Urgent task assigned" : "New task assigned"));
   refresh(task);
   return { ok: true, id: task.id };
 }

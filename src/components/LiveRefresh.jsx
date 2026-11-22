@@ -6,18 +6,21 @@ import { useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/browser";
 
-export default function LiveRefresh() {
+export default function LiveRefresh({ meId = "" }) {
   const router = useRouter();
   const timer = useRef(null);
   const missed = useRef(false);
 
   useEffect(() => {
     const sb = createClient();
-    const reload = () => {
+    const reload = ({ payload } = {}) => {
       if (document.hidden) {
         missed.current = true;
         return;
       }
+      // My own change while I'm looking at this tab: it already got the new page back from the action.
+      // (A hidden tab or my other device still catches up.)
+      if (meId && payload?.by === meId && document.hasFocus()) return;
       clearTimeout(timer.current);
       // A few changes often come together — reload once
       timer.current = setTimeout(() => router.refresh(), 400);
@@ -41,7 +44,7 @@ export default function LiveRefresh() {
       document.removeEventListener("visibilitychange", onVisible);
       sb.removeChannel(ch);
     };
-  }, [router]);
+  }, [router, meId]);
 
   return null;
 }

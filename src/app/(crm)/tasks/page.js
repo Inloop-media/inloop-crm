@@ -69,7 +69,13 @@ export default async function TasksPage({ searchParams }) {
   const head = canAssignTasks(me);
   const sp = await searchParams;
   const { view } = sp;
-  const mine = await listTasks(me, { view: "mine" });
+  // Everything this page needs, asked for at the same time
+  const [mine, everything, everyone, brands] = await Promise.all([
+    listTasks(me, { view: "mine" }),
+    head ? listTasks(me, { view: "all" }) : [],
+    head ? listMakers(me) : [],
+    head ? listBrands() : [],
+  ]);
 
   if (!head) {
     return (
@@ -82,7 +88,6 @@ export default async function TasksPage({ searchParams }) {
     );
   }
 
-  const [everything, everyone, brands] = await Promise.all([listTasks(me, { view: "all" }), listMakers(me), listBrands()]);
   // Heads of departments start on their own team's work; "Everyone" shows the whole agency
   const team = myTeam(me);
   const teamView = me.role !== "admin" && headsTeam(me) && team.length > 0;

@@ -108,7 +108,6 @@ export default function QuickAssign({ brands, people, defaultBrand = "", label =
       setUploading("");
       setFiles([]);
       setDone(`“${f.title}” given to ${who?.name.split(" ")[0] || "them"}.`);
-      router.refresh();
       if (again) setF({ ...empty, brand: f.brand, kind: f.kind, assignee_id: f.assignee_id, due_at: f.due_at, priority: f.priority });
       else {
         setF({ ...empty, brand: f.brand });

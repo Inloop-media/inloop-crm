@@ -47,8 +47,16 @@ function toggleFold() {
  */
 export function Sidebar({ groups, bottom }) {
   const path = usePathname();
+  const router = useRouter();
   const fold = useFold();
   const current = activeItem(path, groups.flatMap((g) => g.items));
+  // Highlight the clicked item straight away, before the page arrives
+  const [clicked, setClicked] = useState(null);
+  const [at, setAt] = useState(path);
+  if (at !== path) {
+    setAt(path);
+    setClicked(null);
+  }
   return (
     <aside className={`hidden shrink-0 flex-col rounded-2xl border border-line bg-panel py-3 transition-[width] duration-200 md:flex ${fold ? "w-[64px] px-2" : "w-[228px] px-3"}`}>
       <nav className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto">
@@ -56,11 +64,14 @@ export function Sidebar({ groups, bottom }) {
           <div key={g.title} className="flex flex-col gap-0.5">
             {fold ? <span className="mx-auto mb-1 h-px w-6 bg-line" /> : <div className="px-2.5 pb-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-faint">{g.title}</div>}
             {g.items.map((it) => {
-              const on = current?.href === it.href;
+              const on = (clicked || current?.href) === it.href;
               return (
                 <Link
                   key={it.href}
                   href={it.href}
+                  // Start loading the page as soon as the mouse is on it
+                  onMouseEnter={() => router.prefetch(it.href)}
+                  onClick={() => setClicked(it.href)}
                   title={fold ? it.label : undefined}
                   className={`group relative flex items-center gap-2.5 rounded-lg py-2 text-[13px] transition ${fold ? "justify-center px-0" : "px-2.5"} ${
                     on ? "bg-brand/12 font-medium text-ink before:absolute before:inset-y-1.5 before:left-0 before:w-[3px] before:rounded-full before:bg-brand" : "text-muted hover:bg-panel-2 hover:text-ink"
