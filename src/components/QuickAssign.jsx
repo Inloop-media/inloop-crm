@@ -6,7 +6,8 @@ import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import Icon from "@/components/Icon";
 import { PersonSelect } from "@/components/TaskForms";
-import { createTask } from "@/app/(crm)/tasks/actions";
+import { addTaskFile, createTask, startTaskUpload } from "@/app/(crm)/tasks/actions";
+import { createClient } from "@/lib/supabase/browser";
 import { TASK_KINDS } from "@/lib/constants";
 
 const MAIN_KINDS = ["post", "carousel", "story", "reel", "video"];
@@ -59,6 +60,8 @@ export default function QuickAssign({ brands, people, defaultBrand = "", label =
   const [moreKinds, setMoreKinds] = useState(false);
   const [pickDate, setPickDate] = useState(false);
   const [showBrief, setShowBrief] = useState(false);
+  const [files, setFiles] = useState([]);
+  const [uploading, setUploading] = useState("");
   const set = (k) => (e) => setF((v) => ({ ...v, [k]: e?.target ? e.target.value : e }));
   const who = people.find((p) => p.id === f.assignee_id);
   const ready = f.brand && f.title.trim() && f.assignee_id;
@@ -89,6 +92,21 @@ export default function QuickAssign({ brands, people, defaultBrand = "", label =
       setError("");
       const res = await createTask(f.brand, f);
       if (!res.ok) return setError(res.error);
+      // Optional files for the person doing it (references, copy, raw footage…)
+      for (const [i, file] of files.entries()) {
+        setUploading(`Uploading ${i + 1} of ${files.length}…`);
+        const u = await startTaskUpload(res.id, file.name, file.size);
+        const up = u.ok ? await createClient().storage.from("lead-docs").uploadToSignedUrl(u.path, u.token, file, { contentType: file.type || undefined }) : { error: { message: u.error } };
+        if (up.error) {
+          setUploading("");
+          setError(`Task given, but "${file.name}" didn't upload: ${up.error.message} — add it from the task page.`);
+          router.refresh();
+          return;
+        }
+        await addTaskFile(res.id, { path: u.path, name: file.name, size: file.size, role: "reference" });
+      }
+      setUploading("");
+      setFiles([]);
       setDone(`“${f.title}” given to ${who?.name.split(" ")[0] || "them"}.`);
       router.refresh();
       if (again) setF({ ...empty, brand: f.brand, kind: f.kind, assignee_id: f.assignee_id, due_at: f.due_at, priority: f.priority });
@@ -208,6 +226,29 @@ export default function QuickAssign({ brands, people, defaultBrand = "", label =
                   </button>
                 )}
 
+                <div>
+                  <Label>Files (optional)</Label>
+                  <label className="flex cursor-pointer items-center gap-2 rounded-xl border border-dashed border-line-strong px-4 py-3 text-[13px] text-muted transition hover:border-brand hover:text-ink">
+                    <Icon name="paperclip" size={15} />
+                    {files.length ? `${files.length} file${files.length > 1 ? "s" : ""} attached — add more` : "Attach references, copy, raw footage… (up to 50 MB each)"}
+                    <input type="file" multiple className="hidden" onChange={(e) => (setFiles((cur) => [...cur, ...(e.target.files ? [...e.target.files] : [])]), (e.target.value = ""))} />
+                  </label>
+                  {files.length > 0 && (
+                    <ul className="mt-2 flex flex-col gap-1">
+                      {files.map((file, i) => (
+                        <li key={`${file.name}-${i}`} className="flex items-center gap-2 rounded-lg bg-panel-2 px-3 py-1.5 text-[12.5px]">
+                          <Icon name="file" size={13} className="text-muted" />
+                          <span className="min-w-0 flex-1 truncate">{file.name}</span>
+                          <span className="text-faint">{file.size > 1048576 ? `${(file.size / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(file.size / 1024))} KB`}</span>
+                          <button type="button" aria-label="Remove" onClick={() => setFiles((cur) => cur.filter((_, j) => j !== i))} className="text-faint hover:text-rose-400">
+                            <Icon name="x" size={12} />
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+
                 {error && <p className="text-[13px] text-rose-500">{error}</p>}
               </div>
 
@@ -220,7 +261,7 @@ export default function QuickAssign({ brands, people, defaultBrand = "", label =
                   Cancel
                 </button>
                 <button disabled={pending} className="btn-primary btn-sm">
-                  {pending ? "Assigning…" : who ? `Assign to ${who.name.split(" ")[0]}` : "Assign"} <Icon name="arrow" size={13} />
+                  {uploading || (pending ? "Assigning…" : who ? `Assign to ${who.name.split(" ")[0]}` : "Assign")} <Icon name="arrow" size={13} />
                 </button>
               </footer>
             </form>

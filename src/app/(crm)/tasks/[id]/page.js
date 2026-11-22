@@ -22,6 +22,7 @@ const EVENT = {
   edited: (d) => (d.to ? `Reassigned to ${d.to}` : "Task details changed"),
   status: (d) => `Status: ${d.to?.replace("_", " ")}`,
   file: (d) => `Uploaded ${d.name}`,
+  note: () => "Added a note",
   reference: (d) => `Added reference ${d.name}`,
   send_back: () => "Sent back for revision",
   share_client: () => "Shared with the client",
@@ -39,6 +40,7 @@ export default async function TaskPage({ params }) {
   const head = canAssignTasks(me);
   const mine = task.assignee_id === me.id;
   const people = head ? await listMakers(me) : [];
+  const refs = task.files.filter((f) => f.role === "reference");
   const showFeedback = task.feedback && ["revision", "assigned", "in_progress"].includes(task.status);
 
   return (
@@ -86,12 +88,28 @@ export default async function TaskPage({ params }) {
               <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed">{task.feedback}</p>
             </section>
           )}
-          {task.brief && (
+          {(task.brief || refs.length > 0) && (
             <Panel title="Brief">
-              <p className="whitespace-pre-wrap text-sm leading-relaxed text-ink/85">{task.brief}</p>
+              {task.brief && <p className="whitespace-pre-wrap text-sm leading-relaxed text-ink/85">{task.brief}</p>}
+              {refs.length > 0 && (
+                <div className={task.brief ? "mt-4" : ""}>
+                  <p className="mb-2 text-xs font-medium text-muted">Files from {task.assigner?.name.split(" ")[0] || "the person who gave it"}</p>
+                  <ul className="flex flex-col gap-1.5">
+                    {refs.map((f) => (
+                      <li key={f.id}>
+                        <a href={f.href} target="_blank" rel="noreferrer" className="flex items-center gap-2.5 rounded-xl bg-panel-2 px-3 py-2.5 text-sm transition hover:bg-panel-3">
+                          <Icon name={f.storage_path ? "file" : "link"} size={15} className="text-muted" />
+                          <span className="min-w-0 flex-1 truncate">{f.name}</span>
+                          <Icon name="download" size={14} className="text-muted" />
+                        </a>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </Panel>
           )}
-          <Panel title="Work" sub={mine ? "Upload the work, then mark it Completed." : "Files uploaded for this task, by version."}>
+          <Panel title="Work" sub={mine ? "Upload the work, add a link or write a note — then mark it Completed." : "Files, links and notes for this task, by version."}>
             <TaskFiles task={task} canUpload={mine || head} />
           </Panel>
         </div>

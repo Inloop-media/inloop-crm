@@ -4,7 +4,7 @@ import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Icon from "@/components/Icon";
 import { createClient } from "@/lib/supabase/browser";
-import { addTaskFile, createTask, deleteTask, removeTaskFile, reviewTask, setTaskStatus, startTaskUpload, updateTask } from "@/app/(crm)/tasks/actions";
+import { addTaskFile, addTaskNote, createTask, deleteTask, removeTaskFile, reviewTask, setTaskStatus, startTaskUpload, updateTask } from "@/app/(crm)/tasks/actions";
 import { MAKER_STATUS_OPTIONS, PRIORITIES, TASK_KINDS, TASK_STATUSES } from "@/lib/constants";
 
 const KIND_GROUP = { head: "Managers / CBOs", design: "Designers", development: "Developers", video: "Video editors", production: "Production", performance: "Performance", social: "Social media", strategy: "Creative strategists", sales: "Sales", execution: "CBO" };
@@ -164,10 +164,16 @@ export function TaskFiles({ task, canUpload }) {
   const [progress, setProgress] = useState("");
   const [link, setLink] = useState("");
   const [showLink, setShowLink] = useState(false);
+  const [showNote, setShowNote] = useState(false);
+  const [noteText, setNoteText] = useState("");
   const locked = ["sent_to_client", "done"].includes(task.status);
   const byRev = {};
-  for (const f of task.files) (byRev[f.revision] ||= []).push(f);
-  const revs = Object.keys(byRev).map(Number).sort((a, b) => b - a);
+  // The assigner's reference files show with the brief, not here
+  for (const f of task.files.filter((x) => x.role !== "reference")) (byRev[f.revision] ||= []).push(f);
+  // Written notes, per version, oldest first
+  const notesBy = {};
+  for (const e of [...(task.events || [])].reverse()) if (e.type === "note") (notesBy[Number(e.data?.revision) || 0] ||= []).push(e);
+  const revs = [...new Set([...Object.keys(byRev), ...Object.keys(notesBy)].map(Number))].sort((a, b) => b - a);
 
   const upload = async (files) => {
     setError("");
@@ -196,12 +202,20 @@ export function TaskFiles({ task, canUpload }) {
 
   return (
     <div className="flex flex-col gap-4">
-      {revs.length === 0 && <p className="well-empty rounded-2xl p-6 text-center text-sm text-muted">No files yet{canUpload ? " — upload the work when it's ready." : "."}</p>}
+      {revs.length === 0 && <p className="well-empty rounded-2xl p-6 text-center text-sm text-muted">Nothing yet{canUpload ? " — upload the work, add a link or write a note when it's ready." : "."}</p>}
       {revs.map((r) => (
         <div key={r}>
           <div className="mb-2 text-xs font-medium text-muted">{r === 0 ? "First version" : `Revision ${r}`}{r === task.revision ? " · current" : ""}</div>
+          {(notesBy[r] || []).map((n) => (
+            <div key={n.id} className="mb-2 rounded-2xl bg-panel-2 px-4 py-3">
+              <p className="whitespace-pre-wrap text-sm leading-relaxed">{n.data?.text}</p>
+              <p className="mt-1 text-[11px] text-faint">
+                Note · {n.actor?.name || "—"} · {new Date(n.created_at).toLocaleString("en-IN", { timeZone: "Asia/Kolkata", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" })}
+              </p>
+            </div>
+          ))}
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-            {byRev[r].map((f) => (
+            {(byRev[r] || []).map((f) => (
               <div key={f.id} className="group relative overflow-hidden rounded-2xl bg-panel-2">
                 <a href={f.href} target="_blank" rel="noreferrer" className="block">
                   {isImg(f.name) && f.href ? (
@@ -241,10 +255,39 @@ export function TaskFiles({ task, canUpload }) {
           <button onClick={() => fileRef.current?.click()} disabled={Boolean(progress) || pending} className="btn-ghost">
             <Icon name="upload" size={14} /> {progress ? "Uploading…" : task.revision ? `Upload revision ${task.revision}` : "Upload work"}
           </button>
-          <button onClick={() => setShowLink((v) => !v)} className="px-1 text-xs text-muted hover:text-ink">
-            or add a link (big videos, Figma, site)
+          <button onClick={() => setShowLink((v) => !v)} className="btn-ghost">
+            <Icon name="link" size={14} /> Add a link
+          </button>
+          <button onClick={() => setShowNote((v) => !v)} className="btn-ghost">
+            <Icon name="brief" size={14} /> Write a note
           </button>
         </div>
+      )}
+      {showNote && (
+        <form
+          className="flex flex-col gap-2"
+          onSubmit={(e) => {
+            e.preventDefault();
+            run(() => addTaskNote(task.id, noteText), () => (setNoteText(""), setShowNote(false)));
+          }}
+        >
+          <textarea
+            autoFocus
+            rows={3}
+            value={noteText}
+            onChange={(e) => setNoteText(e.target.value)}
+            placeholder="What did you do? e.g. Spoke to the printer, final files sent to them on mail."
+            className="field resize-y text-sm"
+          />
+          <div className="flex gap-2">
+            <button disabled={!noteText.trim() || pending} className="btn-primary btn-sm">
+              Save note
+            </button>
+            <button type="button" onClick={() => setShowNote(false)} className="btn-ghost btn-sm">
+              Cancel
+            </button>
+          </div>
+        </form>
       )}
       {showLink && (
         <form

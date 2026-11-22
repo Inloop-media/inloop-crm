@@ -11,11 +11,12 @@ import { Avatar, PageHeader, Panel, StagePill, StepTrack } from "@/components/ui
 import StatusBadge from "@/components/StatusBadge";
 import Timeline from "@/components/Timeline";
 import FollowUp from "@/components/FollowUp";
+import LeadContacts from "@/components/LeadContacts";
 import { requireMember } from "@/lib/auth";
 import { getLead, listAssignees, listGuests, listMembers, openLeadCounts } from "@/lib/leads";
-import { canSeeAllLeads, salesTeam, canAssign, canBookDiscovery, canBookProposal, canEnterCommercials, canOnboard, canSeeLeads, isStrategist, statusOptions } from "@/lib/permissions";
+import { canSeeAllLeads, salesTeam, canAssign, canBookDiscovery, canBookProposal, canEnterCommercials, canOnboard, canSeeLeads, isSalesHead, isStrategist, statusOptions } from "@/lib/permissions";
 import { fmtDateTime, fullName } from "@/lib/format";
-import { statusColor } from "@/lib/constants";
+import { DISCOVERY_STATUS, statusColor } from "@/lib/constants";
 
 export async function generateMetadata({ params }) {
   const { id } = await params;
@@ -78,6 +79,8 @@ export default async function LeadPage({ params }) {
   const decks = (lead.proposal?.docs || []).filter((d) => d.kind === "output" && /\.pdf$/i.test(d.name));
   const deck = decks.at(-1);
   const approved = lead.proposal?.stage === "done";
+  const extra = Array.isArray(lead.extra_contacts) ? lead.extra_contacts : [];
+  const clientEmails = [...new Set([lead.email, ...extra.filter((c) => c.type === "email").map((c) => c.value)].map((e) => String(e || "").toLowerCase()).filter((e) => /^\S+@\S+\.\S+$/.test(e)))];
 
   return (
     <div className="page max-w-6xl">
@@ -128,6 +131,9 @@ export default async function LeadPage({ params }) {
             {lead.newsletter ? <span className="font-normal text-muted"> · newsletter</span> : null}
           </Detail>
         </dl>
+        <div className="relative px-6 pb-6 sm:px-8 sm:pb-8">
+          <LeadContacts leadId={lead.id} contacts={extra} canRemove={canSeeAllLeads(me) || isSalesHead(me)} />
+        </div>
         {deck && (
           <div className="relative px-6 pb-6 sm:px-8 sm:pb-8">
             <div className={`flex flex-wrap items-center gap-4 rounded-2xl p-4 sm:p-5 ${approved ? "tint-green" : "tint-lavender"}`}>
@@ -208,7 +214,8 @@ export default async function LeadPage({ params }) {
               meetings={lead.meetings}
               me={{ id: me.id, role: me.role }}
               canDiscovery={canBookDiscovery(me, lead)}
-              canProposal={canBookProposal(me)}
+              canProposal={canBookProposal(me, lead) && (canSeeAllLeads(me) || isSalesHead(me) || lead.status === DISCOVERY_STATUS)}
+              clientEmails={clientEmails}
               connected={Boolean(me.calendar_connected_at)}
               domain={process.env.ALLOWED_DOMAIN}
               guests={guests}

@@ -12,7 +12,7 @@ import MyWork from "@/components/MyWork";
 import { requireMember } from "@/lib/auth";
 import { listMakers, listTasks } from "@/lib/tasks";
 import { canAssignTasks, headsTeam, myTeam } from "@/lib/permissions";
-import { OPEN_TASK, kindPlural, byPriority } from "@/lib/constants";
+import { OPEN_TASK, kindPlural, byPriority, fromCalendar } from "@/lib/constants";
 
 export const metadata = { title: "Tasks" };
 const nowMs = () => Date.now();
@@ -102,9 +102,12 @@ export default async function TasksPage({ searchParams }) {
   const byBrand = brand ? all.filter((t) => t.brand_id === brand) : all;
   const kinds = [...new Set(byBrand.map((t) => t.kind))];
   const kind = kinds.includes(sp.kind) ? sp.kind : "";
-  const shown = kind ? byBrand.filter((t) => t.kind === kind) : byBrand;
+  const byKind = kind ? byBrand.filter((t) => t.kind === kind) : byBrand;
+  // Content-calendar work vs everything else
+  const src = ["calendar", "other"].includes(sp.src) ? sp.src : "";
+  const shown = src ? byKind.filter((t) => (src === "calendar") === fromCalendar(t)) : byKind;
   const href = (o) => {
-    const q = new URLSearchParams({ ...(current !== "list" && { view: current }), ...(brand && { brand }), ...(kind && { kind }), ...(sp.who === "all" && { who: "all" }), ...o });
+    const q = new URLSearchParams({ ...(current !== "list" && { view: current }), ...(brand && { brand }), ...(kind && { kind }), ...(src && { src }), ...(sp.who === "all" && { who: "all" }), ...o });
     for (const [k, v] of [...q]) if (!v) q.delete(k);
     const str = q.toString();
     return str ? `/tasks?${str}` : "/tasks";
@@ -117,7 +120,7 @@ export default async function TasksPage({ searchParams }) {
   const working = shown.filter((t) => OPEN_TASK.includes(t.status) && !isLate(t)).sort(byPriority);
   const withClient = shown.filter((t) => t.status === "sent_to_client");
   const approved = shown.filter((t) => t.status === "done").sort((a, b) => (b.done_at || "").localeCompare(a.done_at || ""));
-  const filtered = Boolean(brand || kind);
+  const filtered = Boolean(brand || kind || src);
   const showFilters = current === "list" || current === "board";
 
   return (
@@ -135,6 +138,15 @@ export default async function TasksPage({ searchParams }) {
 
       {(showFilters || (current === "team" && teamView)) && (
         <div className="rise mb-5 flex flex-wrap items-center gap-2">
+          {showFilters && (
+            <FilterPills
+              items={[
+                { label: "All work", count: byKind.length, href: href({ src: "" }), on: !src },
+                { label: "Content calendar", count: byKind.filter(fromCalendar).length, href: href({ src: "calendar" }), on: src === "calendar" },
+                { label: "Other tasks", count: byKind.filter((t) => !fromCalendar(t)).length, href: href({ src: "other" }), on: src === "other" },
+              ]}
+            />
+          )}
           {teamView && (
             <FilterPills
               items={[
@@ -150,7 +162,7 @@ export default async function TasksPage({ searchParams }) {
             <LinkSelect label="Type" value={kind} options={[{ value: "", label: "All types", href: href({ kind: "" }) }, ...kinds.map((k) => ({ value: k, label: kindPlural(k), href: href({ kind: k }) }))]} />
           )}
           {showFilters && filtered && (
-            <Link href={href({ brand: "", kind: "" })} className="px-2 text-[12.5px] text-muted hover:text-ink">
+            <Link href={href({ brand: "", kind: "", src: "" })} className="px-2 text-[12.5px] text-muted hover:text-ink">
               Clear
             </Link>
           )}

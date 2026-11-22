@@ -127,6 +127,8 @@ export const TASK_KINDS = [
   { id: "website", label: "Website", group: "development" },
   { id: "other", label: "Other" },
 ];
+/** Was this task given from a brand's content calendar? (tasks come with `calendar` from TASK_FIELDS) */
+export const fromCalendar = (t) => Array.isArray(t?.calendar) ? t.calendar.length > 0 : !!t?.calendar;
 export const taskKindLabel = (id) => TASK_KINDS.find((k) => k.id === id)?.label || "Task";
 
 // `who` = whose move it is: the employee (maker), the execution head, the client, or nobody

@@ -3,10 +3,10 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { after } from "next/server";
-import { requireMember } from "@/lib/auth";
+import { getCurrentMember, requireMember } from "@/lib/auth";
 import { teamLeadIdsOf } from "@/lib/groups";
 import { db } from "@/lib/supabase/server";
-import { addEvents } from "@/lib/leads";
+import { addEvents, listLeads } from "@/lib/leads";
 import {
   canAssign,
   canBookDiscovery,
@@ -17,6 +17,7 @@ import {
   canManageTeam,
   canSeeLead,
   isAdmin,
+  isSalesHead,
   canSeeAllLeads,
   salesTeam,
   canSetStatus,
@@ -256,7 +257,48 @@ const calendarFail = (err) =>
  *            "Proposal Meeting Scheduled" and shares the brief with the creative strategists (+ Slack).
  * `when` is a datetime-local value ("2026-10-29T15:30"), read as India time.
  */
-export async function scheduleMeeting(leadId, kind, when, guestIds = []) {
+/** Lead meetings (any lead, any kind) that overlap [start, end) — two calls can't share a slot. */
+async function clashingMeeting(start, end) {
+  const { data } = await db()
+    .from("meetings")
+    .select("id, kind, starts_at, ends_at, organizer:members(name)")
+    .is("cancelled_at", null)
+    .lt("starts_at", end.toISOString())
+    .gt("ends_at", start.toISOString())
+    .limit(1);
+  return data?.[0] || null;
+}
+
+const IST_TIME = new Intl.DateTimeFormat("en-IN", { timeZone: "Asia/Kolkata", hour: "numeric", minute: "2-digit" });
+
+/**
+ * The slots already taken on one day (India time), for the booking picker: [{ start, end, by, kind }].
+ * Only who booked it is shown, not which client.
+ */
+export async function meetingSlots(day) {
+  if (!(await getCurrentMember())) return { ok: false, taken: [] };
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(day || ""))) return { ok: false, taken: [] };
+  const from = new Date(`${day}T00:00:00+05:30`);
+  const to = new Date(from.getTime() + 864e5);
+  const { data } = await db()
+    .from("meetings")
+    .select("starts_at, ends_at, kind, organizer:members(name)")
+    .is("cancelled_at", null)
+    .lt("starts_at", to.toISOString())
+    .gt("ends_at", from.toISOString())
+    .order("starts_at");
+  return { ok: true, taken: (data || []).map((m) => ({ start: m.starts_at, end: m.ends_at, kind: m.kind, by: m.organizer?.name || "Someone" })) };
+}
+
+const emailOk = (e) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(e || ""));
+
+/**
+ * Book a Google Meet with the client.
+ *   guestIds   teammates from the guest list
+ *   extra      { clientEmails: [the lead's own emails to invite], guestEmails: [anyone else, e.g. the client's partner],
+ *                minutes: 30 | 60 }
+ */
+export async function scheduleMeeting(leadId, kind, when, guestIds = [], extra = {}) {
   const me = await requireMember();
   if (!MEETING_KINDS[kind]) return { ok: false, error: "Unknown meeting type." };
   const { data: lead } = await db().from("leads").select("*").eq("id", leadId).maybeSingle();
@@ -266,7 +308,9 @@ export async function scheduleMeeting(leadId, kind, when, guestIds = []) {
     if (!canBookDiscovery(me, lead)) return { ok: false, error: "Only the executive this lead is assigned to can book the discovery call." };
     if (lead.status !== DISCOVERY_STATUS) return { ok: false, error: `Set the status to "${DISCOVERY_STATUS}" first.` };
   } else {
-    if (!canBookProposal(me)) return { ok: false, error: "Only admins can book proposal meetings." };
+    if (!canBookProposal(me, lead)) return { ok: false, error: "Only the executive on this lead (or an admin) can book the proposal meeting." };
+    if (!canSeeAllLeads(me) && !isSalesHead(me) && lead.status !== DISCOVERY_STATUS)
+      return { ok: false, error: `Finish the discovery call first — the lead should be at "${DISCOVERY_STATUS}".` };
     if (!lead.brief.trim()) return { ok: false, error: "Add the client brief first — it goes to the creative strategists." };
   }
 
@@ -284,12 +328,32 @@ export async function scheduleMeeting(leadId, kind, when, guestIds = []) {
     .limit(1);
   if (existing?.length) return { ok: false, error: `A ${MEETING_KINDS[kind].label.toLowerCase()} is already booked. Cancel it to book a new one.` };
 
-  const end = new Date(start.getTime() + MEETING_MINUTES[kind] * 60000);
-  const attendees = [];
-  if (/^\S+@\S+\.\S+$/.test(lead.email)) attendees.push(lead.email.toLowerCase());
+  const minutes = [30, 60].includes(Number(extra.minutes)) ? Number(extra.minutes) : MEETING_MINUTES[kind];
+  const end = new Date(start.getTime() + minutes * 60000);
+  const clash = await clashingMeeting(start, end);
+  if (clash)
+    return {
+      ok: false,
+      error: `That slot is taken — ${clash.organizer?.name || "someone"} has a ${MEETING_KINDS[clash.kind]?.label.toLowerCase() || "meeting"} from ${IST_TIME.format(new Date(clash.starts_at))} to ${IST_TIME.format(new Date(clash.ends_at))}. Pick another time.`,
+    };
+
+  // The client: their main email plus any extra ones the executive picked
+  const own = [lead.email, ...(Array.isArray(lead.extra_contacts) ? lead.extra_contacts : []).filter((c) => c.type === "email").map((c) => c.value)]
+    .map((e) => String(e || "").toLowerCase())
+    .filter(emailOk);
+  const picked = Array.isArray(extra.clientEmails) ? extra.clientEmails.map((e) => String(e).toLowerCase()).filter((e) => own.includes(e)) : own.slice(0, 1);
+  const attendees = [...new Set(picked)];
   // What the person booking sees: the client by email, teammates by name
   const invited = attendees.length ? ["the client"] : [];
-  if (kind === "discovery") {
+  // Anyone else the client asked to bring along
+  for (const e of (Array.isArray(extra.guestEmails) ? extra.guestEmails : []).slice(0, 10)) {
+    const email = String(e || "").trim().toLowerCase();
+    if (emailOk(email) && !attendees.includes(email) && email !== me.email) {
+      attendees.push(email);
+      invited.push(email);
+    }
+  }
+  {
     const ids = (Array.isArray(guestIds) ? guestIds : []).filter(isUuid).slice(0, 20);
     if (ids.length) {
       const { data: guests } = await db().from("meeting_guests").select("name, email").in("id", ids).eq("active", true);
@@ -551,4 +615,43 @@ export async function updateGuest(id, patch) {
   if (error) return { ok: false, error: error.message };
   revalidatePath("/team");
   return { ok: true };
+}
+
+/**
+ * Add another phone number or email to a lead — the client sometimes gives a different one than the
+ * form. The original stays as it is. type: "phone" | "email".
+ */
+export async function addLeadContact(leadId, type, value, label = "") {
+  const me = await requireMember();
+  const { data: lead } = await db().from("leads").select("id, assigned_to, extra_contacts").eq("id", leadId).maybeSingle();
+  if (!lead || !canSeeLead(me, lead)) return { ok: false, error: "You can't edit this lead." };
+  const v = String(value || "").trim().slice(0, 200);
+  if (type === "email" ? !emailOk(v) : !/^\+?[\d\s()-]{7,20}$/.test(v)) return { ok: false, error: type === "email" ? "That email doesn't look right." : "That number doesn't look right." };
+  const list = Array.isArray(lead.extra_contacts) ? lead.extra_contacts : [];
+  if (list.some((c) => c.value.toLowerCase() === v.toLowerCase())) return { ok: false, error: "That one is already added." };
+  const next = [...list, { type: type === "email" ? "email" : "phone", value: v, label: String(label || "").trim().slice(0, 60), by: me.name, at: new Date().toISOString() }].slice(0, 20);
+  const { error } = await db().from("leads").update({ extra_contacts: next, updated_at: new Date().toISOString() }).eq("id", leadId);
+  if (error) return { ok: false, error: /extra_contacts/.test(error.message) ? "Run migration 024 in Supabase first." : error.message };
+  await addEvents(leadId, me.id, [{ type: "contact_added", data: { kind: type, value: v } }]);
+  revalidatePath(`/leads/${leadId}`);
+  return { ok: true };
+}
+
+export async function removeLeadContact(leadId, value) {
+  const me = await requireMember();
+  const { data: lead } = await db().from("leads").select("id, assigned_to, extra_contacts").eq("id", leadId).maybeSingle();
+  if (!lead || !canSeeLead(me, lead)) return { ok: false, error: "You can't edit this lead." };
+  const next = (Array.isArray(lead.extra_contacts) ? lead.extra_contacts : []).filter((c) => c.value !== value);
+  await db().from("leads").update({ extra_contacts: next }).eq("id", leadId);
+  revalidatePath(`/leads/${leadId}`);
+  return { ok: true };
+}
+
+/** Quick search for the top bar: up to 8 leads this member can see. */
+export async function searchLeads(q) {
+  const me = await requireMember();
+  const term = String(q || "").trim().slice(0, 80);
+  if (term.length < 2) return [];
+  const rows = await listLeads(me, { q: term }).catch(() => []);
+  return rows.slice(0, 8).map((l) => ({ id: l.id, code: l.code, name: l.brand || [l.first_name, l.last_name].filter(Boolean).join(" "), person: [l.first_name, l.last_name].filter(Boolean).join(" "), phone: l.phone || "", status: l.status }));
 }

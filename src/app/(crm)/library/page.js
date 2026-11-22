@@ -4,6 +4,7 @@ import Icon from "@/components/Icon";
 import { PageTop } from "@/components/Desk";
 import { BrandMark, Empty } from "@/components/ui";
 import { requireMember } from "@/lib/auth";
+import { canSeeLibrary } from "@/lib/permissions";
 import { libraryBrands } from "@/lib/library";
 
 export const metadata = { title: "Brand library" };
@@ -11,7 +12,7 @@ export const metadata = { title: "Brand library" };
 const STAGE = { active: "Active", onboarding: "Onboarding", paused: "Paused", ended: "Ended" };
 
 export default async function LibraryPage({ searchParams }) {
-  await requireMember();
+  await requireMember(canSeeLibrary);
   const { q = "" } = await searchParams;
   const all = await libraryBrands();
   const term = String(q).trim().toLowerCase();

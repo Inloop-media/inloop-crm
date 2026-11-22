@@ -218,7 +218,11 @@ export async function setTaskStatus(id, status) {
       .eq("task_id", id)
       .eq("role", "deliverable")
       .eq("revision", task.revision);
-    if (!count) return { ok: false, error: task.revision ? "Upload the revised file (or add its link) before marking it completed." : "Upload the file (or add its link) before marking it completed." };
+    // A note counts too — not every task ends in a file (e.g. "called the vendor, it's sorted")
+    const { count: notes } = count
+      ? { count }
+      : await db().from("task_events").select("id", { count: "exact", head: true }).eq("task_id", id).eq("type", "note").eq("data->>revision", String(task.revision));
+    if (!count && !notes) return { ok: false, error: "Upload the file, add a link or write a note before marking it completed." };
   }
   if (task.status === "completed" && !canAssignTasks(me)) return { ok: false, error: "It's with your manager for review now." };
   // A revision stays a revision until it's completed again
@@ -266,6 +270,19 @@ export async function addTaskFile(id, { path, url, name, size, role = "deliverab
   const { error } = await db().from("task_files").insert(row);
   if (error) return { ok: false, error: error.message };
   await logTask(id, me.id, row.role === "reference" ? "reference" : "file", { name: row.name, revision: task.revision });
+  refresh(task);
+  return { ok: true };
+}
+
+/** A written update on the work — on its own or alongside the files. Saved per version, like files. */
+export async function addTaskNote(id, text) {
+  const me = await requireMember();
+  const task = await loadTask(id);
+  if (!task || (task.assignee_id !== me.id && !canAssignTasks(me))) return { ok: false, error: "This task isn't yours." };
+  if (["sent_to_client", "done"].includes(task.status)) return { ok: false, error: "This work is already with the client." };
+  const body = str(text, 4000);
+  if (!body) return { ok: false, error: "Write the note first." };
+  await logTask(id, me.id, "note", { text: body, revision: task.revision });
   refresh(task);
   return { ok: true };
 }

@@ -8,7 +8,9 @@ import { runnersOf } from "@/lib/groups";
 // "*" so newer columns (priority, migration 017) come along when they exist
 export const TASK_FIELDS =
   "*, " +
-  "brand:brands(id, name, lead_id), assignee:members!tasks_assignee_id_fkey(id, name), assigner:members!tasks_assigned_by_fkey(id, name)";
+  "brand:brands(id, name, lead_id), assignee:members!tasks_assignee_id_fkey(id, name), assigner:members!tasks_assigned_by_fkey(id, name), " +
+  // Set when the task was given from a brand's content calendar (a post / reel planned there)
+  "calendar:calendar_items(id, publish_on, platform)";
 
 const isUuid = (v) => /^[0-9a-f-]{36}$/i.test(String(v || ""));
 

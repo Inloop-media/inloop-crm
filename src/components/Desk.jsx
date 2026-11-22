@@ -6,7 +6,7 @@
 import Link from "next/link";
 import Icon from "@/components/Icon";
 import { Avatar } from "@/components/ui";
-import { KIND_COLOR, OPEN_TASK, TASK_STATUSES, taskKindLabel, PRIORITIES } from "@/lib/constants";
+import { KIND_COLOR, OPEN_TASK, TASK_STATUSES, taskKindLabel, PRIORITIES, fromCalendar } from "@/lib/constants";
 
 const IST = "Asia/Kolkata";
 const dayKey = (d) => new Date(d).toLocaleDateString("en-CA", { timeZone: IST });
@@ -79,7 +79,7 @@ function duePill(t) {
  * One task as a calm row: what it is, whose and for which brand, and when it's due. High priority shows
  * as a small red dot, late work as a red due date. `action` replaces the open arrow on the right.
  */
-export function TaskLine({ t, showBrand = true, action, note, showAssignee = true, showStatus = false }) {
+export function TaskLine({ t, showBrand = true, action, note, showAssignee = true, showStatus = false, calendarTag = true }) {
   const s = TASK_STATUSES[t.status] || { label: t.status, color: "#94a3b8" };
   const c = KIND_COLOR[t.kind] || "#64748b";
   const due = duePill(t);
@@ -98,7 +98,14 @@ export function TaskLine({ t, showBrand = true, action, note, showAssignee = tru
           <span className="truncate">{t.title}</span>
           {t.revision > 0 && <span className="shrink-0 text-[11px] font-normal text-muted">· v{t.revision + 1}</span>}
         </span>
-        <span className="block truncate text-[12px] text-muted">{meta.join(" · ")}</span>
+        <span className="flex items-center gap-1 truncate text-[12px] text-muted">
+          {calendarTag && fromCalendar(t) && (
+            <span className="inline-flex shrink-0 items-center gap-0.5 rounded bg-sky-500/10 px-1 text-[10.5px] font-medium text-sky-600 dark:text-sky-400" title="From the content calendar">
+              <Icon name="calendar" size={10} /> Calendar
+            </span>
+          )}
+          <span className="truncate">{meta.join(" · ")}</span>
+        </span>
         {note && <span className="mt-1 line-clamp-2 block rounded-lg bg-rose-400/10 px-2 py-1 text-[11px] text-rose-400">“{note}”</span>}
       </span>
       {!done && <span className={`shrink-0 text-[12px] font-medium ${due.tone}`}>{due.text}</span>}

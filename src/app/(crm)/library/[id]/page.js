@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import LibraryView from "@/components/LibraryView";
 import { requireMember } from "@/lib/auth";
+import { canSeeLibrary } from "@/lib/permissions";
 import { LIBRARY_FOLDERS, brandLibrary, canManageLibrary } from "@/lib/library";
 import { db } from "@/lib/supabase/server";
 
@@ -15,7 +16,7 @@ export async function generateMetadata({ params }) {
 export default async function BrandLibraryPage({ params, searchParams }) {
   const { id } = await params;
   const { folder } = await searchParams;
-  const me = await requireMember();
+  const me = await requireMember(canSeeLibrary);
   if (!isUuid(id)) notFound();
   const lib = await brandLibrary(id, me);
   if (!lib) notFound();

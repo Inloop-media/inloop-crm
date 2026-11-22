@@ -33,11 +33,11 @@ export const canMakeGroups = (me) => isAdmin(me) || isOpsHead(me);
 export const statusOptions = (me) => (isStaff(me) || isSalesHead(me) ? STATUS_NAMES : EXEC_STATUSES);
 export const canSetStatus = (me, from, to) => isStaff(me) || isSalesHead(me) || (EXEC_STATUSES.includes(from) && EXEC_STATUSES.includes(to));
 
-// Meetings: the executive books the discovery call on their own lead; admin / ops book the proposal
-// meeting, which executives never see.
-export const canSeeMeetingKind = (me, kind) => kind === "discovery" || canSeeAllLeads(me);
+// Meetings: the executive books the discovery call and then the proposal meeting on their own lead.
+// Once the proposal meeting is booked their part is done — the proposal work itself stays hidden.
+export const canSeeMeetingKind = () => true;
 export const canBookDiscovery = (me, lead) => lead.assigned_to === me.id || isStaff(me);
-export const canBookProposal = (me) => isStaff(me);
+export const canBookProposal = (me, lead) => isStaff(me) || isSalesHead(me) || (!!lead && lead.assigned_to === me.id);
 
 // Proposal pipeline
 export const canSeeBriefs = (me) => isStaff(me) || isStrategist(me);
@@ -55,6 +55,12 @@ export const isMaker = (me) => MAKER_KINDS.some((k) => inGroupKind(me, k));
 /** Onboarding (MOU, signature) is for admin / ops. */
 export const canOnboard = (me) => isStaff(me);
 export const canSeeBrands = (me) => isStaff(me) || isExecHead(me);
+/** Sales executives pitch with Brand assets instead; everyone else on the team uses the Brand library. */
+export const isSalesOnly = (me) => isSales(me) && !isStaff(me) && !isExecHead(me) && !isStrategist(me) && !isMaker(me);
+export const canSeeLibrary = (me) => !isSalesOnly(me);
+/** Company profiles, decks and past work for pitching: the sales team, sales heads and admin / ops. */
+export const canSeeAssets = (me) => isStaff(me) || isSales(me) || isSalesHead(me);
+export const canManageAssets = (me) => isStaff(me) || isSalesHead(me);
 export const canAssignTasks = (me) => isStaff(me) || isExecHead(me) || headsTeam(me);
 /** The employee works on their own tasks; heads / staff see all of them. */
 export const canSeeTask = (me, t) => canAssignTasks(me) || t.assignee_id === me.id;

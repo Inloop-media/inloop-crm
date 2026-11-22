@@ -7,6 +7,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Icon from "@/components/Icon";
+import { searchLeads } from "@/app/(crm)/actions";
 
 const isActive = (path, href) => (href === "/" ? path === "/" : path === href || path.startsWith(href + "/"));
 const activeItem = (path, items) => items.filter((it) => isActive(path, it.href)).sort((a, b) => b.href.length - a.href.length)[0];
@@ -91,10 +92,14 @@ export function SideButton({ label, icon, type = "button", onClick }) {
   );
 }
 
-/** Desktop top bar: menu + logo on the left; search, theme, bell and you on the right. */
-export function TopBar({ logo, search, right }) {
+/** Lead search: results show up as you type (name, brand, phone, email or IM- code). Enter opens the full list. */
+function LeadSearch() {
   const router = useRouter();
   const input = useRef(null);
+  const [q, setQ] = useState("");
+  const [results, setResults] = useState([]);
+  const [open, setOpen] = useState(false);
+  const [active, setActive] = useState(0);
   useEffect(() => {
     const onKey = (e) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
@@ -105,6 +110,90 @@ export function TopBar({ logo, search, right }) {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, []);
+  useEffect(() => {
+    const term = q.trim();
+    if (term.length < 2) return;
+    let live = true;
+    const t = setTimeout(() => searchLeads(term).then((r) => live && (setResults(r), setActive(0))), 180);
+    return () => {
+      live = false;
+      clearTimeout(t);
+    };
+  }, [q]);
+  const shown = q.trim().length >= 2 ? results : [];
+  const go = (href) => {
+    setOpen(false);
+    setQ("");
+    setResults([]);
+    input.current?.blur();
+    router.push(href);
+  };
+  return (
+    <div className="relative">
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (shown[active]) return go(`/leads/${shown[active].id}`);
+          const term = q.trim();
+          go(term ? `/leads?view=list&q=${encodeURIComponent(term)}` : "/leads?view=list");
+        }}
+        className="flex h-9 w-[min(320px,30vw)] items-center gap-2 rounded-lg border border-line bg-panel-2 pl-3 pr-1.5"
+      >
+        <Icon name="search" size={14} className="text-muted" />
+        <input
+          ref={input}
+          value={q}
+          onChange={(e) => {
+            setQ(e.target.value);
+            setOpen(true);
+          }}
+          onFocus={() => setOpen(true)}
+          onBlur={() => setTimeout(() => setOpen(false), 150)}
+          onKeyDown={(e) => {
+            if (e.key === "ArrowDown") setActive((a) => Math.min(a + 1, shown.length - 1));
+            if (e.key === "ArrowUp") setActive((a) => Math.max(a - 1, 0));
+            if (e.key === "Escape") input.current?.blur();
+          }}
+          placeholder="Search leads — name, brand, phone…"
+          className="min-w-0 flex-1 bg-transparent text-[13px] outline-none placeholder:text-faint"
+        />
+        <kbd className="rounded-md border border-line bg-panel px-1.5 py-0.5 font-sans text-[10px] font-medium text-muted">⌘K</kbd>
+      </form>
+      {open && q.trim().length >= 2 && (
+        <div className="pop absolute right-0 top-11 z-50 w-[380px] overflow-hidden p-1.5">
+          {shown.length ? (
+            shown.map((l, i) => (
+              <button
+                key={l.id}
+                type="button"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => go(`/leads/${l.id}`)}
+                onMouseEnter={() => setActive(i)}
+                className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left ${i === active ? "bg-panel-2" : ""}`}
+              >
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-[13.5px] font-medium">{l.name || "—"}</span>
+                  <span className="block truncate text-[11.5px] text-muted">
+                    {[l.code, l.person !== l.name && l.person, l.phone].filter(Boolean).join(" · ")}
+                  </span>
+                </span>
+                <span className="shrink-0 rounded-full bg-panel-2 px-2 py-0.5 text-[10.5px] text-muted">{l.status}</span>
+              </button>
+            ))
+          ) : (
+            <p className="px-3 py-3 text-[12.5px] text-muted">No lead matches “{q.trim()}”.</p>
+          )}
+          <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => go(`/leads?view=list&q=${encodeURIComponent(q.trim())}`)} className="mt-1 w-full rounded-xl px-3 py-2 text-left text-[12px] text-muted hover:bg-panel-2 hover:text-ink">
+            See all results in Leads →
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Desktop top bar: menu + logo on the left; search, theme, bell and you on the right. */
+export function TopBar({ logo, search, right }) {
   return (
     <header className="hidden h-14 shrink-0 items-center gap-3 rounded-2xl border border-line bg-panel px-3 md:flex">
       <button onClick={toggleFold} aria-label="Fold the sidebar" className="grid h-9 w-9 place-items-center rounded-lg text-muted transition hover:bg-panel-2 hover:text-ink">
@@ -114,20 +203,7 @@ export function TopBar({ logo, search, right }) {
         {logo}
       </Link>
       <div className="ml-auto flex items-center gap-2">
-        {search && (
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              const q = input.current?.value.trim();
-              router.push(q ? `/leads?view=list&q=${encodeURIComponent(q)}` : "/leads?view=list");
-            }}
-            className="flex h-9 w-[min(280px,26vw)] items-center gap-2 rounded-lg border border-line bg-panel-2 pl-3 pr-1.5"
-          >
-            <Icon name="search" size={14} className="text-muted" />
-            <input ref={input} name="q" placeholder="Search…" className="min-w-0 flex-1 bg-transparent text-[13px] outline-none placeholder:text-faint" />
-            <kbd className="rounded-md border border-line bg-panel px-1.5 py-0.5 font-sans text-[10px] font-medium text-muted">⌘K</kbd>
-          </form>
-        )}
+        {search && <LeadSearch />}
         {right}
       </div>
     </header>

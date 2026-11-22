@@ -6,7 +6,7 @@ import { Empty } from "@/components/ui";
 import { Counts } from "@/components/Home";
 import { Section, TaskLine } from "@/components/Desk";
 import StartTask from "@/components/StartTask";
-import { OPEN_TASK, TASK_STATUSES, byPriority } from "@/lib/constants";
+import { OPEN_TASK, TASK_STATUSES, byPriority, fromCalendar } from "@/lib/constants";
 
 const now = () => Date.now();
 const IST = "Asia/Kolkata";
@@ -35,7 +35,7 @@ function List({ title, sub, tasks, tone, empty }) {
   return (
     <Section title={title} count={tasks.length} tone={tone} empty={empty} action={sub && <span className="hidden text-xs text-muted sm:block">{sub}</span>}>
       {tasks.map((t) => (
-        <TaskLine key={t.id} t={t} showAssignee={false} note={t.status === "revision" ? t.feedback : ""} action={OPEN_TASK.includes(t.status) ? <Next t={t} /> : undefined} />
+        <TaskLine key={t.id} t={t} showAssignee={false} calendarTag={false} note={t.status === "revision" ? t.feedback : ""} action={OPEN_TASK.includes(t.status) ? <Next t={t} /> : undefined} />
       ))}
     </Section>
   );
@@ -61,6 +61,8 @@ export default function MyWork({ me, tasks, embedded = false }) {
   // High priority first, whenever it was assigned
   const now_ = [...fix, ...overdue, ...dueToday].sort(byPriority);
   const coming = [...week, ...later].sort(byPriority);
+  // Fixes, late and today's work first, then the rest by date
+  const ordered = [...now_, ...coming];
 
   return (
     <div className="flex flex-col gap-4">
@@ -80,8 +82,8 @@ export default function MyWork({ me, tasks, embedded = false }) {
         </div>
       )}
       <div className={`grid items-start gap-4 ${embedded ? "" : "lg:grid-cols-2"}`}>
-        <List title="Do today" sub="Fixes, late work, due today" tasks={now_} tone="#e11d2e" empty={open.length ? "Nothing for today — pick something from Coming up." : ""} />
-        <List title="Coming up" tasks={coming} tone="#3b82f6" empty={open.length ? "Nothing else planned." : ""} />
+        <List title="Content calendar" sub="Posts and reels from the brands' calendars" tasks={ordered.filter(fromCalendar)} empty={open.length ? "No calendar work right now." : ""} />
+        <List title="Other tasks" sub="Everything else you were given" tasks={ordered.filter((t) => !fromCalendar(t))} empty={open.length ? "No other tasks right now." : ""} />
         <List title="Waiting on others" sub="Your manager or the client has it" tasks={waiting} tone="#8b5cf6" />
         <List title="Done" tasks={done} tone="#10b981" />
       </div>
