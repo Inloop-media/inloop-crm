@@ -36,7 +36,7 @@ export const ROLES = [
 
 export const GROUP_KINDS = [
   { id: "sales", label: "Sales executives", help: "Get leads assigned, update status up to Discovery Call, book the discovery call" },
-  { id: "strategy", label: "Creative strategists", help: "See shared briefs, pick one up and upload the 4 documents" },
+  { id: "strategy", label: "Creative strategists", help: "See shared briefs, pick one up and upload the documents the proposal needs" },
   { id: "execution", label: "CBO", help: "Chief Business Officers: see every brand, make groups under themselves, pick their heads and team leads, assign and review work" },
   { id: "design", label: "Designers", help: "Get design tasks (posts, carousels, stories) and deliver them" },
   { id: "development", label: "Developers", help: "Get website / development tasks and deliver them" },

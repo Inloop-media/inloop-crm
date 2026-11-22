@@ -7,8 +7,8 @@ import { pushTo, staffIds } from "@/lib/push";
 import { fullName } from "@/lib/format";
 
 // The proposal pipeline, shared by the server actions (people) and /api/worker/* (the Mac bots):
-//   proposal meeting booked → brief shared → strategist picks it up → uploads the 4 documents → submits
-//   → CRL bot (Mac) → admin enters commercials → proposal bot (Mac) builds the deck → done
+//   proposal meeting booked → brief shared → strategist picks it up → uploads the documents it needs → submits
+//   → CRL bot (Mac, only with the reference-links + brand-identity PDFs) → admin enters commercials → proposal bot (Mac) builds the deck → done
 
 export const BUCKET = "lead-docs";
 const brandOf = (lead) => lead.brand || fullName(lead);

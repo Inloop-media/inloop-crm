@@ -25,6 +25,8 @@ export const describe = (e) => {
       return "Brief shared with the creative strategists";
     case "proposal_picked":
       return <>Brief picked up by <span className="text-ink">{e.data?.to}</span></>;
+    case "proposal_crl_skipped":
+      return <>Documents submitted — no CRL{e.data?.skipped?.length ? ` (left out: ${e.data.skipped.join(", ")})` : ""}</>;
     case "proposal_crl_queued":
       return "Documents sent to the CRL bot";
     case "proposal_crl_ready":

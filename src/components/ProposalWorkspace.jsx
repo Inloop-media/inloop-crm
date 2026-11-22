@@ -283,7 +283,11 @@ export default function ProposalWorkspace({ proposal: p, canPick, canWork, canCo
   const stage = PROPOSAL_STAGES[p.stage] || PROPOSAL_STAGES.brief_shared;
   const editable = canWork && EDITABLE.includes(p.stage);
   const inputs = DOC_KINDS.map((def) => ({ def, docs: p.docs.filter((d) => d.kind === def.id) }));
-  const ready = inputs.every((x) => x.docs.length);
+  // At least one document; the CRL only runs when both PDFs it reads are there
+  const ready = inputs.some((x) => x.docs.length);
+  const pdfIn = (kind) => p.docs.some((d) => d.kind === kind && d.storage_path && /\.pdf$/i.test(d.name));
+  const withCrl = pdfIn("reference_links") && pdfIn("brand_identity");
+  const left = inputs.filter((x) => !x.docs.length).map((x) => x.def.label);
   const outputs = p.docs.filter((d) => d.kind === "output");
   // Newest PDF the proposal bot uploaded (one per version)
   const deck = [...outputs].reverse().find((d) => /\.pdf$/i.test(d.name));
@@ -305,10 +309,10 @@ export default function ProposalWorkspace({ proposal: p, canPick, canWork, canCo
           <div className="font-medium">{stage.label}</div>
           <div className="mt-0.5 text-xs text-ink/60">
             {p.stage === "brief_shared" && "Waiting for a creative strategist to pick this brief up."}
-            {p.stage === "picked_up" && `${p.strategist?.name || "The strategist"} is collecting the 4 documents.`}
+            {p.stage === "picked_up" && `${p.strategist?.name || "The strategist"} is collecting the documents.`}
             {p.stage === "crl_queued" && "Waiting for the Mac worker to pick it up — it runs when the Mac is on."}
             {p.stage === "crl_running" && (job?.progress || "The CRL bot is downloading the references and building the page.")}
-            {p.stage === "awaiting_commercials" && "CRL is ready. An admin needs to enter the commercials for the proposal deck."}
+            {p.stage === "awaiting_commercials" && (p.crl_url ? "CRL is ready. An admin needs to enter the commercials for the proposal deck." : "No CRL for this one. An admin needs to enter the commercials for the proposal deck.")}
             {p.stage === "proposal_queued" && "Waiting for the Mac worker to pick up the proposal job."}
             {p.stage === "proposal_running" && (job?.progress || "The proposal bot is building the deck.")}
             {p.stage === "proposal_review" && `Deck v${p.revision || 1} is waiting for an admin to approve it or ask for changes.`}
@@ -337,7 +341,7 @@ export default function ProposalWorkspace({ proposal: p, canPick, canWork, canCo
           {editable && (
             <button onClick={() => run(() => submitForCrl(p.lead_id))} disabled={!ready || pending} className="btn-primary">
               <Icon name="sparkle" size={14} />
-              {pending ? "Sending…" : p.stage === "crl_failed" ? "Send to CRL bot again" : "Send to CRL bot"}
+              {pending ? "Sending…" : p.stage === "crl_failed" ? "Send to CRL bot again" : withCrl ? "Send to CRL bot" : "Submit documents"}
             </button>
           )}
         </div>
@@ -350,7 +354,13 @@ export default function ProposalWorkspace({ proposal: p, canPick, canWork, canCo
             ))}
           </div>
         )}
-        {editable && !ready && <p className="mt-2 text-xs text-muted">All 4 are needed before the CRL bot can start.</p>}
+        {editable && (
+          <p className="mt-2 text-xs text-muted">
+            {!ready
+              ? "Upload the documents this proposal needs — not all 4 are required."
+              : `${withCrl ? "The CRL will be built (reference links + brand identity PDFs are in)." : "No CRL for this one — it needs both the reference-links and the brand-identity PDF."}${left.length ? ` Left out of the proposal: ${left.join(", ")}.` : ""}`}
+          </p>
+        )}
       </section>
 
       {/* Commercials */}

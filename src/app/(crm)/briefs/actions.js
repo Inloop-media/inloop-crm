@@ -105,17 +105,31 @@ export async function removeDocument(docId) {
   return { ok: true };
 }
 
-/** All 4 documents are in → hand them to the CRL bot on the Mac. */
+/**
+ * Hand the documents over. Not every proposal needs all 4 — e.g. no social media means no reference
+ * links and no CRL. The CRL bot runs only when both the reference-links PDF and the brand-identity PDF
+ * are there; otherwise the proposal goes straight to the commercials and the deck is made from what was
+ * uploaded (the parts with no document are left out).
+ */
 export async function submitForCrl(leadId) {
   const me = await requireMember();
   const p = await loadProposal(leadId);
   if (!p || !canWorkOnProposal(me, p)) return { ok: false, error: "Pick up this brief first." };
   if (!EDITABLE.includes(p.stage)) return { ok: false, error: "Already submitted." };
-  const { data: docs } = await db().from("lead_documents").select("kind").eq("lead_id", leadId);
-  const missing = DOC_KINDS.filter((k) => !(docs || []).some((d) => d.kind === k.id)).map((k) => k.label);
-  if (missing.length) return { ok: false, error: `Still missing: ${missing.join(", ")}.` };
-  const err = await queueJob(leadId, "crl", me.id, { submitted_at: new Date().toISOString() });
-  if (err) return { ok: false, error: err };
+  const { data: docs } = await db().from("lead_documents").select("kind, name, storage_path").eq("lead_id", leadId);
+  const has = (kind) => (docs || []).some((d) => d.kind === kind);
+  if (!DOC_KINDS.some((k) => has(k.id))) return { ok: false, error: "Upload at least one document." };
+  const pdf = (kind) => (docs || []).some((d) => d.kind === kind && d.storage_path && /\.pdf$/i.test(d.name));
+  const now = new Date().toISOString();
+  if (pdf("reference_links") && pdf("brand_identity")) {
+    const err = await queueJob(leadId, "crl", me.id, { submitted_at: now });
+    if (err) return { ok: false, error: err };
+  } else {
+    // No CRL for this one — straight to the commercials
+    const skipped = DOC_KINDS.filter((k) => !has(k.id)).map((k) => k.label);
+    await db().from("proposals").update({ stage: "awaiting_commercials", submitted_at: now, crl_url: "", error: "", updated_at: now }).eq("lead_id", leadId);
+    await addEvents(leadId, me.id, [{ type: "proposal_crl_skipped", data: { skipped } }]);
+  }
   refresh(leadId);
   return { ok: true };
 }
