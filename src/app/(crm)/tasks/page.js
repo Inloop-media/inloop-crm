@@ -187,6 +187,7 @@ export default async function TasksPage({ searchParams }) {
                 ["To check", toCheck],
                 ["Late", late],
                 ["In progress", working],
+                ["On hold", shown.filter((t) => t.status === "on_hold")],
                 ["With the client", withClient],
                 ["Approved", approved.slice(0, 12)],
               ]

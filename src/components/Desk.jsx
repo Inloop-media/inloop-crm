@@ -107,8 +107,11 @@ export function TaskLine({ t, showBrand = true, action, note, showAssignee = tru
           <span className="truncate">{meta.join(" · ")}</span>
         </span>
         {note && <span className="mt-1 line-clamp-2 block rounded-lg bg-rose-400/10 px-2 py-1 text-[11px] text-rose-400">“{note}”</span>}
+        {t.status === "on_hold" && (
+          <span className="mt-1 line-clamp-2 block rounded-lg bg-amber-500/10 px-2 py-1 text-[11px] text-amber-600 dark:text-amber-400">On hold{t.hold_reason ? ` — ${t.hold_reason}` : ""}</span>
+        )}
       </span>
-      {!done && <span className={`shrink-0 text-[12px] font-medium ${due.tone}`}>{due.text}</span>}
+      {!done && t.status !== "on_hold" && <span className={`shrink-0 text-[12px] font-medium ${due.tone}`}>{due.text}</span>}
       {action ? (
         <span className="relative z-[1] shrink-0">{action}</span>
       ) : (

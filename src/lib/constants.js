@@ -140,6 +140,7 @@ export const TASK_STATUSES = {
   client_rejected: { label: "Client asked for changes", color: "#f97316", who: "head" },
   sent_to_client: { label: "With client", color: "#22d3ee", who: "client" },
   done: { label: "Approved", color: "#4ade80", who: null },
+  on_hold: { label: "On hold", color: "#94a3b8", who: null },
 };
 export const OPEN_TASK = ["assigned", "in_progress", "revision"];
 /** Task priority — set when assigning; employees see high first. */

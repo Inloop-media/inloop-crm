@@ -6,7 +6,7 @@ import { requireMember } from "@/lib/auth";
 import { db } from "@/lib/supabase/server";
 import { getBrand } from "@/lib/brands";
 import { canAssignTo, logTask, notifyTask, TASK_FIELDS } from "@/lib/tasks";
-import { MAKER_STATUS_OPTIONS, PRIORITIES, TASK_KINDS, TASK_STATUSES } from "@/lib/constants";
+import { MAKER_STATUS_OPTIONS, OPEN_TASK, PRIORITIES, TASK_KINDS, TASK_STATUSES } from "@/lib/constants";
 import { canAssignTasks, canReviewTask } from "@/lib/permissions";
 
 const str = (v, max = 4000) => String(v ?? "").trim().slice(0, max);
@@ -298,5 +298,47 @@ export async function removeTaskFile(fileId) {
   if (f.storage_path) await db().storage.from(BUCKET).remove([f.storage_path]);
   await db().from("task_files").delete().eq("id", fileId);
   if (task) refresh(task);
+  return { ok: true };
+}
+
+/**
+ * Pause a task — e.g. to make room for something urgent. The manager or the person doing it can do
+ * it; a reason is required. The other side gets a notification.
+ */
+export async function holdTask(id, reason) {
+  const me = await requireMember();
+  const task = await loadTask(id);
+  if (!task) return { ok: false, error: "Task not found." };
+  const mine = task.assignee_id === me.id;
+  if (!mine && !canAssignTasks(me)) return { ok: false, error: "This task isn't yours." };
+  if (!OPEN_TASK.includes(task.status)) return { ok: false, error: "Only work that's to do or in progress can go on hold." };
+  const why = str(reason, 1000);
+  if (why.length < 3) return { ok: false, error: "Write why it's going on hold." };
+  const now = new Date().toISOString();
+  const { error } = await db().from("tasks").update({ status: "on_hold", held_from: task.status, hold_reason: why, held_at: now, held_by: me.id, updated_at: now }).eq("id", id);
+  if (error) return { ok: false, error: /on_hold|hold_reason|check/.test(error.message) ? "Run migration 025 in Supabase first." : error.message };
+  await logTask(id, me.id, "hold", { reason: why });
+  const tell = [mine ? task.assigned_by : task.assignee_id].filter((x) => x && x !== me.id);
+  if (tell.length) after(() => notifyTask(tell, task, `⏸ Put on hold by ${me.name.split(" ")[0]}`, why));
+  refresh(task);
+  return { ok: true };
+}
+
+/** Pick it back up: the task returns to where it was before the hold. */
+export async function resumeTask(id) {
+  const me = await requireMember();
+  const task = await loadTask(id);
+  if (!task) return { ok: false, error: "Task not found." };
+  const mine = task.assignee_id === me.id;
+  if (!mine && !canAssignTasks(me)) return { ok: false, error: "This task isn't yours." };
+  if (task.status !== "on_hold") return { ok: true };
+  const back = OPEN_TASK.includes(task.held_from) ? task.held_from : "assigned";
+  const now = new Date().toISOString();
+  const { error } = await db().from("tasks").update({ status: back, updated_at: now }).eq("id", id);
+  if (error) return { ok: false, error: error.message };
+  await logTask(id, me.id, "resume", { to: back });
+  const tell = [mine ? task.assigned_by : task.assignee_id].filter((x) => x && x !== me.id);
+  if (tell.length) after(() => notifyTask(tell, task, `▶ Back on — ${me.name.split(" ")[0]} resumed it`));
+  refresh(task);
   return { ok: true };
 }

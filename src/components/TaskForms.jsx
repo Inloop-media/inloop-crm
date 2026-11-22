@@ -4,8 +4,8 @@ import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Icon from "@/components/Icon";
 import { createClient } from "@/lib/supabase/browser";
-import { addTaskFile, addTaskNote, createTask, deleteTask, removeTaskFile, reviewTask, setTaskStatus, startTaskUpload, updateTask } from "@/app/(crm)/tasks/actions";
-import { MAKER_STATUS_OPTIONS, PRIORITIES, TASK_KINDS, TASK_STATUSES } from "@/lib/constants";
+import { addTaskFile, addTaskNote, createTask, holdTask, resumeTask, deleteTask, removeTaskFile, reviewTask, setTaskStatus, startTaskUpload, updateTask } from "@/app/(crm)/tasks/actions";
+import { MAKER_STATUS_OPTIONS, OPEN_TASK, PRIORITIES, TASK_KINDS, TASK_STATUSES } from "@/lib/constants";
 
 const KIND_GROUP = { head: "Managers / CBOs", design: "Designers", development: "Developers", video: "Video editors", production: "Production", performance: "Performance", social: "Social media", strategy: "Creative strategists", sales: "Sales", execution: "CBO" };
 const kb = (n) => (n > 1048576 ? `${(n / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(n / 1024))} KB`);
@@ -154,6 +154,68 @@ export function StatusSelect({ task, canChange }) {
       </select>
       {error && <p className="mt-2 text-xs text-rose-400">{error}</p>}
     </div>
+  );
+}
+
+/**
+ * Pause / resume. Anyone working on it or managing it can put it on hold, but has to say why
+ * (e.g. "Urgent Diwali post came in, doing that first"). heldBy: name of who paused it.
+ */
+export function HoldPanel({ task, heldBy = "" }) {
+  const { pending, error, setError, run } = useRun();
+  const [open, setOpen] = useState(false);
+  const [reason, setReason] = useState("");
+  if (task.status === "on_hold")
+    return (
+      <div className="rounded-2xl bg-amber-500/10 p-4">
+        <p className="flex items-center gap-1.5 text-[13px] font-medium text-amber-600 dark:text-amber-400">
+          <Icon name="clock" size={14} /> On hold{heldBy ? ` — paused by ${heldBy.split(" ")[0]}` : ""}
+        </p>
+        {task.hold_reason && <p className="mt-1.5 whitespace-pre-wrap text-sm leading-relaxed">“{task.hold_reason}”</p>}
+        <button onClick={() => run(() => resumeTask(task.id))} disabled={pending} className="btn-primary btn-sm mt-3">
+          <Icon name="arrow" size={13} /> {pending ? "Resuming…" : "Resume task"}
+        </button>
+        {error && <p className="mt-2 text-xs text-rose-400">{error}</p>}
+      </div>
+    );
+  if (!OPEN_TASK.includes(task.status)) return null;
+  if (!open)
+    return (
+      <button type="button" onClick={() => setOpen(true)} className="flex items-center gap-1.5 self-start text-[13px] text-muted hover:text-ink">
+        <Icon name="clock" size={14} /> Put on hold
+      </button>
+    );
+  return (
+    <form
+      className="flex flex-col gap-2 rounded-2xl bg-panel-2 p-3"
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (reason.trim().length < 3) return setError("Write why it's going on hold.");
+        run(() => holdTask(task.id, reason), () => (setOpen(false), setReason("")));
+      }}
+    >
+      <label className="text-[12px] font-medium text-muted" htmlFor={`hold-${task.id}`}>
+        Why is it going on hold? (required)
+      </label>
+      <textarea
+        id={`hold-${task.id}`}
+        autoFocus
+        rows={2}
+        value={reason}
+        onChange={(e) => setReason(e.target.value)}
+        placeholder="Urgent Diwali post came in — doing that first"
+        className="field resize-y bg-panel text-sm"
+      />
+      {error && <p className="text-xs text-rose-400">{error}</p>}
+      <div className="flex gap-2">
+        <button disabled={pending || !reason.trim()} className="btn-primary btn-sm">
+          {pending ? "Saving…" : "Put on hold"}
+        </button>
+        <button type="button" onClick={() => setOpen(false)} className="btn-ghost btn-sm">
+          Cancel
+        </button>
+      </div>
+    </form>
   );
 }
 

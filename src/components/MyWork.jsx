@@ -84,6 +84,7 @@ export default function MyWork({ me, tasks, embedded = false }) {
       <div className={`grid items-start gap-4 ${embedded ? "" : "lg:grid-cols-2"}`}>
         <List title="Content calendar" sub="Posts and reels from the brands' calendars" tasks={ordered.filter(fromCalendar)} empty={open.length ? "No calendar work right now." : ""} />
         <List title="Other tasks" sub="Everything else you were given" tasks={ordered.filter((t) => !fromCalendar(t))} empty={open.length ? "No other tasks right now." : ""} />
+        <List title="On hold" sub="Paused for now" tasks={tasks.filter((t) => t.status === "on_hold")} />
         <List title="Waiting on others" sub="Your manager or the client has it" tasks={waiting} tone="#8b5cf6" />
         <List title="Done" tasks={done} tone="#10b981" />
       </div>

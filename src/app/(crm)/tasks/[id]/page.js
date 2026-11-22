@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import Icon from "@/components/Icon";
 import { Avatar, PageHeader, Panel } from "@/components/ui";
 import { DueLabel, TaskStatusPill } from "@/components/Tasks";
-import { ReviewPanel, StatusSelect, TaskAdmin, TaskFiles } from "@/components/TaskForms";
+import { HoldPanel, ReviewPanel, StatusSelect, TaskAdmin, TaskFiles } from "@/components/TaskForms";
 import { requireMember } from "@/lib/auth";
 import { getTask, listMakers } from "@/lib/tasks";
 import { canAssignTasks } from "@/lib/permissions";
@@ -23,6 +23,8 @@ const EVENT = {
   status: (d) => `Status: ${d.to?.replace("_", " ")}`,
   file: (d) => `Uploaded ${d.name}`,
   note: () => "Added a note",
+  hold: (d) => `Put on hold — ${d.reason || ""}`,
+  resume: () => "Resumed",
   reference: (d) => `Added reference ${d.name}`,
   send_back: () => "Sent back for revision",
   share_client: () => "Shared with the client",
@@ -118,8 +120,9 @@ export default async function TaskPage({ params }) {
           {(mine || head) && (
             <Panel title="Next step">
               <div className="flex flex-col gap-4">
-                {mine && <StatusSelect task={task} canChange />}
-                {head && <ReviewPanel task={task} people={people} />}
+                {task.status !== "on_hold" && mine && <StatusSelect task={task} canChange />}
+                {task.status !== "on_hold" && head && <ReviewPanel task={task} people={people} />}
+                <HoldPanel task={task} heldBy={task.events.find((e) => e.type === "hold")?.actor?.name || ""} />
               </div>
             </Panel>
           )}

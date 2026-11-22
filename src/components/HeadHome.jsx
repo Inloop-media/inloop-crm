@@ -67,6 +67,7 @@ export default function HeadHome({ tasks, brands = [], files = {}, boardHref = "
   const overdue = tasks.filter(late).sort((a, b) => a.due_at.localeCompare(b.due_at));
   const inWork = tasks.filter((t) => OPEN_TASK.includes(t.status) && !late(t)).sort((a, b) => (a.due_at || "9").localeCompare(b.due_at || "9"));
   const dueToday = inWork.filter((t) => t.due_at && dayKey(t.due_at) === today);
+  const held = tasks.filter((t) => t.status === "on_hold");
 
   const team = Object.values(
     tasks
@@ -143,6 +144,13 @@ export default function HeadHome({ tasks, brands = [], files = {}, boardHref = "
         side={
           <>
             {side}
+            <Block title="On hold" count={held.length}>
+              <ul className="mt-1">
+                {held.map((t) => (
+                  <TaskLine key={t.id} t={t} />
+                ))}
+              </ul>
+            </Block>
             <TeamLoad people={team.slice(0, 8)} href={boardHref} />
             <Brands tasks={tasks} brands={brands} boardHref={boardHref} />
           </>

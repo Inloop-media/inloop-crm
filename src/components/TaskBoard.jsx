@@ -16,6 +16,7 @@ const COLS = [
   { id: "review", label: "To check", statuses: ["completed", "client_rejected"], color: TASK_STATUSES.completed.color, hint: "Finished work lands here" },
   { id: "client", label: "With client", statuses: ["sent_to_client"], color: TASK_STATUSES.sent_to_client.color },
   { id: "done", label: "Approved", statuses: ["done"], color: TASK_STATUSES.done.color },
+  { id: "hold", label: "On hold", statuses: ["on_hold"], color: TASK_STATUSES.on_hold.color, hint: "Open the task to resume it" },
 ];
 const colOf = (status) => COLS.find((c) => c.statuses.includes(status))?.id;
 
