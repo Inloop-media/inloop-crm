@@ -1,8 +1,9 @@
+// Brands: a title with the counts, one slim row of numbers across all clients, the filter, then a calm
+// grid of brand cards (clients first, then the ones still onboarding).
 import Link from "next/link";
 import BrandCard from "@/components/BrandCard";
 import AddBrands from "@/components/AddBrands";
-import Icon from "@/components/Icon";
-import { FilterPills, PageTop } from "@/components/Desk";
+import { FilterPills } from "@/components/Desk";
 import { Empty } from "@/components/ui";
 import { requireMember } from "@/lib/auth";
 import { listBrands } from "@/lib/brands";
@@ -11,169 +12,102 @@ import { canOnboard, canSeeBrands } from "@/lib/permissions";
 
 export const metadata = { title: "Brands" };
 
+function Summary({ items }) {
+  return (
+    <div className="rise mb-5 grid grid-cols-2 gap-3 md:grid-cols-4">
+      {items.map((s) => {
+        const body = (
+          <>
+            <span className="text-[12px] text-muted">{s.label}</span>
+            <span className={`text-[26px] font-light leading-none tracking-[-0.02em] tabular-nums ${s.value && s.tone === "red" ? "text-rose-500" : s.value && s.tone === "amber" ? "text-amber-500" : ""}`}>{s.value}</span>
+          </>
+        );
+        return s.href ? (
+          <Link key={s.label} href={s.href} className="card card-hover flex flex-col gap-2 px-4 py-3.5">
+            {body}
+          </Link>
+        ) : (
+          <div key={s.label} className="card flex flex-col gap-2 px-4 py-3.5">
+            {body}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 export default async function BrandsPage({ searchParams }) {
   const me = await requireMember(canSeeBrands);
   const { show } = await searchParams;
   // Onboarding (MOU) lives on the lead page, which only admin / ops open
-  const brands = (await listBrands()).filter(
-    (b) => b.stage === "active" || canOnboard(me),
-  );
+  const brands = (await listBrands()).filter((b) => b.stage === "active" || canOnboard(me));
   const active = brands.filter((b) => b.stage === "active");
   const onboarding = brands.filter((b) => b.stage !== "active");
   const unread = await unreadCounts(
     active.map((b) => b.id),
-    me.id,
+    me.id
   );
   const sum = (k) => active.reduce((n, b) => n + (b.counts?.[k] || 0), 0);
-  const list =
-    show === "active"
-      ? active
-      : show === "onboarding"
-        ? onboarding
-        : [...active, ...onboarding];
+  // Busiest clients first (late, then to check, then in work), the rest A–Z
+  const busy = (b) => (b.counts?.overdue || 0) * 1e4 + (b.counts?.review || 0) * 100 + (b.counts?.open || 0);
+  const sortedActive = [...active].sort((a, b) => busy(b) - busy(a) || a.name.localeCompare(b.name));
+  const list = show === "active" ? sortedActive : show === "onboarding" ? onboarding : [...sortedActive, ...onboarding];
   const totalUnread = Object.values(unread).reduce((n, c) => n + c, 0);
-
-  const glance = [
-    {
-      label: "Active clients",
-      value: active.length,
-      total: brands.length,
-      icon: "brand",
-      tone: "coral",
-    },
-    {
-      label: "Onboarding",
-      value: onboarding.length,
-      total: brands.length,
-      icon: "mail",
-      tone: "dark",
-    },
-    {
-      label: "Approved work",
-      value: sum("done"),
-      total: sum("total"),
-      icon: "check",
-      tone: "soft",
-    },
-    {
-      label: "Late tasks",
-      value: sum("overdue"),
-      total: Math.max(1, sum("open")),
-      icon: "clock",
-      tone: "line",
-    },
-  ];
 
   return (
     <div className="page">
-      <PageTop
-        title="Brands"
-        sub={`${active.length} active · ${onboarding.length} onboarding${totalUnread ? ` · ${totalUnread} unread messages` : ""}`}
-        right={
-          <div className="flex flex-wrap items-center gap-2">
-            {me.role === "admin" && <AddBrands />}
-            <FilterPills
-              items={[
-                {
-                  label: "All",
-                  count: brands.length,
-                  href: "/brands",
-                  on: !show,
-                },
-                {
-                  label: "Active",
-                  count: active.length,
-                  href: "/brands?show=active",
-                  on: show === "active",
-                },
-                {
-                  label: "Onboarding",
-                  count: onboarding.length,
-                  href: "/brands?show=onboarding",
-                  on: show === "onboarding",
-                },
-              ]}
-            />
-          </div>
-        }
-      />
+      <header className="rise mb-6 flex flex-wrap items-end justify-between gap-4">
+        <div className="min-w-0">
+          <h1 className="text-[34px] font-normal leading-tight tracking-[-0.03em]">Brands</h1>
+          <p className="mt-1.5 text-[13px] text-muted">
+            <span className="text-ink">{active.length}</span> clients · <span className="text-ink">{onboarding.length}</span> onboarding
+            {totalUnread ? (
+              <>
+                {" "}
+                · <span className="text-brand">{totalUnread} unread messages</span>
+              </>
+            ) : null}
+          </p>
+        </div>
+        {me.role === "admin" && <AddBrands />}
+      </header>
 
       {brands.length === 0 ? (
         <div className="card rise">
-          <Empty icon="brand">
-            No brands yet. Add the brands you already handle with &quot;Add
-            existing brands&quot;. New ones show up here once their MOU is
-            signed.
-          </Empty>
+          <Empty icon="brand">No brands yet. Add the brands you already handle with &quot;Add existing brands&quot;. New ones show up here once their MOU is signed.</Empty>
         </div>
       ) : (
-        <div className="rise grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_300px]">
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
-            {list.map((b, i) => (
-              <BrandCard key={b.id} b={b} i={i} unread={unread[b.id]} />
-            ))}
-          </div>
+        <>
+          <Summary
+            items={[
+              { label: "Tasks in work", value: sum("open"), href: "/tasks" },
+              { label: "To check", value: sum("review"), tone: "amber", href: "/tasks" },
+              { label: "Late", value: sum("overdue"), tone: "red", href: "/tasks" },
+              { label: "Approved so far", value: sum("done") },
+            ]}
+          />
 
-          <aside className="card p-5">
-            <div className="flex items-center justify-between">
-              <h2 className="text-xl font-normal tracking-[-0.01em]">
-                At a glance
-              </h2>
-              <Link
-                href="/tasks"
-                aria-label="Tasks"
-                className="grid h-8 w-8 place-items-center rounded-full bg-panel-2 text-muted hover:text-ink"
-              >
-                <Icon name="arrow" size={13} className="-rotate-45" />
-              </Link>
-            </div>
-            <ul className="mt-4 flex flex-col gap-4">
-              {glance.map((g) => (
-                <li key={g.label} className="flex items-center gap-3">
-                  <span
-                    className={`grid h-9 w-9 shrink-0 place-items-center rounded-xl ${
-                      g.tone === "coral"
-                        ? "card-coral !rounded-xl !shadow-none"
-                        : g.tone === "dark"
-                          ? "bg-[#1c1c1f] text-white"
-                          : g.tone === "soft"
-                            ? "bg-brand/15 text-brand"
-                            : "bg-panel-2 text-muted"
-                    }`}
-                  >
-                    <Icon name={g.icon} size={15} />
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center justify-between text-[13px]">
-                      <span className="font-medium">{g.label}</span>
-                      <span className="text-[11px] tabular-nums text-muted">
-                        {g.value}
-                      </span>
-                    </div>
-                    <span className="mt-1.5 block h-1 overflow-hidden rounded-full bg-panel-2">
-                      <span
-                        className={`block h-full rounded-full ${g.tone === "dark" ? "bg-ink" : "bg-brand"}`}
-                        style={{
-                          width: `${g.total ? Math.min(100, (g.value / g.total) * 100) : 0}%`,
-                        }}
-                      />
-                    </span>
-                  </div>
-                </li>
+          <FilterPills
+            className="rise mb-5"
+            items={[
+              { label: "All", count: brands.length, href: "/brands", on: !show },
+              { label: "Clients", count: active.length, href: "/brands?show=active", on: show === "active" },
+              { label: "Onboarding", count: onboarding.length, href: "/brands?show=onboarding", on: show === "onboarding" },
+            ]}
+          />
+
+          {list.length ? (
+            <div className="rise grid gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
+              {list.map((b) => (
+                <BrandCard key={b.id} b={b} unread={unread[b.id]} />
               ))}
-            </ul>
-            <div className="mt-5 flex items-center gap-3 border-t border-line pt-4">
-              <span className="text-[32px] font-light leading-none tabular-nums">
-                {sum("open")}
-              </span>
-              <span className="text-xs leading-tight text-muted">
-                tasks in work
-                <br />
-                across all clients
-              </span>
             </div>
-          </aside>
-        </div>
+          ) : (
+            <div className="card">
+              <Empty icon="brand">No brands here.</Empty>
+            </div>
+          )}
+        </>
       )}
     </div>
   );

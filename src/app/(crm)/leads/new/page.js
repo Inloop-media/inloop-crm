@@ -14,16 +14,9 @@ export default async function NewLeadPage() {
   // The sales head gives leads only to their own team
   const members = (await listAssignees()).filter((m) => staff || m.id === me.id || salesTeam(me).includes(m.id));
   return (
-    <div className="page max-w-3xl">
-      <PageHeader
-        back={{ href: "/leads", label: "Leads" }}
-        kicker="Pipeline"
-        title="New lead"
-        sub="For leads that didn't come through the website — calls, referrals, events. It gets the next IM- number, same as website leads."
-      />
-      <div className="rise rise-1 card p-6 sm:p-8">
-        <NewLeadForm members={members} />
-      </div>
+    <div className="page max-w-6xl">
+      <PageHeader back={{ href: "/leads", label: "Leads" }} title="New lead" sub="For leads that didn't come through the website — calls, referrals, events." />
+      <NewLeadForm members={members} />
     </div>
   );
 }

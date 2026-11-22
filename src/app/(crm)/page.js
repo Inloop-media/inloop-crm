@@ -2,6 +2,10 @@ import Link from "next/link";
 import UserHome from "@/components/UserHome";
 import HeadHome from "@/components/HeadHome";
 import AdminHome from "@/components/AdminHome";
+import AdminOverview from "@/components/AdminOverview";
+import { Avatar } from "@/components/ui";
+import { GROUP_KINDS } from "@/lib/constants";
+import { db } from "@/lib/supabase/server";
 import Icon from "@/components/Icon";
 import { requireMember } from "@/lib/auth";
 import { dashboardData, myFollowUps } from "@/lib/leads";
@@ -13,7 +17,7 @@ import { canSeeAllLeads, canSeeLeads, headsTeam, isExecHead, isSalesHead, isStra
 import TeamMeetings from "@/components/TeamMeetings";
 import { canCallMeetings, meetingAudience, myTeamMeetings } from "@/lib/teamMeetings";
 import { listGroups } from "@/lib/leads";
-import { ownHeadIds, runsGroup, sortGroups, teamLeadIdsOf } from "@/lib/groups";
+import { headIdsOf, ownHeadIds, runsGroup, sortGroups, teamLeadIdsOf } from "@/lib/groups";
 
 /** Every group this person is in or runs (one person can be in several), with their role there. */
 async function MyGroups({ me }) {
@@ -42,6 +46,87 @@ async function MyGroups({ me }) {
         })}
       </ul>
     </Block>
+  );
+}
+
+/**
+ * Every group this person is in (one person can be in several — e.g. Abhay in Creative Strategists and
+ * Development): who manages it, the team lead(s), their own role there and who else is in it.
+ * Groups they run already show under "Your teams", so those are left out here.
+ */
+async function GroupCards({ me }) {
+  const all = await listGroups();
+  const led = new Set((me.ledGroups || []).map((g) => g.id));
+  const mine = sortGroups(all.filter((g) => !led.has(g.id) && (g.members.some((m) => m.id === me.id) || teamLeadIdsOf(g).includes(me.id))));
+  if (!mine.length) return null;
+  const ids = [...new Set(mine.flatMap((g) => [...headIdsOf(g), ...teamLeadIdsOf(g)]))];
+  const { data } = ids.length ? await db().from("members").select("id, name").in("id", ids) : { data: [] };
+  const name = Object.fromEntries([...(data || []), ...mine.flatMap((g) => g.members)].map((m) => [m.id, m.name]));
+  const names = (list) => list.map((id) => name[id]).filter(Boolean).join(", ");
+  return (
+    <section className="rise">
+      <h2 className="mb-2 text-[13px] font-medium text-muted">
+        Your groups <span className="text-faint">· {mine.length}</span>
+      </h2>
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        {mine.map((g) => {
+          const heads = headIdsOf(g);
+          const tl = teamLeadIdsOf(g);
+          const people = g.members.filter((m) => m.active);
+          const role = tl.includes(me.id) ? "Team lead" : runsGroup(g, me.id) ? "Manager" : "Member";
+          const body = (
+            <>
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <div className="truncate text-[15px] font-medium">{g.name}</div>
+                  <div className="text-[11px] text-muted">{GROUP_KINDS.find((k) => k.id === g.kind)?.label || g.kind}</div>
+                </div>
+                <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10.5px] font-medium ${role === "Member" ? "bg-panel-2 text-muted" : "bg-brand/12 text-brand"}`}>{role}</span>
+              </div>
+              <dl className="mt-3 grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 text-[12px]">
+                {g.kind !== "execution" && (
+                  <>
+                    <dt className="text-muted">{ownHeadIds(g).length ? (heads.length > 1 ? "Managers" : "Manager") : "CBO"}</dt>
+                    <dd className="truncate">{names(heads) || <span className="text-faint">Not set</span>}</dd>
+                    <dt className="text-muted">{tl.length > 1 ? "Team leads" : "Team lead"}</dt>
+                    <dd className="truncate">{names(tl) || <span className="text-faint">Not set</span>}</dd>
+                  </>
+                )}
+              </dl>
+              <div className="mt-3 flex items-center gap-2">
+                <span className="flex -space-x-2">
+                  {people.slice(0, 5).map((m) => (
+                    <Avatar key={m.id} name={m.name} size={24} />
+                  ))}
+                </span>
+                <span className="truncate text-[11px] text-muted">
+                  {people.length} {people.length === 1 ? "person" : "people"}
+                </span>
+              </div>
+            </>
+          );
+          return runsGroup(g, me.id) || me.role === "admin" ? (
+            <Link key={g.id} href={`/groups/${g.id}`} className="card card-hover block p-4">
+              {body}
+            </Link>
+          ) : (
+            <Link key={g.id} href="/groups" className="card card-hover block p-4">
+              {body}
+            </Link>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+/** The admin overview's top row (as it was before the calmer redesign): team meetings, then group cards. */
+function AdminTop({ me }) {
+  return (
+    <div className="flex flex-col gap-4">
+      <Meetings me={me} />
+      <GroupCards me={me} />
+    </div>
   );
 }
 
@@ -125,13 +210,13 @@ export default async function Dashboard() {
     const [data, tasks, brands, people] = await Promise.all([dashboardData(me), listTasks(me, { view: "all" }), listBrands(), listMakers(me)]);
     const active = brands.filter((b) => b.stage === "active").map((b) => ({ id: b.id, name: b.name }));
     return (
-      <AdminHome
+      <AdminOverview
         me={me}
         data={data}
         brands={brands}
         tasks={tasks}
         actions={<QuickAssign brands={active} people={people} label="New task" />}
-        side={<Side me={me} />}
+        meetings={<AdminTop me={me} />}
       />
     );
   }

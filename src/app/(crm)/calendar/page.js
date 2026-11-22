@@ -2,13 +2,13 @@ import Link from "next/link";
 import Icon from "@/components/Icon";
 import ContentCalendar from "@/components/ContentCalendar";
 import MasterCalendar from "@/components/MasterCalendar";
+import PlansOverview from "@/components/PlansOverview";
 import { FilterPills } from "@/components/Desk";
 import { Avatar, Empty } from "@/components/ui";
 import { requireMember } from "@/lib/auth";
 import { listBrands } from "@/lib/brands";
 import { listMakers } from "@/lib/tasks";
 import { calendarLock, loadItems, loadPlans, monthLabel, planProgress, shiftMonth, validMonth } from "@/lib/calendar";
-import { kindPlural } from "@/lib/constants";
 import { canAssignTasks, canEditCalendar, canSeeCalendar, canLockCalendar, canDeleteCalendar, canSetPlan } from "@/lib/permissions";
 
 export const metadata = { title: "Content calendar" };
@@ -29,62 +29,6 @@ function MonthNav({ month, brand, view }) {
       <Link href={href({ brand, view, month: shiftMonth(month, 1) })} className="icon-btn !h-9 !w-9" aria-label="Next month">
         <Icon name="chevron" size={14} className="-rotate-90" />
       </Link>
-    </div>
-  );
-}
-
-/** Every brand's month at a glance: plan vs planned vs done. */
-function Overview({ brands, plans, items, month }) {
-  const rows = brands
-    .map((b) => {
-      const mine = items.filter((i) => i.brand_id === b.id);
-      return { b, plan: plans[b.id], p: planProgress(plans[b.id], mine) };
-    })
-    .sort((x, y) => (x.p.target ? x.p.planned / x.p.target : 2) - (y.p.target ? y.p.planned / y.p.target : 2));
-  if (!rows.length) return <div className="card"><Empty icon="brand">No onboarded brands yet.</Empty></div>;
-  return (
-    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-      {rows.map(({ b, plan, p }) => {
-        const pct = p.target ? Math.min(100, Math.round((p.planned / p.target) * 100)) : 0;
-        const status = !p.target ? ["No deliverables set", "text-muted"] : p.planned >= p.target ? ["Fully planned", "text-emerald-400"] : p.planned ? [`${p.target - p.planned} still to plan`, "text-amber-400"] : ["Calendar not started", "text-rose-400"];
-        return (
-          <Link key={b.id} href={href({ brand: b.id, month })} className="card card-hover flex flex-col gap-4 !rounded-3xl p-5">
-            <div className="flex items-center gap-3">
-              <Avatar name={b.name} size={38} />
-              <div className="min-w-0 flex-1">
-                <div className="truncate text-[15px] font-medium">{b.name}</div>
-                <div className={`text-xs ${status[1]}`}>{status[0]}</div>
-              </div>
-              <Icon name="chevron" size={14} className="-rotate-90 text-faint" />
-            </div>
-            <div>
-              <div className="flex items-baseline justify-between text-xs text-muted">
-                <span>
-                  <b className="text-lg font-medium text-ink">{p.planned}</b>
-                  {p.target ? ` / ${p.target}` : ""} planned
-                </span>
-                <span>
-                  {p.assigned} assigned · {p.done} done
-                </span>
-              </div>
-              <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-panel-2">
-                <span className="bar-fill" style={{ width: `${p.target ? pct : p.planned ? 100 : 0}%` }} />
-              </div>
-            </div>
-            {p.rows.length > 0 && (
-              <div className="flex flex-wrap gap-1.5">
-                {p.rows.map((r) => (
-                  <span key={r.kind} className="rounded-full bg-panel-2 px-2 py-0.5 text-[11px] text-muted">
-                    {kindPlural(r.kind)} <b className="font-medium text-ink">{r.planned}</b>
-                    {r.target ? `/${r.target}` : ""}
-                  </span>
-                ))}
-              </div>
-            )}
-            {plan?.inherited && <span className="-mt-2 text-[10px] text-faint">Deliverables carried over from an earlier month</span>}
-          </Link>
-        );
-      })}
     </div>
   );
 }
@@ -162,7 +106,7 @@ export default async function CalendarPage({ searchParams }) {
               canDelete={canDeleteCalendar(me)}
           />
         ) : view === "plans" ? (
-          <Overview brands={brands} plans={plans} items={items} month={month} />
+          <PlansOverview brands={brands} plans={plans} items={items} month={month} />
         ) : brands.length ? (
           <MasterCalendar month={month} brands={brands.map((b) => ({ id: b.id, name: b.name }))} items={items} />
         ) : (

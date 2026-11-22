@@ -37,17 +37,31 @@ const withLinks = (f, signed) => {
   return { ...f, href, download };
 };
 
-/** Brands with how many files each library holds. */
+/** Brands with how many files each folder holds, when it last changed, and up to 3 photos for a cover. */
 export async function libraryBrands() {
   const [{ data: brands }, { data: assets }, { data: done }] = await Promise.all([
     db().from("brands").select("id, name, stage").order("name"),
-    db().from("brand_assets").select("brand_id"),
+    db().from("brand_assets").select("brand_id, folder, name, storage_path, type, created_at").order("created_at", { ascending: false }),
     db().from("tasks").select("brand_id").eq("status", "done"),
   ]);
-  const count = (rows) => (rows || []).reduce((m, r) => ((m[r.brand_id] = (m[r.brand_id] || 0) + 1), m), {});
-  const files = count(assets);
-  const work = count(done);
-  return (brands || []).map((b) => ({ ...b, files: files[b.id] || 0, completed: work[b.id] || 0 }));
+  const work = (done || []).reduce((m, r) => ((m[r.brand_id] = (m[r.brand_id] || 0) + 1), m), {});
+  const by = {};
+  const coverPaths = [];
+  const isPic = (a) => a.storage_path && a.folder !== "documents" && (/^image\//.test(a.type) || /\.(jpe?g|png|webp|gif)$/i.test(a.name || a.storage_path));
+  for (const a of assets || []) {
+    const b = (by[a.brand_id] ||= { files: 0, folders: {}, updated: a.created_at, covers: [] });
+    b.files += 1;
+    b.folders[a.folder] = (b.folders[a.folder] || 0) + 1;
+    if (isPic(a) && b.covers.length < 3) {
+      b.covers.push(a.storage_path);
+      coverPaths.push(a.storage_path);
+    }
+  }
+  const signed = await sign(coverPaths);
+  return (brands || []).map((b) => {
+    const x = by[b.id] || { files: 0, folders: {}, updated: null, covers: [] };
+    return { ...b, files: x.files, folders: x.folders, updated: x.updated, covers: x.covers.map((p) => signed[p]).filter(Boolean), completed: work[b.id] || 0 };
+  });
 }
 
 /** One brand's library: { brand, assets: { [folder]: [...] }, completed: [{ task, files }], missing } */
