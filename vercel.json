@@ -1,6 +1,15 @@
 {
+  "regions": [
+    "hnd1"
+  ],
   "crons": [
-    { "path": "/api/cron/tasks", "schedule": "30 4 * * *" },
-    { "path": "/api/cron/tasks", "schedule": "30 13 * * *" }
+    {
+      "path": "/api/cron/tasks",
+      "schedule": "30 4 * * *"
+    },
+    {
+      "path": "/api/cron/tasks",
+      "schedule": "30 13 * * *"
+    }
   ]
 }

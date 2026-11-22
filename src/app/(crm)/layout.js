@@ -46,32 +46,45 @@ const initials = (name) =>
 
 export default async function CrmLayout({ children }) {
   const me = await requireMember();
+  // Everything the sidebar counts, fetched at the same time (one after another made every click slow)
+  const brandUnread = async () => {
+    const { data } = await db().from("brands").select("id");
+    const unread = await unreadCounts((data || []).map((b) => b.id), me.id).catch(() => ({}));
+    return Object.values(unread).reduce((n, c) => n + c, 0);
+  };
+  const [tasksCount, feeds, dmCount, reqs, briefCount, brandMsgs, feedbackCount, theme, celebrations] = await Promise.all([
+    taskBadge(me).catch(() => 0),
+    listFeeds(me).catch(() => []),
+    dmUnread(me.id).catch(() => 0),
+    requirementCounts(me.id).catch(() => ({ inbox: 0 })),
+    canSeeBriefs(me) ? briefsBadge(me).catch(() => 0) : 0,
+    canSeeBrands(me) ? brandUnread().catch(() => 0) : 0,
+    me.role === "admin" ? newFeedback().catch(() => 0) : 0,
+    getTheme(),
+    unseenCelebrations(me).catch(() => []),
+  ]);
   // Sidebar groups: your work, sales, clients, admin
-  const tasksCount = await taskBadge(me).catch(() => 0);
-  const feeds = await listFeeds(me);
   const main = [{ href: "/", label: "Overview", icon: "home" }];
   if (canUseAmigo(me)) main.push({ href: "/amigo", label: "Amigo", icon: "sparkle", tag: "AI" });
   if (canAssignTasks(me) || isMaker(me) || tasksCount) main.push({ href: "/tasks", label: canAssignTasks(me) ? "Tasks" : "My tasks", icon: "tasks", badge: tasksCount });
   if (canSeeCalendar(me)) main.push({ href: "/calendar", label: "Content calendar", icon: "calendar" });
   if (canSeeLibrary(me)) main.push({ href: "/library", label: "Brand library", icon: "board" });
-  main.push({ href: "/dm", label: "Direct messages", icon: "chat", badge: await dmUnread(me.id).catch(() => 0) });
-  main.push({ href: "/requirements", label: "Requirements", icon: "list", badge: (await requirementCounts(me.id).catch(() => ({ inbox: 0 }))).inbox });
+  main.push({ href: "/dm", label: "Direct messages", icon: "chat", badge: dmCount });
+  main.push({ href: "/requirements", label: "Requirements", icon: "list", badge: reqs.inbox });
   const sales = [];
   if (canSeeLeads(me)) sales.push({ href: "/leads", label: "Leads", icon: "leads" });
   if (canSeeAssets(me)) sales.push({ href: "/assets", label: "Brand assets", icon: "brief" });
-  if (canSeeBriefs(me)) sales.push({ href: "/briefs", label: "Proposals", icon: "brief", badge: await briefsBadge(me) });
+  if (canSeeBriefs(me)) sales.push({ href: "/briefs", label: "Proposals", icon: "brief", badge: briefCount });
   if (canCreateLead(me)) sales.push({ href: "/leads/new", label: "New lead", icon: "plus" });
   const clients = [];
   if (canSeeBrands(me)) {
-    const { data } = await db().from("brands").select("id");
-    const unread = await unreadCounts((data || []).map((b) => b.id), me.id).catch(() => ({}));
     clients.push({ href: "/brands", label: "Brands", icon: "brand" });
-    clients.push({ href: "/messages", label: "Messages", icon: "chat", badge: Object.values(unread).reduce((n, c) => n + c, 0) });
+    clients.push({ href: "/messages", label: "Messages", icon: "chat", badge: brandMsgs });
   }
   const admin = [];
   if (feeds.length) admin.push({ href: "/updates", label: "Updates", icon: "slack", badge: feeds.reduce((n, g) => n + g.unread, 0) });
   if (canManageTeam(me)) admin.push({ href: "/team", label: "Team", icon: "team" });
-  if (me.role === "admin") admin.push({ href: "/feedback", label: "Feedback", icon: "alert", badge: await newFeedback() });
+  if (me.role === "admin") admin.push({ href: "/feedback", label: "Feedback", icon: "alert", badge: feedbackCount });
   // Heads see the groups they run, each with its own page
   const GROUP_ICON = { design: "board", video: "video", production: "video", development: "link", performance: "chart", social: "chat", strategy: "brief", sales: "leads", execution: "team" };
   const staffMe = me.role === "admin";
@@ -89,7 +102,6 @@ export default async function CrmLayout({ children }) {
   ].filter((g) => g.items.length);
   const items = [...main, ...sales.filter((i) => i.href !== "/leads/new"), ...clients];
   const bottom = admin;
-  const theme = await getTheme();
   const roleLabel = me.role === "member" ? me.groups.map((g) => g.name).join(" · ") || "Member" : ROLES.find((r) => r.id === me.role)?.label;
 
   const profile = {
@@ -143,7 +155,7 @@ export default async function CrmLayout({ children }) {
       </div>
       <PhoneTabs items={items.filter((it) => it.href !== "/leads/new")} bottom={bottom} />
       {me.role !== "admin" && <FeedbackNote />}
-      <Celebration initial={await unseenCelebrations(me).catch(() => [])} />
+      <Celebration initial={celebrations} />
     </div>
   );
 }
