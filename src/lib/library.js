@@ -1,18 +1,21 @@
 import "server-only";
 import { db } from "@/lib/supabase/server";
+import { headsTeam, isExecHead } from "@/lib/permissions";
 
 // Brand library: client-provided brand material (uploaded by ops / admin) + the brand's approved work.
 
 export const LIBRARY_FOLDERS = [
-  { id: "identity", label: "Brand identity", icon: "brand", hint: "Logos, fonts, colours, brand guidelines" },
-  { id: "images", label: "Images", icon: "board", hint: "Product shots, photos, references" },
-  { id: "videos", label: "Videos", icon: "video", hint: "Raw footage, past ads, b-roll" },
-  { id: "documents", label: "Documents", icon: "brief", hint: "Decks, menus, price lists, briefs" },
-  { id: "other", label: "Other", icon: "list", hint: "Anything else" },
+  { id: "identity", label: "Brand identity", icon: "brand", hint: "Logos, fonts, colours, brand guidelines", presets: ["Logos", "Fonts", "Brand guidelines", "Colours"] },
+  { id: "images", label: "Images", icon: "board", hint: "Product shots, photos, references", presets: ["Product shots", "Lifestyle", "References"] },
+  { id: "videos", label: "Videos", icon: "video", hint: "Raw footage, past ads, b-roll", presets: ["Raw footage", "Past ads"] },
+  { id: "documents", label: "Documents", icon: "brief", hint: "Decks, menus, price lists, briefs", presets: [] },
+  { id: "other", label: "Other", icon: "list", hint: "Anything else", presets: [] },
 ];
 const BUCKET = "lead-docs";
 export const LIBRARY_MAX_FILE = 50 * 1024 * 1024;
 export const canManageLibrary = (me) => me.role === "admin" || me.role === "ops";
+/** Deleting from the library (files and folders): only admin, the CBOs and managers who run a group. */
+export const canDeleteLibrary = (me) => me.role === "admin" || isExecHead(me) || headsTeam(me);
 // Documents are confidential (agreements, pricing…): only people with members.can_see_documents (set on the
 // Team page) open them — everyone else, admin and ops included, sees the folder locked.
 export const LOCKED_FOLDERS = ["documents"];
@@ -52,10 +55,14 @@ export async function brandLibrary(brandId, me) {
   const open = await canSeeLocked(me);
   const { data: brand } = await db().from("brands").select("id, name, stage").eq("id", brandId).maybeSingle();
   if (!brand) return null;
-  const [assetsRes, { data: tasks }] = await Promise.all([
+  const [assetsRes, { data: tasks }, foldersRes] = await Promise.all([
     db().from("brand_assets").select("*, uploader:members(name)").eq("brand_id", brandId).order("created_at", { ascending: false }),
     db().from("tasks").select("id, title, kind, revision, done_at, assignee:members!tasks_assignee_id_fkey(name)").eq("brand_id", brandId).eq("status", "done").order("done_at", { ascending: false }).limit(300),
+    db().from("brand_asset_folders").select("folder, name").eq("brand_id", brandId).order("name"),
   ]);
+  // Folders inside each section: the ready-made ones, ones someone created, and ones files are already in
+  const sub = Object.fromEntries(LIBRARY_FOLDERS.map((f) => [f.id, [...f.presets]]));
+  for (const r of foldersRes.error ? [] : foldersRes.data || []) if (sub[r.folder] && !sub[r.folder].includes(r.name)) sub[r.folder].push(r.name);
   const all = assetsRes.error ? [] : assetsRes.data || [];
   // Locked folders: people outside development only learn how many files there are — no names, no links
   const lockedCount = Object.fromEntries(LOCKED_FOLDERS.map((f) => [f, all.filter((a) => a.folder === f).length]));
@@ -66,7 +73,10 @@ export async function brandLibrary(brandId, me) {
     : { data: [] };
   const signed = await sign([...assets.map((a) => a.storage_path), ...(files || []).map((f) => f.storage_path)]);
   const byFolder = Object.fromEntries(LIBRARY_FOLDERS.map((f) => [f.id, []]));
-  for (const a of assets) (byFolder[a.folder] || byFolder.other).push(withLinks(a, signed));
+  for (const a of assets) {
+    (byFolder[a.folder] || byFolder.other).push(withLinks(a, signed));
+    if (a.subfolder && sub[a.folder] && !sub[a.folder].includes(a.subfolder)) sub[a.folder].push(a.subfolder);
+  }
   // The final version of each approved task: the files of its last revision
   const completed = (tasks || [])
     .map((t) => {
@@ -75,5 +85,5 @@ export async function brandLibrary(brandId, me) {
       return { task: t, files: all.filter((f) => f.revision === last).map((f) => withLinks(f, signed)) };
     })
     .filter((x) => x.files.length);
-  return { brand, assets: byFolder, completed, missing: Boolean(assetsRes.error), locked: open ? [] : LOCKED_FOLDERS, lockedCount };
+  return { brand, assets: byFolder, subfolders: sub, foldersReady: !foldersRes.error, completed, missing: Boolean(assetsRes.error), locked: open ? [] : LOCKED_FOLDERS, lockedCount };
 }

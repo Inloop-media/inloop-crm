@@ -3,13 +3,26 @@
 import { revalidatePath } from "next/cache";
 import { requireMember } from "@/lib/auth";
 import { db } from "@/lib/supabase/server";
-import { LIBRARY_FOLDERS, LIBRARY_MAX_FILE, LOCKED_FOLDERS, canManageLibrary, canSeeLocked } from "@/lib/library";
+import { LIBRARY_FOLDERS, LIBRARY_MAX_FILE, LOCKED_FOLDERS, canDeleteLibrary, canManageLibrary, canSeeLocked } from "@/lib/library";
 
 const BUCKET = "lead-docs";
 const isUuid = (v) => /^[0-9a-f-]{36}$/i.test(String(v || ""));
 const isFolder = (f) => LIBRARY_FOLDERS.some((x) => x.id === f);
 const clean = (v, max) => String(v ?? "").trim().slice(0, max);
-const missing = (e) => (/brand_assets/.test(e?.message || "") ? "The library isn't set up yet — run migration 020 in Supabase." : e?.message || "Something went wrong.");
+const missing = (e) =>
+  /subfolder|brand_asset_folders/.test(e?.message || "")
+    ? "Folders need migration 026 — run it in Supabase first."
+    : /brand_assets/.test(e?.message || "")
+      ? "The library isn't set up yet — run migration 020 in Supabase."
+      : e?.message || "Something went wrong.";
+// "Logos", "Logos / PNG" — a folder inside a section; "" = not in a folder
+const cleanSub = (v) =>
+  String(v ?? "")
+    .split("/")
+    .map((p) => p.trim().replace(/\s+/g, " "))
+    .filter(Boolean)
+    .join(" / ")
+    .slice(0, 120);
 
 /** Ops / admin change the library; the Documents folder belongs to the people allowed to open it. */
 async function allowed(me, folder) {
@@ -35,16 +48,18 @@ export async function libraryUploadUrl(brandId, folder, name, size) {
   return { ok: true, path: data.path, token: data.token };
 }
 
-/** Saves uploaded files ({ path, name, size, type }) or a link ({ url, name }) into a folder. */
+/** Saves uploaded files ({ path, name, size, type, subfolder }) or a link ({ url, name, subfolder }) into a section. */
 export async function addLibraryItems(brandId, folder, items) {
   if (!isFolder(folder)) return { ok: false, error: "Pick a folder." };
   const { me, error } = await guard(brandId, folder);
   if (error) return { ok: false, error };
-  const rows = (Array.isArray(items) ? items : []).slice(0, 50).flatMap((it) => {
+  const rows = (Array.isArray(items) ? items : []).slice(0, 200).flatMap((it) => {
+    const sub = cleanSub(it?.subfolder);
+    const extra = sub ? { subfolder: sub } : {};
     if (typeof it?.path === "string" && it.path.startsWith(`library/${brandId}/`) && !it.path.includes(".."))
-      return [{ brand_id: brandId, folder, name: clean(it.name || "file", 200), storage_path: it.path, size: Number(it.size) || 0, type: clean(it.type, 100), uploaded_by: me.id }];
+      return [{ brand_id: brandId, folder, name: clean(it.name || "file", 200), storage_path: it.path, size: Number(it.size) || 0, type: clean(it.type, 100), uploaded_by: me.id, ...extra }];
     const url = clean(it?.url, 2000);
-    if (/^https?:\/\/\S+$/i.test(url)) return [{ brand_id: brandId, folder, name: clean(it.name, 200) || url.replace(/^https?:\/\//, "").slice(0, 80), url, uploaded_by: me.id }];
+    if (/^https?:\/\/\S+$/i.test(url)) return [{ brand_id: brandId, folder, name: clean(it.name, 200) || url.replace(/^https?:\/\//, "").slice(0, 80), url, uploaded_by: me.id, ...extra }];
     return [];
   });
   if (!rows.length) return { ok: false, error: "Nothing to add." };
@@ -52,6 +67,45 @@ export async function addLibraryItems(brandId, folder, items) {
   if (e) return { ok: false, error: missing(e) };
   revalidatePath(`/library/${brandId}`);
   revalidatePath("/library");
+  return { ok: true };
+}
+
+/** A new (empty) folder inside a section, e.g. "Packaging" under Images. */
+export async function createLibraryFolder(brandId, folder, name) {
+  if (!isFolder(folder)) return { ok: false, error: "Pick a section." };
+  const { me, error } = await guard(brandId, folder);
+  if (error) return { ok: false, error };
+  const n = cleanSub(name);
+  if (!n) return { ok: false, error: "Give the folder a name." };
+  const { error: e } = await db().from("brand_asset_folders").upsert({ brand_id: brandId, folder, name: n, created_by: me.id }, { onConflict: "brand_id,folder,name", ignoreDuplicates: true });
+  if (e) return { ok: false, error: missing(e) };
+  revalidatePath(`/library/${brandId}`);
+  return { ok: true, name: n };
+}
+
+/** Removes a folder someone created; its files move out to the section (nothing is deleted). */
+export async function deleteLibraryFolder(brandId, folder, name) {
+  if (!isFolder(folder) || !isUuid(brandId)) return { ok: false, error: "Pick a section." };
+  const me = await requireMember();
+  if (!canDeleteLibrary(me)) return { ok: false, error: "Only admin, CBOs and managers can delete from the library." };
+  if (LOCKED_FOLDERS.includes(folder) && !(await canSeeLocked(me))) return { ok: false, error: "You can't change this folder." };
+  const n = cleanSub(name);
+  await db().from("brand_asset_folders").delete().eq("brand_id", brandId).eq("folder", folder).eq("name", n);
+  await db().from("brand_assets").update({ subfolder: "" }).eq("brand_id", brandId).eq("folder", folder).eq("subfolder", n);
+  revalidatePath(`/library/${brandId}`);
+  return { ok: true };
+}
+
+/** Move a file to another folder inside its section ("" = out of any folder). */
+export async function moveLibraryItemToSub(id, subfolder) {
+  const me = await requireMember();
+  if (!isUuid(id)) return { ok: false, error: "Invalid request." };
+  const { data: cur } = await db().from("brand_assets").select("folder, brand_id").eq("id", id).maybeSingle();
+  if (!cur) return { ok: false, error: "File not found." };
+  if (!(await allowed(me, cur.folder))) return { ok: false, error: "You can't move this file." };
+  const { error } = await db().from("brand_assets").update({ subfolder: cleanSub(subfolder) }).eq("id", id);
+  if (error) return { ok: false, error: missing(error) };
+  revalidatePath(`/library/${cur.brand_id}`);
   return { ok: true };
 }
 
@@ -63,6 +117,8 @@ export async function moveLibraryItem(id, folder) {
   if (!(await allowed(me, cur.folder)) || !(await allowed(me, folder))) return { ok: false, error: "You can't move this file there." };
   const { data, error } = await db().from("brand_assets").update({ folder }).eq("id", id).select("brand_id").single();
   if (error) return { ok: false, error: missing(error) };
+  // A folder belongs to one section — the file comes out of it when it changes section
+  await db().from("brand_assets").update({ subfolder: "" }).eq("id", id);
   revalidatePath(`/library/${data.brand_id}`);
   return { ok: true };
 }
@@ -72,7 +128,8 @@ export async function deleteLibraryItem(id) {
   if (!isUuid(id)) return { ok: false, error: "Invalid request." };
   const { data: a } = await db().from("brand_assets").select("brand_id, storage_path, folder").eq("id", id).maybeSingle();
   if (!a) return { ok: false, error: "Already gone." };
-  if (!(await allowed(me, a.folder))) return { ok: false, error: "You can't delete this file." };
+  if (!canDeleteLibrary(me)) return { ok: false, error: "Only admin, CBOs and managers can delete from the library." };
+  if (LOCKED_FOLDERS.includes(a.folder) && !(await canSeeLocked(me))) return { ok: false, error: "You can't delete this file." };
   await db().from("brand_assets").delete().eq("id", id);
   if (a.storage_path) await db().storage.from(BUCKET).remove([a.storage_path]);
   revalidatePath(`/library/${a.brand_id}`);
