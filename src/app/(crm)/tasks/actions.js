@@ -76,15 +76,22 @@ export async function createTask(brandId, input) {
   return { ok: true, id: task.id };
 }
 
+/** The Production people (team leads first) — for the "needs raw" part of the New task popup. */
+export async function listProductionCrew() {
+  await requireMember();
+  return productionPeople();
+}
+
 /**
  * Ask Production for raw photos / footage for a design or video task. Makes a "shoot" task for the
  * production person (linked to this task); when they submit it, this task's designer / editor is told.
  */
 export async function requestRaw(forId, input) {
   const me = await requireMember();
-  if (!canAssignTasks(me)) return { ok: false, error: "Only managers and admins can ask production." };
   const task = await loadTask(forId);
   if (!task) return { ok: false, error: "Task not found." };
+  // Managers / admin, or the designer / editor doing the task themselves
+  if (!canAssignTasks(me) && task.assignee_id !== me.id) return { ok: false, error: "Only the person doing this task or a manager can ask Production." };
   if (task.kind === "shoot") return { ok: false, error: "This is already a shoot." };
   const what = RAW_WHAT.some(([id]) => id === input.what) ? input.what : "photos";
   const label = RAW_WHAT.find(([id]) => id === what)[1];
@@ -114,6 +121,8 @@ export async function requestRaw(forId, input) {
   after(async () => {
     if (assignee.id !== me.id) await notifyTask([assignee.id], shoot, "📸 Shoot needed", `${label} for ${maker ? `${maker}'s ` : ""}${taskKindLabel(task.kind).toLowerCase()} · ${task.brand?.name || ""}`);
     if (task.assignee_id && task.assignee_id !== me.id) await notifyTask([task.assignee_id], task, `${label} asked from ${assignee.name.split(" ")[0]}`, "You'll get a ping as soon as they're uploaded.");
+    // The designer / editor asked themselves: let whoever gave them the task know
+    if (task.assigned_by && task.assigned_by !== me.id && task.assignee_id === me.id) await notifyTask([task.assigned_by], task, `${me.name.split(" ")[0]} asked ${assignee.name.split(" ")[0]} for ${label.toLowerCase()}`, "A shoot task was created for Production.");
   });
   refresh(task);
   refresh(shoot);
@@ -280,17 +289,15 @@ export async function setTaskStatus(id, status) {
     .eq("id", id);
   if (error) return { ok: false, error: error.message };
   await logTask(id, me.id, "status", { from: task.status, to: next });
-  if (next === "completed" && task.assigned_by && task.assigned_by !== me.id) {
+  const main = next === "completed" && task.for_task_id ? await loadTask(task.for_task_id) : null;
+  if (next === "completed" && task.assigned_by && task.assigned_by !== me.id && task.assigned_by !== main?.assignee_id) {
     after(() => notifyTask([task.assigned_by], task, `${me.name} completed`, task.revision ? `Revision ${task.revision} is ready for review.` : "Ready for your review."));
   }
   // A shoot for another task: tell that task's designer / editor the raw files are up
-  if (next === "completed" && task.for_task_id) {
-    const main = await loadTask(task.for_task_id);
-    if (main) {
-      await logTask(main.id, me.id, "raw_ready", { title: task.title });
-      if (main.assignee_id && main.assignee_id !== me.id) after(() => notifyTask([main.assignee_id], main, "📸 Raw files are ready", `${me.name.split(" ")[0]} uploaded them — open the task and start.`));
-      refresh(main);
-    }
+  if (main) {
+    await logTask(main.id, me.id, "raw_ready", { title: task.title });
+    if (main.assignee_id && main.assignee_id !== me.id) after(() => notifyTask([main.assignee_id], main, "📸 Raw files are ready", `${me.name.split(" ")[0]} uploaded them — open the task and start.`));
+    refresh(main);
   }
   refresh(task);
   return { ok: true };
@@ -300,7 +307,7 @@ export async function setTaskStatus(id, status) {
 export async function startTaskUpload(id, fileName, size) {
   const me = await requireMember();
   const task = await loadTask(id);
-  if (!task || (task.assignee_id !== me.id && !canAssignTasks(me))) return { ok: false, error: "This task isn't yours." };
+  if (!task || (task.assignee_id !== me.id && !canAssignTasks(me) && !(task.kind === "shoot" && task.assigned_by === me.id))) return { ok: false, error: "This task isn't yours." };
   if (!(size > 0) || size > MAX_FILE) return { ok: false, error: "Files must be under 50 MB for now — add bigger videos as a link." };
   const safe = str(fileName, 120).replace(/[^\w.\-]+/g, "_") || "file";
   const path = `tasks/${task.id}/${Date.now()}-${safe}`;
@@ -312,7 +319,7 @@ export async function startTaskUpload(id, fileName, size) {
 export async function addTaskFile(id, { path, url, name, size, role = "deliverable" }) {
   const me = await requireMember();
   const task = await loadTask(id);
-  if (!task || (task.assignee_id !== me.id && !canAssignTasks(me))) return { ok: false, error: "This task isn't yours." };
+  if (!task || (task.assignee_id !== me.id && !canAssignTasks(me) && !(task.kind === "shoot" && task.assigned_by === me.id))) return { ok: false, error: "This task isn't yours." };
   const row = { task_id: id, revision: task.revision, role: role === "reference" ? "reference" : "deliverable", uploaded_by: me.id };
   if (path) {
     if (!String(path).startsWith(`tasks/${id}/`)) return { ok: false, error: "Upload not recognised." };

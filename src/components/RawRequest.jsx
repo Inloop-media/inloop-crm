@@ -28,7 +28,7 @@ function Chip({ on, onClick, children }) {
   );
 }
 
-export default function RawRequest({ task, crew = [] }) {
+export default function RawRequest({ task, crew = [], mine = false }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [pending, start] = useTransition();
@@ -53,7 +53,7 @@ export default function RawRequest({ task, crew = [] }) {
         </span>
         <span className="min-w-0 flex-1">
           <span className="block text-[13px] font-medium">Need raw {video ? "footage" : "photos"}?</span>
-          <span className="block text-[11.5px] text-muted">Ask Production — {task.assignee?.name.split(" ")[0] || "the assignee"} is told when it&apos;s uploaded</span>
+          <span className="block text-[11.5px] text-muted">{mine ? "Ask Production to shoot it — you're notified when it's uploaded" : `Ask Production — ${task.assignee?.name.split(" ")[0] || "the assignee"} is told when it's uploaded`}</span>
         </span>
         <Icon name="plus" size={14} className="text-faint group-hover:text-brand" />
       </button>

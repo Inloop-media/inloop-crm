@@ -6,9 +6,9 @@ import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import Icon from "@/components/Icon";
 import { PersonSelect } from "@/components/TaskForms";
-import { addTaskFile, createTask, startTaskUpload } from "@/app/(crm)/tasks/actions";
+import { addTaskFile, createTask, listProductionCrew, requestRaw, startTaskUpload } from "@/app/(crm)/tasks/actions";
 import { createClient } from "@/lib/supabase/browser";
-import { TASK_KINDS } from "@/lib/constants";
+import { RAW_WHAT, TASK_KINDS } from "@/lib/constants";
 
 const MAIN_KINDS = ["post", "carousel", "story", "reel", "video"];
 const PRIORITY = [
@@ -62,6 +62,19 @@ export default function QuickAssign({ brands, people, defaultBrand = "", label =
   const [showBrief, setShowBrief] = useState(false);
   const [files, setFiles] = useState([]);
   const [uploading, setUploading] = useState("");
+  // Needs raw photos / footage from Production first (a linked "shoot" task for e.g. Aryan)
+  const [raw, setRaw] = useState(null); // null = off
+  const [crew, setCrew] = useState(null);
+  const isVideo = ["reel", "video"].includes(f.kind);
+  const toggleRaw = () => {
+    if (raw) return setRaw(null);
+    setRaw({ what: isVideo ? "footage" : "photos", assignee_id: "", brief: "", due_at: dueIn(0) });
+    if (!crew)
+      listProductionCrew().then((list) => {
+        setCrew(list);
+        setRaw((r) => (r && !r.assignee_id ? { ...r, assignee_id: (list.find((p) => p.lead) || list[0])?.id || "" } : r));
+      });
+  };
   const set = (k) => (e) => setF((v) => ({ ...v, [k]: e?.target ? e.target.value : e }));
   const who = people.find((p) => p.id === f.assignee_id);
   const ready = f.brand && f.title.trim() && f.assignee_id;
@@ -88,10 +101,22 @@ export default function QuickAssign({ brands, people, defaultBrand = "", label =
   const submit = (e, again) => {
     e.preventDefault();
     if (!ready) return setError(!f.title.trim() ? "Write what needs to be made." : !f.brand ? "Pick the brand." : "Pick who does it.");
+    if (raw && !raw.assignee_id) return setError("Pick who in Production shoots it.");
+    if (raw && !raw.brief.trim()) return setError("Write what Production should shoot.");
     start(async () => {
       setError("");
       const res = await createTask(f.brand, f);
       if (!res.ok) return setError(res.error);
+      if (raw) {
+        setUploading("Asking Production…");
+        const r = await requestRaw(res.id, raw);
+        if (!r.ok) {
+          setUploading("");
+          setError(`Task given, but the Production request didn't go: ${r.error} — ask from the task page.`);
+          router.refresh();
+          return;
+        }
+      }
       // Optional files for the person doing it (references, copy, raw footage…)
       for (const [i, file] of files.entries()) {
         setUploading(`Uploading ${i + 1} of ${files.length}…`);
@@ -107,6 +132,7 @@ export default function QuickAssign({ brands, people, defaultBrand = "", label =
       }
       setUploading("");
       setFiles([]);
+      setRaw(null);
       setDone(`“${f.title}” given to ${who?.name.split(" ")[0] || "them"}.`);
       if (again) setF({ ...empty, brand: f.brand, kind: f.kind, assignee_id: f.assignee_id, due_at: f.due_at, priority: f.priority });
       else {
@@ -245,6 +271,72 @@ export default function QuickAssign({ brands, people, defaultBrand = "", label =
                         </li>
                       ))}
                     </ul>
+                  )}
+                </div>
+
+                <div className={`rounded-2xl border transition ${raw ? "border-brand/40 bg-brand/[0.03]" : "border-line"}`}>
+                  <button type="button" onClick={toggleRaw} className="flex w-full items-center gap-3 px-4 py-3 text-left">
+                    <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-full ${raw ? "bg-brand text-white" : "bg-brand/10 text-brand"}`}>
+                      <Icon name="video" size={15} />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-[13px] font-medium">Needs raw {isVideo ? "footage" : "photos"} from Production</span>
+                      <span className="block text-[11.5px] text-muted">They shoot it first; {who ? who.name.split(" ")[0] : "the person doing it"} is notified when it&apos;s uploaded</span>
+                    </span>
+                    <span className={`relative h-5 w-9 shrink-0 rounded-full transition ${raw ? "bg-brand" : "bg-panel-3"}`}>
+                      <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-all ${raw ? "left-[18px]" : "left-0.5"}`} />
+                    </span>
+                  </button>
+                  {raw && (
+                    <div className="flex flex-col gap-3.5 border-t border-line px-4 pb-4 pt-3.5">
+                      <div className="flex flex-wrap gap-1.5">
+                        {RAW_WHAT.map(([id, l]) => (
+                          <Chip key={id} on={raw.what === id} onClick={() => setRaw((r) => ({ ...r, what: id }))}>
+                            {l}
+                          </Chip>
+                        ))}
+                      </div>
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <div>
+                          <Label>Who shoots it</Label>
+                          {crew === null ? (
+                            <div className="field text-muted">Loading…</div>
+                          ) : crew.length ? (
+                            <select className="field" value={raw.assignee_id} onChange={(e) => setRaw((r) => ({ ...r, assignee_id: e.target.value }))}>
+                              {crew.map((p) => (
+                                <option key={p.id} value={p.id}>
+                                  {p.name}
+                                  {p.lead ? " · Team lead" : ""}
+                                </option>
+                              ))}
+                            </select>
+                          ) : (
+                            <p className="text-[12px] text-muted">No one in the Production group yet — add them on the Team page.</p>
+                          )}
+                        </div>
+                        <div>
+                          <Label>Raw needed by</Label>
+                          <div className="flex flex-wrap gap-1.5">
+                            {DUE.slice(0, 3).map(([l, d]) => (
+                              <Chip key={l} on={raw.due_at === dueIn(d)} onClick={() => setRaw((r) => ({ ...r, due_at: dueIn(d) }))}>
+                                {l}
+                              </Chip>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                      <div>
+                        <Label htmlFor="qa-raw">What to shoot</Label>
+                        <textarea
+                          id="qa-raw"
+                          className="field resize-y"
+                          rows={3}
+                          value={raw.brief}
+                          onChange={(e) => setRaw((r) => ({ ...r, brief: e.target.value }))}
+                          placeholder={raw.what === "footage" ? "e.g. 3 product clips in motion, 10–15 sec each, vertical 9:16…" : "e.g. Front + side shots of the new pack on white, 4–5 lifestyle shots…"}
+                        />
+                      </div>
+                    </div>
                   )}
                 </div>
 

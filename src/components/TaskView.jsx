@@ -310,9 +310,9 @@ export default function TaskView({ task, head, mine, people = [], crew = [] }) {
             </div>
           </Card>
 
-          {head && task.kind !== "shoot" && task.status !== "done" && (
+          {(head || mine) && task.kind !== "shoot" && task.status !== "done" && (
             <Card>
-              <RawRequest task={task} crew={crew} />
+              <RawRequest task={task} crew={crew} mine={mine} />
             </Card>
           )}
 
