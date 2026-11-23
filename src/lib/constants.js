@@ -140,13 +140,17 @@ export const RAW_WHAT = [
   ["shoot", "A shoot"],
 ];
 
+/** For now the client dashboard is paused: a CBO shares approved work with the client by hand. */
+export const CLIENT_PORTAL_REVIEW = false;
+
 export const TASK_STATUSES = {
   assigned: { label: "To do", color: "#60a5fa", who: "maker" },
   in_progress: { label: "In progress", color: "#fbbf24", who: "maker" },
   revision: { label: "Revision", color: "#fb7185", who: "maker" },
   completed: { label: "Completed — in review", color: "#a78bfa", who: "head" },
   client_rejected: { label: "Client asked for changes", color: "#f97316", who: "head" },
-  sent_to_client: { label: "With client", color: "#22d3ee", who: "client" },
+  ready: { label: "Ready for client", color: "#10b981", who: "head" },
+  sent_to_client: { label: "Shared with client", color: "#22d3ee", who: "client" },
   done: { label: "Approved", color: "#4ade80", who: null },
   on_hold: { label: "On hold", color: "#94a3b8", who: null },
 };

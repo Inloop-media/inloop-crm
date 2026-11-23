@@ -11,6 +11,8 @@ import MonthGrid, { todayKey } from "@/components/MonthGrid";
 import CalendarImport from "@/components/CalendarImport";
 import { PersonSelect, PrioritySelect } from "@/components/TaskForms";
 import { assignCalendarItem, clearCalendarMonth, deleteCalendarItem, moveCalendarItem, saveCalendarItem, savePlan, setCalendarLock, setCalendarPosted } from "@/app/(crm)/calendar/actions";
+import WorkBar from "@/components/WorkBar";
+import { countBuckets } from "@/lib/workStatus";
 import { CALENDAR_FIELDS, CALENDAR_TYPES, PLAN_KINDS, PLATFORMS, TASK_KINDS, TASK_STATUSES, kindPlural, platformLabel, platformList, taskKindLabel } from "@/lib/constants";
 
 export const KIND_COLOR = { post: "#60a5fa", carousel: "#a78bfa", story: "#f472b6", reel: "#fbbf24", video: "#22d3ee", design: "#4ade80", website: "#94a3b8", other: "#94a3b8" };
@@ -546,6 +548,45 @@ function LockBar({ brandId, lock, canLock }) {
 
 /* ------------------------------ Calendar ------------------------------ */
 
+/** This month's posts at a glance: approved, with the client, ready to share, in review, in progress, not assigned. */
+export function WorkStatus({ items, monthName }) {
+  if (!items.length) return null;
+  const c = countBuckets(items);
+  const tiles = [
+    ["Approved", c.done, "text-emerald-500"],
+    ["Ready / shared", c.ready + c.shared, "text-cyan-500"],
+    ["In progress", c.progress + c.review, "text-amber-500"],
+    ["Not assigned", c.unassigned, c.unassigned ? "text-brand" : ""],
+  ];
+  return (
+    <section className="card !rounded-3xl p-5">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <p className="text-xs text-muted">Where {monthName}&apos;s posts stand</p>
+          <p className="mt-1 flex items-end gap-2">
+            <span className="text-[34px] font-light leading-none tabular-nums tracking-[-0.03em]">
+              {c.done}
+              <span className="text-[18px] text-faint">/{c.total}</span>
+            </span>
+            <span className="mb-1 text-[12px] text-muted">approved</span>
+          </p>
+        </div>
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          {tiles.map(([l, v, cls]) => (
+            <span key={l} className="flex min-w-[110px] items-center justify-between gap-3 rounded-xl bg-panel-2 px-3 py-2 text-[11.5px] text-muted">
+              {l}
+              <b className={`text-[15px] font-medium tabular-nums ${v ? cls : "text-ink"}`}>{v}</b>
+            </span>
+          ))}
+        </div>
+      </div>
+      <div className="mt-4">
+        <WorkBar c={c} legend />
+      </div>
+    </section>
+  );
+}
+
 export default function ContentCalendar({ brand, month, monthName, items: initial, plan, progress, people = [], canEdit: mayEdit, canAssign, canPlan, lock = { locked: false, ready: false }, canLock = false, canDelete = false }) {
   // A locked calendar can't be changed by anyone (assigning and marking posted still work)
   const canEdit = mayEdit && !lock.locked;
@@ -592,6 +633,7 @@ export default function ContentCalendar({ brand, month, monthName, items: initia
     <div className="flex flex-col gap-4">
       <LockBar brandId={brand.id} lock={lock} canLock={canLock} />
       <PlanCard key={`${brand.id}-${month}-${plan?.updated_at || ""}`} brandId={brand.id} month={month} monthName={monthName} plan={plan} progress={progress} canPlan={canPlan} />
+      <WorkStatus items={items} monthName={monthName} />
 
       <section className="card !rounded-3xl p-3 sm:p-4">
         <div className="mb-3 flex flex-wrap items-center gap-2 px-1">

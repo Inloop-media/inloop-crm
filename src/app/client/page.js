@@ -5,6 +5,7 @@ import { getCurrentClient } from "@/lib/clients";
 import { db } from "@/lib/supabase/server";
 import { getTheme } from "@/lib/theme";
 import { upcomingItems } from "@/lib/calendar";
+import { CLIENT_PORTAL_REVIEW } from "@/lib/constants";
 
 export const metadata = { title: "Your dashboard" };
 
@@ -35,7 +36,8 @@ async function clientWork(brandId) {
     files: files.filter((f) => f.task_id === t.id && f.revision === t.revision).map((f) => ({ ...f, href: f.storage_path ? signed[f.storage_path] || "" : f.url })),
   });
   return {
-    pending: shown.filter((t) => t.status === "sent_to_client").map(withFiles),
+    // Paused for now: a CBO shares work with the client by hand and records their answer
+    pending: CLIENT_PORTAL_REVIEW ? shown.filter((t) => t.status === "sent_to_client").map(withFiles) : [],
     approved: shown.filter((t) => t.status === "done").map(withFiles),
     inProduction: all.filter((t) => !["sent_to_client", "done"].includes(t.status)).length,
   };

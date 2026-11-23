@@ -18,10 +18,11 @@ export const EVENT = {
   resume: () => "picked it back up",
   reference: (d) => `added ${d.name}`,
   send_back: () => "sent it back for changes",
-  share_client: () => "sent it to the client",
+  share_client: () => "shared it with the client",
+  ready: () => "approved it — ready for the client",
   approve: () => "approved it",
-  client_ok: () => "— the client approved it",
-  client_changes: () => "— the client asked for changes",
+  client_ok: () => "marked it approved by the client",
+  client_changes: () => "sent it back — the client asked for changes",
   reassign: (d) => `gave revision ${d.revision || ""}`,
   raw_requested: (d) => `asked ${d.to || "Production"} for ${d.what || "raw files"}`,
   raw_ready: () => "uploaded the raw files from the shoot",
@@ -129,8 +130,8 @@ function RawFiles({ raws }) {
   );
 }
 
-const STEPS = ["To do", "In progress", "Submitted", "With client", "Approved"];
-const STEP_OF = { assigned: 0, revision: 0, in_progress: 1, completed: 2, client_rejected: 2, sent_to_client: 3, done: 4 };
+const STEPS = ["To do", "In progress", "Submitted", "Ready for client", "Shared", "Approved"];
+const STEP_OF = { assigned: 0, revision: 0, in_progress: 1, completed: 2, client_rejected: 2, ready: 3, sent_to_client: 4, done: 5 };
 const IST = "Asia/Kolkata";
 const dueFmt = new Intl.DateTimeFormat("en-IN", { timeZone: IST, day: "numeric", month: "short", hour: "numeric", minute: "2-digit" });
 const nowMs = () => Date.now();
@@ -328,7 +329,7 @@ export default function TaskView({ task, head, mine, people = [], crew = [] }) {
             <div className="flex flex-col gap-3">
               {mine && <MainAction task={task} />}
               {head && !mine && task.status !== "on_hold" && <ReviewPanel task={task} people={people} />}
-              {head && mine && ["completed", "client_rejected", "sent_to_client"].includes(task.status) && <ReviewPanel task={task} people={people} />}
+              {head && mine && ["completed", "ready", "client_rejected", "sent_to_client"].includes(task.status) && <ReviewPanel task={task} people={people} />}
               {head && !mine && OPEN_TASK.includes(task.status) && <p className="text-center text-[12px] text-muted">{task.assignee?.name.split(" ")[0] || "They"} is on it — you&apos;ll be notified when it&apos;s submitted.</p>}
               {mine && waitingRaw.length > 0 && (
                 <p className="flex items-start gap-2 rounded-xl bg-amber-500/10 px-3 py-2.5 text-[12.5px] text-amber-700 dark:text-amber-300">

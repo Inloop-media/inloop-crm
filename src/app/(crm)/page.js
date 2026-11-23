@@ -3,6 +3,7 @@ import UserHome from "@/components/UserHome";
 import HeadHome from "@/components/HeadHome";
 import AdminHome from "@/components/AdminHome";
 import AdminOverview from "@/components/AdminOverview";
+import BrandMonth from "@/components/BrandMonth";
 import { Avatar } from "@/components/ui";
 import { GROUP_KINDS } from "@/lib/constants";
 import { db } from "@/lib/supabase/server";
@@ -13,7 +14,7 @@ import { listBrands } from "@/lib/brands";
 import { listMakers, listTasks, reviewFiles } from "@/lib/tasks";
 import QuickAssign from "@/components/QuickAssign";
 import { Block, HomeHeader } from "@/components/Home";
-import { canSeeAllLeads, canSeeLeads, headsTeam, isExecHead, isSalesHead, isStrategist, myTeam, salesTeam } from "@/lib/permissions";
+import { canSeeAllLeads, canSeeLeads, headsTeam, isExecHead, isOpsHead, isSalesHead, isStrategist, myTeam, salesTeam } from "@/lib/permissions";
 import TeamMeetings from "@/components/TeamMeetings";
 import { canCallMeetings, meetingAudience, myTeamMeetings } from "@/lib/teamMeetings";
 import { listGroups } from "@/lib/leads";
@@ -125,6 +126,7 @@ function AdminTop({ me }) {
   return (
     <div className="flex flex-col gap-4">
       <Meetings me={me} />
+      <BrandMonth />
       <GroupCards me={me} />
     </div>
   );
@@ -183,6 +185,11 @@ async function ExecDashboard({ me }) {
           </>
         }
       />
+      {isOpsHead(me) && (
+        <div className="mb-5">
+          <BrandMonth />
+        </div>
+      )}
       <HeadHome tasks={tasks} brands={theirBrands} files={files} side={<Side me={me} />} />
     </div>
   );

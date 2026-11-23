@@ -42,7 +42,7 @@ export default function UserHome({ me, data, tasks = [], followUps = [], side = 
   const openTasks = tasks.filter((t) => OPEN_TASK.includes(t.status));
   const lateTasks = openTasks.filter(isLate);
   const doToday = openTasks.filter((t) => t.status === "revision" || isLate(t) || (t.due_at && dayKey(t.due_at) === today));
-  const waiting = tasks.filter((t) => ["completed", "client_rejected", "sent_to_client"].includes(t.status));
+  const waiting = tasks.filter((t) => ["completed", "ready", "client_rejected", "sent_to_client"].includes(t.status));
   const doesTasks = isMaker(me) || tasks.length > 0;
 
   // ---- Leads (sales) ----

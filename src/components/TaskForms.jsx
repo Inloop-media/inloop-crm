@@ -439,14 +439,12 @@ export function ReviewPanel({ task, people }) {
     return (
       <div className="flex flex-col gap-3">
         <p className="text-sm text-muted">{task.assignee?.name || "They"} marked this completed. Check the files, then:</p>
-        <div className="flex flex-wrap gap-2">
-          <button onClick={() => run(() => reviewTask(task.id, "share_client"))} disabled={pending} className="btn-primary">
-            <Icon name="arrow" size={14} /> Share with client
-          </button>
-          <button onClick={() => run(() => reviewTask(task.id, "approve"))} disabled={pending} className="btn-ghost">
-            <Icon name="check" size={14} /> Approve (no client approval needed)
-          </button>
-        </div>
+        <button onClick={() => run(() => reviewTask(task.id, "ready"))} disabled={pending} className="btn-primary justify-center">
+          <Icon name="check" size={14} /> Approve — ready for the client
+        </button>
+        <button onClick={() => run(() => reviewTask(task.id, "approve"))} disabled={pending} className="btn-ghost justify-center">
+          Approve (no client needed)
+        </button>
         <textarea className="field resize-y" rows={3} placeholder="Or send it back — what should change?" value={note} onChange={(e) => setNote(e.target.value)} />
         <button onClick={() => run(() => reviewTask(task.id, "send_back", { feedback: note }), () => setNote(""))} disabled={pending || !note.trim()} className="btn-ghost self-start">
           <Icon name="refresh" size={14} /> Send back for revision
@@ -455,16 +453,27 @@ export function ReviewPanel({ task, people }) {
       </div>
     );
 
-  if (s === "sent_to_client")
+  if (s === "ready" || s === "sent_to_client")
     return (
       <div className="flex flex-col gap-3">
-        <p className="text-sm text-muted">It&apos;s on the client&apos;s dashboard for approval. If they answered on a call or WhatsApp, record it here:</p>
-        <button onClick={() => run(() => reviewTask(task.id, "client_ok"))} disabled={pending} className="btn-primary self-start">
+        {s === "ready" ? (
+          <p className="rounded-xl bg-emerald-500/10 px-3 py-2.5 text-[13px] text-emerald-700 dark:text-emerald-300">
+            Approved by the team — <b className="font-semibold">ready to share</b>. Download the files from the work above and send them to the client, then:
+          </p>
+        ) : (
+          <p className="rounded-xl bg-cyan-500/10 px-3 py-2.5 text-[13px] text-cyan-700 dark:text-cyan-300">Shared with the client. When they reply:</p>
+        )}
+        {s === "ready" && (
+          <button onClick={() => run(() => reviewTask(task.id, "share_client"))} disabled={pending} className="btn-primary justify-center">
+            <Icon name="arrow" size={14} /> Shared with client
+          </button>
+        )}
+        <button onClick={() => run(() => reviewTask(task.id, "client_ok"))} disabled={pending} className={`${s === "ready" ? "btn-ghost" : "btn-primary"} justify-center`}>
           <Icon name="check" size={14} /> Client approved
         </button>
         <textarea className="field resize-y" rows={3} placeholder="Client wants changes — what did they say?" value={note} onChange={(e) => setNote(e.target.value)} />
         <button onClick={() => run(() => reviewTask(task.id, "client_changes", { feedback: note }), () => setNote(""))} disabled={pending || !note.trim()} className="btn-ghost self-start">
-          Client asked for changes
+          <Icon name="refresh" size={14} /> Send back for revision
         </button>
         {error && <p className="text-xs text-rose-400">{error}</p>}
       </div>

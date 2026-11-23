@@ -14,7 +14,8 @@ const COLS = [
   { id: "doing", label: "Working on it", statuses: ["in_progress"], color: TASK_STATUSES.in_progress.color },
   { id: "revision", label: "Fix needed", statuses: ["revision"], color: TASK_STATUSES.revision.color },
   { id: "review", label: "To check", statuses: ["completed", "client_rejected"], color: TASK_STATUSES.completed.color, hint: "Finished work lands here" },
-  { id: "client", label: "With client", statuses: ["sent_to_client"], color: TASK_STATUSES.sent_to_client.color },
+  { id: "ready", label: "Ready for client", statuses: ["ready"], color: TASK_STATUSES.ready.color, hint: "Approved — share it with the client" },
+  { id: "client", label: "Shared with client", statuses: ["sent_to_client"], color: TASK_STATUSES.sent_to_client.color },
   { id: "done", label: "Approved", statuses: ["done"], color: TASK_STATUSES.done.color },
   { id: "hold", label: "On hold", statuses: ["on_hold"], color: TASK_STATUSES.on_hold.color, hint: "Open the task to resume it" },
 ];
@@ -27,10 +28,16 @@ function move(from, to) {
   const table = {
     todo: { in_progress: maker("assigned"), completed: maker("assigned") },
     doing: { assigned: maker("in_progress"), revision: maker("in_progress"), completed: maker("in_progress") },
-    review: { assigned: maker("completed"), in_progress: maker("completed"), revision: maker("completed"), sent_to_client: review("client_changes", "client_rejected", "What does the client want changed?") },
-    revision: { completed: review("send_back", "revision", "What should they change?"), client_rejected: review("reassign", "revision", "Anything to add for the revision? (optional)") },
-    client: { completed: review("share_client", "sent_to_client") },
-    done: { completed: review("approve", "done"), sent_to_client: review("client_ok", "done") },
+    review: { assigned: maker("completed"), in_progress: maker("completed"), revision: maker("completed") },
+    ready: { completed: review("ready", "ready") },
+    revision: {
+      completed: review("send_back", "revision", "What should they change?"),
+      client_rejected: review("reassign", "revision", "Anything to add for the revision? (optional)"),
+      ready: review("client_changes", "revision", "What does the client want changed?"),
+      sent_to_client: review("client_changes", "revision", "What does the client want changed?"),
+    },
+    client: { completed: review("share_client", "sent_to_client"), ready: review("share_client", "sent_to_client") },
+    done: { completed: review("approve", "done"), ready: review("client_ok", "done"), sent_to_client: review("client_ok", "done") },
   };
   return table[to]?.[from] || `Can't move “${TASK_STATUSES[from]?.label}” to ${COLS.find((c) => c.id === to)?.label} — open the task instead.`;
 }

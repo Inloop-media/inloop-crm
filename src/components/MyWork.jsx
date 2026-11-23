@@ -21,7 +21,7 @@ function Next({ t }) {
       </Link>
     );
   const s = TASK_STATUSES[t.status];
-  const label = { completed: "With your manager", sent_to_client: "With the client", client_rejected: "Client asked for changes", done: "Approved" }[t.status] || s?.label;
+  const label = { completed: "With your manager", ready: "Approved — going to the client", sent_to_client: "With the client", client_rejected: "Client asked for changes", done: "Approved" }[t.status] || s?.label;
   return (
     <span className="flex items-center gap-1.5 text-xs text-muted">
       <span className="h-1.5 w-1.5 rounded-full" style={{ background: s?.color }} />
@@ -53,7 +53,7 @@ export default function MyWork({ me, tasks, embedded = false }) {
   const dueToday = rest.filter((t) => t.due_at && dayKey(t.due_at) === today);
   const week = rest.filter((t) => t.due_at && dayKey(t.due_at) > today && dayKey(t.due_at) <= weekEnd);
   const later = rest.filter((t) => !t.due_at || dayKey(t.due_at) > weekEnd);
-  const waiting = tasks.filter((t) => ["completed", "sent_to_client", "client_rejected"].includes(t.status));
+  const waiting = tasks.filter((t) => ["completed", "ready", "sent_to_client", "client_rejected"].includes(t.status));
   const done = tasks
     .filter((t) => t.status === "done")
     .sort((a, b) => (b.done_at || "").localeCompare(a.done_at || ""))

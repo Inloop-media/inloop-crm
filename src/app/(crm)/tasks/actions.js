@@ -6,7 +6,7 @@ import { requireMember } from "@/lib/auth";
 import { db } from "@/lib/supabase/server";
 import { getBrand } from "@/lib/brands";
 import { pingLive } from "@/lib/live";
-import { canAssignTo, logTask, notifyTask, productionPeople, TASK_FIELDS } from "@/lib/tasks";
+import { canAssignTo, logTask, notifyTask, productionPeople, sharerIds, TASK_FIELDS } from "@/lib/tasks";
 import { MAKER_STATUS_OPTIONS, OPEN_TASK, PRIORITIES, RAW_WHAT, TASK_KINDS, TASK_STATUSES, taskKindLabel } from "@/lib/constants";
 import { canAssignTasks, canReviewTask } from "@/lib/permissions";
 
@@ -192,6 +192,14 @@ export async function reviewTask(id, action, { feedback = "", assignee_id, due_a
   const from = task.status;
   let changes;
   let notify = null;
+  let alsoNotify = null;
+  const clientRevision = () => ({
+    status: "revision",
+    revision: task.revision + 1,
+    feedback: note,
+    due_soon_notified_at: null,
+    overdue_notified_at: null,
+  });
 
   switch (action) {
     case "send_back":
@@ -200,8 +208,16 @@ export async function reviewTask(id, action, { feedback = "", assignee_id, due_a
       changes = { status: "revision", revision: task.revision + 1, feedback: note };
       notify = { to: [task.assignee_id], title: "Revision needed", body: note.slice(0, 140) };
       break;
+    case "ready":
+      // The team lead approved it — a CBO shares it with the client by hand
+      if (from !== "completed") return { ok: false, error: "Only completed work can be approved." };
+      changes = { status: "ready", feedback: "" };
+      notify = { to: [task.assignee_id], title: "Approved", body: "Approved — it goes to the client next." };
+      alsoNotify = { to: (await sharerIds()).filter((x) => x !== me.id && x !== task.assignee_id), title: "✅ Ready to share with the client", body: `${me.name.split(" ")[0]} approved it · ${task.brand?.name || ""} — download and share it.` };
+      break;
     case "share_client":
-      if (from !== "completed") return { ok: false, error: "Review the completed work first." };
+      // Shared with the client (by hand, on WhatsApp / mail)
+      if (!["completed", "ready"].includes(from)) return { ok: false, error: "Approve the work first." };
       changes = { status: "sent_to_client", feedback: "" };
       break;
     case "approve":
@@ -210,15 +226,17 @@ export async function reviewTask(id, action, { feedback = "", assignee_id, due_a
       notify = { to: [task.assignee_id], title: "Approved", body: "Nice work — it's done." };
       break;
     case "client_ok":
-      if (from !== "sent_to_client") return { ok: false, error: "It isn't with the client." };
+      if (!["sent_to_client", "ready"].includes(from)) return { ok: false, error: "It isn't with the client." };
       changes = { status: "done", done_at: now, feedback: "" };
       notify = { to: [task.assignee_id], title: "Client approved", body: "The client approved it." };
       break;
     case "client_changes":
-      if (from !== "sent_to_client") return { ok: false, error: "It isn't with the client." };
+      // The client wants changes: straight back to the designer / editor as a revision
+      if (!["sent_to_client", "ready"].includes(from)) return { ok: false, error: "It isn't with the client." };
       if (!note) return { ok: false, error: "Write what the client wants changed." };
-      changes = { status: "client_rejected", feedback: note };
-      notify = { to: [task.assigned_by].filter((x) => x !== me.id), title: "Client asked for changes", body: note.slice(0, 140) };
+      changes = clientRevision();
+      notify = { to: [task.assignee_id], title: "Client wants changes", body: note.slice(0, 140) };
+      alsoNotify = { to: [task.assigned_by].filter((x) => x && x !== me.id && x !== task.assignee_id), title: "Client asked for changes", body: note.slice(0, 140) };
       break;
     case "reassign": {
       if (!["client_rejected", "completed"].includes(from)) return { ok: false, error: "Nothing to reassign." };
@@ -245,9 +263,10 @@ export async function reviewTask(id, action, { feedback = "", assignee_id, due_a
 
   changes.updated_at = now;
   const { error } = await db().from("tasks").update(changes).eq("id", id).eq("status", from);
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: /status_check/.test(error.message) ? "Run migration 028_ready_for_client.sql in Supabase first." : error.message };
   await logTask(id, me.id, action, { feedback: note || undefined, to: changes.assignee_id && changes.assignee_id !== task.assignee_id ? "new" : undefined, revision: changes.revision });
   if (notify?.to?.length) after(() => notifyTask(notify.to, task, notify.title, notify.body));
+  if (alsoNotify?.to?.length) after(() => notifyTask(alsoNotify.to, task, alsoNotify.title, alsoNotify.body));
   refresh(task);
   return { ok: true };
 }

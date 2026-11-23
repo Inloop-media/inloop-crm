@@ -66,7 +66,7 @@ async function taskCounts(brandIds) {
     const who = t.assigner?.name || "—";
     c.by[who] = (c.by[who] || 0) + 1;
     if (t.status === "done") c.done += 1;
-    else if (t.status === "sent_to_client") c.client += 1;
+    else if (t.status === "sent_to_client" || t.status === "ready") c.client += 1;
     else if (t.status === "completed" || t.status === "client_rejected") c.review += 1;
     else c.open += 1;
     if (OPEN_TASK.includes(t.status) && t.due_at && new Date(t.due_at).getTime() < now) c.overdue += 1;

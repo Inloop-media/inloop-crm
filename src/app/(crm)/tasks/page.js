@@ -192,8 +192,9 @@ export default async function TasksPage({ searchParams }) {
                 ["To check", toCheck],
                 ["Late", late],
                 ["In progress", working],
+                ["Ready to share with client", shown.filter((t) => t.status === "ready")],
                 ["On hold", shown.filter((t) => t.status === "on_hold")],
-                ["With the client", withClient],
+                ["Shared with client", withClient],
                 ["Approved", approved.slice(0, 12)],
               ]
                 .filter(([, list]) => list.length)

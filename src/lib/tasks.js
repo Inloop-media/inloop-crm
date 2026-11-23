@@ -3,7 +3,7 @@ import { db } from "@/lib/supabase/server";
 import { pushTo } from "@/lib/push";
 import { MAKER_KINDS, OPEN_TASK, taskKindLabel } from "@/lib/constants";
 import { canAssignTasks, canSeeTask, headsTeam, myTeam } from "@/lib/permissions";
-import { runnersOf, teamLeadIdsOf } from "@/lib/groups";
+import { operationsHeadIds, runnersOf, teamLeadIdsOf } from "@/lib/groups";
 import { listGroups } from "@/lib/leads";
 
 // "*" so newer columns (priority, migration 017) come along when they exist
@@ -95,6 +95,12 @@ async function rawRequests(taskId) {
 async function forTaskOf(id) {
   const { data } = await db().from("tasks").select("id, title, kind, status, assignee:members!tasks_assignee_id_fkey(id, name)").eq("id", id).maybeSingle();
   return data || null;
+}
+
+/** Who shares approved work with clients: the CBOs and the admins. */
+export async function sharerIds() {
+  const [groups, { data: admins }] = await Promise.all([listGroups(), db().from("members").select("id").eq("role", "admin").eq("active", true)]);
+  return [...new Set([...operationsHeadIds(groups), ...(admins || []).map((m) => m.id)])];
 }
 
 /** People in the Production group(s), team leads first — who raw photos / footage can be asked from. */
