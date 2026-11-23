@@ -12,7 +12,8 @@ import CalendarImport from "@/components/CalendarImport";
 import { PersonSelect, PrioritySelect } from "@/components/TaskForms";
 import { assignCalendarItem, clearCalendarMonth, deleteCalendarItem, moveCalendarItem, saveCalendarItem, savePlan, setCalendarLock, setCalendarPosted } from "@/app/(crm)/calendar/actions";
 import WorkBar from "@/components/WorkBar";
-import { countBuckets } from "@/lib/workStatus";
+import { Avatar } from "@/components/ui";
+import { bucketOf, countBuckets } from "@/lib/workStatus";
 import { CALENDAR_FIELDS, CALENDAR_TYPES, PLAN_KINDS, PLATFORMS, TASK_KINDS, TASK_STATUSES, kindPlural, platformLabel, platformList, taskKindLabel } from "@/lib/constants";
 
 export const KIND_COLOR = { post: "#60a5fa", carousel: "#a78bfa", story: "#f472b6", reel: "#fbbf24", video: "#22d3ee", design: "#4ade80", website: "#94a3b8", other: "#94a3b8" };
@@ -548,21 +549,29 @@ function LockBar({ brandId, lock, canLock }) {
 
 /* ------------------------------ Calendar ------------------------------ */
 
-/** This month's posts at a glance: approved, with the client, ready to share, in review, in progress, not assigned. */
-export function WorkStatus({ items, monthName }) {
+const STATUS_TILES = [
+  { id: "done", label: "Approved", buckets: ["done"], tone: "text-emerald-500", dot: "#10b981" },
+  { id: "ready", label: "Ready to share", buckets: ["ready"], tone: "text-emerald-500", dot: "#6ee7b7" },
+  { id: "shared", label: "Shared with client", buckets: ["shared"], tone: "text-cyan-500", dot: "#22d3ee" },
+  { id: "progress", label: "In progress", buckets: ["progress", "review"], tone: "text-amber-500", dot: "#fbbf24" },
+  { id: "unassigned", label: "Not assigned", buckets: ["unassigned"], tone: "text-brand", dot: "" },
+];
+
+/**
+ * This month's posts at a glance: approved, ready to share, shared with the client, in progress, not
+ * assigned. Tap a number to list those posts (date, post, who's on it) — open the post or its task.
+ */
+export function WorkStatus({ items, monthName, onOpen }) {
+  const [pick, setPick] = useState(null);
   if (!items.length) return null;
   const c = countBuckets(items);
-  const tiles = [
-    ["Approved", c.done, "text-emerald-500"],
-    ["Ready / shared", c.ready + c.shared, "text-cyan-500"],
-    ["In progress", c.progress + c.review, "text-amber-500"],
-    ["Not assigned", c.unassigned, c.unassigned ? "text-brand" : ""],
-  ];
+  const tile = STATUS_TILES.find((t) => t.id === pick);
+  const list = tile ? items.filter((i) => tile.buckets.includes(bucketOf(i))).sort((x, y) => x.publish_on.localeCompare(y.publish_on)) : [];
   return (
     <section className="card !rounded-3xl p-5">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <p className="text-xs text-muted">Where {monthName}&apos;s posts stand</p>
+          <p className="text-xs text-muted">Where {monthName}&apos;s posts stand · tap a number to see the posts</p>
           <p className="mt-1 flex items-end gap-2">
             <span className="text-[34px] font-light leading-none tabular-nums tracking-[-0.03em]">
               {c.done}
@@ -571,18 +580,76 @@ export function WorkStatus({ items, monthName }) {
             <span className="mb-1 text-[12px] text-muted">approved</span>
           </p>
         </div>
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-          {tiles.map(([l, v, cls]) => (
-            <span key={l} className="flex min-w-[110px] items-center justify-between gap-3 rounded-xl bg-panel-2 px-3 py-2 text-[11.5px] text-muted">
-              {l}
-              <b className={`text-[15px] font-medium tabular-nums ${v ? cls : "text-ink"}`}>{v}</b>
-            </span>
-          ))}
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
+          {STATUS_TILES.map((t) => {
+            const v = t.buckets.reduce((n, b) => n + c[b], 0);
+            const on = pick === t.id;
+            return (
+              <button
+                key={t.id}
+                type="button"
+                disabled={!v}
+                onClick={() => setPick(on ? null : t.id)}
+                className={`flex min-w-[124px] items-center justify-between gap-3 rounded-xl px-3 py-2 text-left text-[11.5px] transition ${on ? "bg-solid text-on-solid" : "bg-panel-2 text-muted hover:bg-panel-3 disabled:opacity-60 disabled:hover:bg-panel-2"}`}
+              >
+                <span className="flex items-center gap-1.5">
+                  <span className={`h-2 w-2 shrink-0 rounded-full ${t.dot ? "" : "hatch border border-line-strong"}`} style={t.dot ? { background: t.dot } : undefined} />
+                  {t.label}
+                </span>
+                <b className={`text-[15px] font-medium tabular-nums ${on ? "" : v ? t.tone : "text-ink"}`}>{v}</b>
+              </button>
+            );
+          })}
         </div>
       </div>
       <div className="mt-4">
-        <WorkBar c={c} legend />
+        <WorkBar c={c} />
       </div>
+
+      {tile && (
+        <div className="mt-4 rounded-2xl border border-line">
+          <div className="flex items-center justify-between gap-3 border-b border-line px-4 py-2.5">
+            <p className="text-[13px] font-medium">
+              {tile.label} <span className="font-normal text-muted">· {list.length}</span>
+            </p>
+            {pick === "ready" && <p className="hidden text-[11.5px] text-muted sm:block">Open the task, download the files, share them — then press “Shared with client”.</p>}
+            <button type="button" onClick={() => setPick(null)} className="grid h-7 w-7 place-items-center rounded-full text-muted hover:bg-panel-2" aria-label="Close">
+              <Icon name="x" size={12} />
+            </button>
+          </div>
+          <ul>
+            {list.map((i) => {
+              const st = itemState(i);
+              return (
+                <li key={i.id} className="flex flex-wrap items-center gap-x-3 gap-y-1.5 border-b border-line px-4 py-2.5 last:border-0">
+                  <span className="w-24 shrink-0 text-[12px] tabular-nums text-muted">{fmtKey(i.publish_on)}</span>
+                  <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: KIND_COLOR[i.kind] || "#94a3b8" }} title={taskKindLabel(i.kind)} />
+                  <button type="button" onClick={() => onOpen?.(i)} className="min-w-0 flex-1 truncate text-left text-[13px] font-medium hover:text-brand">
+                    {i.title || taskKindLabel(i.kind)}
+                  </button>
+                  {i.task?.assignee && (
+                    <span className="flex items-center gap-1.5 text-[12px] text-muted">
+                      <Avatar name={i.task.assignee.name} size={18} /> {i.task.assignee.name.split(" ")[0]}
+                    </span>
+                  )}
+                  <span className="rounded-full px-2 py-0.5 text-[11px] font-medium" style={{ background: `color-mix(in srgb, ${st.color} 16%, transparent)`, color: `color-mix(in oklab, ${st.color} 70%, var(--color-ink))` }}>
+                    {st.label}
+                  </span>
+                  {i.task ? (
+                    <Link href={`/tasks/${i.task.id}`} className="flex items-center gap-1 rounded-full bg-solid px-2.5 py-1 text-[11.5px] font-medium text-on-solid hover:opacity-90">
+                      {pick === "ready" ? "Download & share" : "Open task"} <Icon name="arrow" size={11} />
+                    </Link>
+                  ) : (
+                    <button type="button" onClick={() => onOpen?.(i)} className="rounded-full border border-line px-2.5 py-1 text-[11.5px] font-medium hover:bg-panel-2">
+                      Assign
+                    </button>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      )}
     </section>
   );
 }
@@ -633,7 +700,7 @@ export default function ContentCalendar({ brand, month, monthName, items: initia
     <div className="flex flex-col gap-4">
       <LockBar brandId={brand.id} lock={lock} canLock={canLock} />
       <PlanCard key={`${brand.id}-${month}-${plan?.updated_at || ""}`} brandId={brand.id} month={month} monthName={monthName} plan={plan} progress={progress} canPlan={canPlan} />
-      <WorkStatus items={items} monthName={monthName} />
+      <WorkStatus items={items} monthName={monthName} onOpen={setOpen} />
 
       <section className="card !rounded-3xl p-3 sm:p-4">
         <div className="mb-3 flex flex-wrap items-center gap-2 px-1">
