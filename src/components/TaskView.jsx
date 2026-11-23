@@ -52,6 +52,9 @@ function RawFiles({ raws }) {
           const ready = rawReady(r);
           const [label, cls] = ready ? ["Uploaded", "bg-emerald-500/12 text-emerald-600 dark:text-emerald-400"] : RAW_STATE[r.status] || [r.status, "bg-panel-2 text-muted"];
           const latest = r.files.filter((f) => f.revision === Math.max(...r.files.map((x) => x.revision)));
+          const media = latest.filter((f) => f.storage_path);
+          const links = latest.filter((f) => !f.storage_path);
+          const notes = r.notes || [];
           return (
             <li key={r.id} className="rounded-2xl bg-panel-2/60 p-4">
               <div className="flex flex-wrap items-center gap-2">
@@ -65,9 +68,35 @@ function RawFiles({ raws }) {
                 <Avatar name={r.assignee?.name || "?"} size={18} /> {r.assignee?.name || "Production"}
                 {r.due_at && !ready && <> · needed by {dueFmt.format(new Date(r.due_at))}</>}
               </p>
-              {latest.length > 0 ? (
+              {links.length > 0 && (
+                <ul className="mt-3 flex flex-col gap-2">
+                  {links.map((f) => (
+                    <li key={f.id}>
+                      <a href={f.href} target="_blank" rel="noreferrer" className="group flex items-center gap-3 rounded-xl border border-line bg-panel px-3 py-2.5 text-[13px] transition hover:border-brand/40">
+                        <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-brand/10 text-brand">
+                          <Icon name="link" size={14} />
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate font-medium">{/drive\.google|docs\.google/.test(f.href) ? "Google Drive" : /dropbox/.test(f.href) ? "Dropbox" : f.name}</span>
+                          <span className="block truncate text-[11.5px] text-muted">{f.href}</span>
+                        </span>
+                        <span className="flex shrink-0 items-center gap-1 text-[12px] font-medium text-brand">
+                          Open <Icon name="external" size={12} />
+                        </span>
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {notes.map((n) => (
+                <p key={n.id} className="mt-3 whitespace-pre-wrap rounded-xl bg-panel px-3 py-2.5 text-[13px] text-ink/85">
+                  <span className="mb-0.5 block text-[11px] text-muted">{n.actor?.name?.split(" ")[0] || "Production"}&apos;s note</span>
+                  {n.data.text}
+                </p>
+              ))}
+              {media.length > 0 ? (
                 <ul className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-4">
-                  {latest.map((f) => (
+                  {media.map((f) => (
                     <li key={f.id}>
                       <a href={f.href} target="_blank" rel="noreferrer" className="group block overflow-hidden rounded-xl border border-line bg-panel transition hover:border-brand/40">
                         {isImg(f.name) && f.href ? (
@@ -89,7 +118,8 @@ function RawFiles({ raws }) {
                   ))}
                 </ul>
               ) : (
-                <p className="mt-3 rounded-xl border border-dashed border-line-strong px-3 py-2.5 text-[12px] text-faint">Files show up here when {r.assignee?.name.split(" ")[0] || "they"} uploads them.</p>
+                !links.length &&
+                !notes.length && <p className="mt-3 rounded-xl border border-dashed border-line-strong px-3 py-2.5 text-[12px] text-faint">Files show up here when {r.assignee?.name.split(" ")[0] || "they"} uploads them.</p>
               )}
             </li>
           );

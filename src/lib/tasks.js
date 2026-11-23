@@ -72,6 +72,12 @@ async function rawRequests(taskId) {
     .in("task_id", data.map((r) => r.id))
     .eq("role", "deliverable")
     .order("created_at");
+  const { data: notes } = await db()
+    .from("task_events")
+    .select("id, task_id, data, created_at, actor:members(name)")
+    .in("task_id", data.map((r) => r.id))
+    .eq("type", "note")
+    .order("created_at");
   const paths = (files || []).filter((f) => f.storage_path).map((f) => f.storage_path);
   let signed = {};
   if (paths.length) {
@@ -81,6 +87,7 @@ async function rawRequests(taskId) {
   return data.map((r) => ({
     ...r,
     files: (files || []).filter((f) => f.task_id === r.id).map((f) => ({ ...f, href: f.storage_path ? signed[f.storage_path] || "" : f.url })),
+    notes: (notes || []).filter((n) => n.task_id === r.id && n.data?.text),
   }));
 }
 
