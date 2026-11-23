@@ -6,8 +6,8 @@ import { requireMember } from "@/lib/auth";
 import { db } from "@/lib/supabase/server";
 import { getBrand } from "@/lib/brands";
 import { pingLive } from "@/lib/live";
-import { canAssignTo, logTask, notifyTask, TASK_FIELDS } from "@/lib/tasks";
-import { MAKER_STATUS_OPTIONS, OPEN_TASK, PRIORITIES, TASK_KINDS, TASK_STATUSES } from "@/lib/constants";
+import { canAssignTo, logTask, notifyTask, productionPeople, TASK_FIELDS } from "@/lib/tasks";
+import { MAKER_STATUS_OPTIONS, OPEN_TASK, PRIORITIES, RAW_WHAT, TASK_KINDS, TASK_STATUSES, taskKindLabel } from "@/lib/constants";
 import { canAssignTasks, canReviewTask } from "@/lib/permissions";
 
 const str = (v, max = 4000) => String(v ?? "").trim().slice(0, max);
@@ -74,6 +74,50 @@ export async function createTask(brandId, input) {
   if (assignee.id !== me.id) after(() => notifyTask([assignee.id], task, priority === "high" ? "🔴 Urgent task assigned" : "New task assigned"));
   refresh(task);
   return { ok: true, id: task.id };
+}
+
+/**
+ * Ask Production for raw photos / footage for a design or video task. Makes a "shoot" task for the
+ * production person (linked to this task); when they submit it, this task's designer / editor is told.
+ */
+export async function requestRaw(forId, input) {
+  const me = await requireMember();
+  if (!canAssignTasks(me)) return { ok: false, error: "Only managers and admins can ask production." };
+  const task = await loadTask(forId);
+  if (!task) return { ok: false, error: "Task not found." };
+  if (task.kind === "shoot") return { ok: false, error: "This is already a shoot." };
+  const what = RAW_WHAT.some(([id]) => id === input.what) ? input.what : "photos";
+  const label = RAW_WHAT.find(([id]) => id === what)[1];
+  const crew = await productionPeople();
+  const assignee = crew.find((p) => p.id === input.assignee_id);
+  if (!assignee) return { ok: false, error: "Pick someone from the Production team." };
+  const due = dueAt(input.due_at);
+  if (due === undefined) return { ok: false, error: "The due date isn't valid." };
+  const brief = str(input.brief, 8000);
+  if (!brief) return { ok: false, error: "Write what to shoot — the brief." };
+
+  const row = {
+    brand_id: task.brand_id,
+    title: `${label} for “${task.title}”`.slice(0, 160),
+    kind: "shoot",
+    brief,
+    assignee_id: assignee.id,
+    assigned_by: me.id,
+    due_at: due,
+    priority: task.priority || "medium",
+    for_task_id: task.id,
+  };
+  const { data: shoot, error } = await db().from("tasks").insert(row).select(TASK_FIELDS).single();
+  if (error) return { ok: false, error: /for_task_id|kind_check|shoot/.test(error.message) ? "Run migration 027_raw_requests.sql in Supabase first." : error.message };
+  await Promise.all([logTask(shoot.id, me.id, "created", { to: assignee.name }), logTask(task.id, me.id, "raw_requested", { to: assignee.name, what: label.toLowerCase() })]);
+  const maker = task.assignee?.name.split(" ")[0];
+  after(async () => {
+    if (assignee.id !== me.id) await notifyTask([assignee.id], shoot, "📸 Shoot needed", `${label} for ${maker ? `${maker}'s ` : ""}${taskKindLabel(task.kind).toLowerCase()} · ${task.brand?.name || ""}`);
+    if (task.assignee_id && task.assignee_id !== me.id) await notifyTask([task.assignee_id], task, `${label} asked from ${assignee.name.split(" ")[0]}`, "You'll get a ping as soon as they're uploaded.");
+  });
+  refresh(task);
+  refresh(shoot);
+  return { ok: true, id: shoot.id };
 }
 
 export async function updateTask(id, patch) {
@@ -238,6 +282,15 @@ export async function setTaskStatus(id, status) {
   await logTask(id, me.id, "status", { from: task.status, to: next });
   if (next === "completed" && task.assigned_by && task.assigned_by !== me.id) {
     after(() => notifyTask([task.assigned_by], task, `${me.name} completed`, task.revision ? `Revision ${task.revision} is ready for review.` : "Ready for your review."));
+  }
+  // A shoot for another task: tell that task's designer / editor the raw files are up
+  if (next === "completed" && task.for_task_id) {
+    const main = await loadTask(task.for_task_id);
+    if (main) {
+      await logTask(main.id, me.id, "raw_ready", { title: task.title });
+      if (main.assignee_id && main.assignee_id !== me.id) after(() => notifyTask([main.assignee_id], main, "📸 Raw files are ready", `${me.name.split(" ")[0]} uploaded them — open the task and start.`));
+      refresh(main);
+    }
   }
   refresh(task);
   return { ok: true };

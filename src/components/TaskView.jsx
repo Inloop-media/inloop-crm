@@ -4,6 +4,7 @@ import Link from "next/link";
 import Icon from "@/components/Icon";
 import { Avatar } from "@/components/ui";
 import { HoldPanel, MainAction, ReviewPanel, TaskAdmin, TaskFiles } from "@/components/TaskForms";
+import RawRequest from "@/components/RawRequest";
 import { KIND_COLOR, OPEN_TASK, TASK_STATUSES, taskKindLabel } from "@/lib/constants";
 import { ago, fmtDateTime } from "@/lib/format";
 
@@ -22,7 +23,81 @@ export const EVENT = {
   client_ok: () => "— the client approved it",
   client_changes: () => "— the client asked for changes",
   reassign: (d) => `gave revision ${d.revision || ""}`,
+  raw_requested: (d) => `asked ${d.to || "Production"} for ${d.what || "raw files"}`,
+  raw_ready: () => "uploaded the raw files from the shoot",
 };
+
+const RAW_STATE = {
+  assigned: ["Waiting for the shoot", "bg-amber-500/12 text-amber-600 dark:text-amber-400"],
+  in_progress: ["Shooting now", "bg-sky-500/12 text-sky-600 dark:text-sky-400"],
+  revision: ["Re-shoot asked", "bg-rose-500/12 text-rose-500"],
+  on_hold: ["On hold", "bg-panel-2 text-muted"],
+};
+const rawReady = (r) => ["completed", "client_rejected", "sent_to_client", "done"].includes(r.status);
+const isImg = (n) => /\.(jpe?g|png|webp|gif|heic)$/i.test(n || "");
+const isVid = (n) => /\.(mp4|mov|webm|m4v)$/i.test(n || "");
+
+/** The raw photos / footage asked from Production for this task, with what they uploaded. */
+function RawFiles({ raws }) {
+  return (
+    <section className="rounded-[22px] border border-line bg-panel p-6 shadow-[0_1px_2px_rgb(16_24_40/0.04),0_8px_24px_-12px_rgb(16_24_40/0.12)]">
+      <header className="mb-4 flex items-baseline justify-between gap-3">
+        <h2 className="flex items-center gap-2 text-[15px] font-semibold tracking-[-0.01em]">
+          <Icon name="video" size={15} className="text-brand" /> Raw from Production
+        </h2>
+        <span className="text-[12px] text-muted">{raws.filter(rawReady).length} of {raws.length} ready</span>
+      </header>
+      <ul className="flex flex-col gap-4">
+        {raws.map((r) => {
+          const ready = rawReady(r);
+          const [label, cls] = ready ? ["Uploaded", "bg-emerald-500/12 text-emerald-600 dark:text-emerald-400"] : RAW_STATE[r.status] || [r.status, "bg-panel-2 text-muted"];
+          const latest = r.files.filter((f) => f.revision === Math.max(...r.files.map((x) => x.revision)));
+          return (
+            <li key={r.id} className="rounded-2xl bg-panel-2/60 p-4">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="min-w-0 flex-1 truncate text-[13.5px] font-medium">{r.title}</span>
+                <span className={`flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-medium ${cls}`}>
+                  {ready && <Icon name="check" size={11} />}
+                  {label}
+                </span>
+              </div>
+              <p className="mt-1 flex items-center gap-1.5 text-[12px] text-muted">
+                <Avatar name={r.assignee?.name || "?"} size={18} /> {r.assignee?.name || "Production"}
+                {r.due_at && !ready && <> · needed by {dueFmt.format(new Date(r.due_at))}</>}
+              </p>
+              {latest.length > 0 ? (
+                <ul className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-4">
+                  {latest.map((f) => (
+                    <li key={f.id}>
+                      <a href={f.href} target="_blank" rel="noreferrer" className="group block overflow-hidden rounded-xl border border-line bg-panel transition hover:border-brand/40">
+                        {isImg(f.name) && f.href ? (
+                          // eslint-disable-next-line @next/next/no-img-element -- signed storage URL
+                          <img src={f.href} alt={f.name} className="aspect-[4/3] w-full object-cover" loading="lazy" />
+                        ) : isVid(f.name) && f.href ? (
+                          <video src={f.href} className="aspect-[4/3] w-full bg-black object-cover" muted playsInline preload="metadata" />
+                        ) : (
+                          <span className="grid aspect-[4/3] place-items-center text-muted">
+                            <Icon name={f.storage_path ? "file" : "link"} size={18} />
+                          </span>
+                        )}
+                        <span className="flex items-center gap-1.5 px-2.5 py-1.5 text-[11.5px]">
+                          <span className="min-w-0 flex-1 truncate">{f.name}</span>
+                          <Icon name="download" size={12} className="text-muted group-hover:text-brand" />
+                        </span>
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="mt-3 rounded-xl border border-dashed border-line-strong px-3 py-2.5 text-[12px] text-faint">Files show up here when {r.assignee?.name.split(" ")[0] || "they"} uploads them.</p>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+    </section>
+  );
+}
 
 const STEPS = ["To do", "In progress", "Submitted", "With client", "Approved"];
 const STEP_OF = { assigned: 0, revision: 0, in_progress: 1, completed: 2, client_rejected: 2, sent_to_client: 3, done: 4 };
@@ -89,7 +164,7 @@ function Card({ title, sub, children, className = "" }) {
  *   mine    the viewer is doing this task
  *   people  who it can be given to (for heads)
  */
-export default function TaskView({ task, head, mine, people = [] }) {
+export default function TaskView({ task, head, mine, people = [], crew = [] }) {
   const refs = task.files.filter((f) => f.role === "reference");
   const showFeedback = task.feedback && ["revision", "assigned", "in_progress"].includes(task.status);
   const st = TASK_STATUSES[task.status] || { label: task.status, color: "#94a3b8" };
@@ -97,6 +172,8 @@ export default function TaskView({ task, head, mine, people = [] }) {
   const lateMs = task.due_at && OPEN_TASK.includes(task.status) ? nowMs() - new Date(task.due_at).getTime() : 0;
   const lateDays = lateMs > 0 ? Math.floor(lateMs / 864e5) : -1;
   const heldBy = task.events.find((e) => e.type === "hold")?.actor?.name || "";
+  const raws = task.raws || [];
+  const waitingRaw = raws.filter((r) => !rawReady(r));
   const back = head ? { href: "/tasks", label: "Tasks" } : { href: "/tasks", label: "My tasks" };
 
   return (
@@ -142,6 +219,28 @@ export default function TaskView({ task, head, mine, people = [] }) {
               <p className="mt-2 whitespace-pre-wrap text-[14.5px] leading-relaxed">{task.feedback}</p>
             </section>
           )}
+
+          {task.forTask && (
+            <section className="flex items-center gap-4 rounded-[22px] bg-[#18181b] p-5 text-white shadow-[0_24px_50px_-28px_rgb(0_0_0/0.7)]">
+              <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-brand text-white">
+                <Icon name="video" size={18} />
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="text-[11.5px] text-white/60">This shoot is for</p>
+                <p className="truncate text-[15px] font-medium">{task.forTask.title}</p>
+                <p className="text-[12px] text-white/60">
+                  {task.forTask.assignee?.name || "The team"} is waiting — upload the raw files and press Submit; they&apos;re notified right away.
+                </p>
+              </div>
+              {head && (
+                <Link href={`/tasks/${task.forTask.id}`} className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-white/15 hover:bg-white/25" aria-label="Open that task">
+                  <Icon name="arrow" size={14} className="-rotate-45" />
+                </Link>
+              )}
+            </section>
+          )}
+
+          {raws.length > 0 && <RawFiles raws={raws} />}
 
           {(task.brief || refs.length > 0) && (
             <Card title="Brief">
@@ -201,9 +300,21 @@ export default function TaskView({ task, head, mine, people = [] }) {
               {head && !mine && task.status !== "on_hold" && <ReviewPanel task={task} people={people} />}
               {head && mine && ["completed", "client_rejected", "sent_to_client"].includes(task.status) && <ReviewPanel task={task} people={people} />}
               {head && !mine && OPEN_TASK.includes(task.status) && <p className="text-center text-[12px] text-muted">{task.assignee?.name.split(" ")[0] || "They"} is on it — you&apos;ll be notified when it&apos;s submitted.</p>}
+              {mine && waitingRaw.length > 0 && (
+                <p className="flex items-start gap-2 rounded-xl bg-amber-500/10 px-3 py-2.5 text-[12.5px] text-amber-700 dark:text-amber-300">
+                  <Icon name="clock" size={14} className="mt-0.5 shrink-0" />
+                  Waiting for raw files from {waitingRaw.map((r) => r.assignee?.name.split(" ")[0]).filter(Boolean).join(", ") || "Production"} — you&apos;ll get a notification when they&apos;re uploaded.
+                </p>
+              )}
               <HoldPanel task={task} heldBy={heldBy} />
             </div>
           </Card>
+
+          {head && task.kind !== "shoot" && task.status !== "done" && (
+            <Card>
+              <RawRequest task={task} crew={crew} />
+            </Card>
+          )}
 
           <Card className="!py-2">
             <Prop label="Status">

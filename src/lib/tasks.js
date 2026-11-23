@@ -3,7 +3,8 @@ import { db } from "@/lib/supabase/server";
 import { pushTo } from "@/lib/push";
 import { MAKER_KINDS, OPEN_TASK, taskKindLabel } from "@/lib/constants";
 import { canAssignTasks, canSeeTask, headsTeam, myTeam } from "@/lib/permissions";
-import { runnersOf } from "@/lib/groups";
+import { runnersOf, teamLeadIdsOf } from "@/lib/groups";
+import { listGroups } from "@/lib/leads";
 
 // "*" so newer columns (priority, migration 017) come along when they exist
 export const TASK_FIELDS =
@@ -50,7 +51,52 @@ export async function getTask(me, id) {
     const { data } = await db().storage.from("lead-docs").createSignedUrls(paths, 3600);
     signed = Object.fromEntries((data || []).filter((x) => x.signedUrl).map((x) => [x.path, x.signedUrl]));
   }
-  return { ...t, files: (files || []).map((f) => ({ ...f, href: f.storage_path ? signed[f.storage_path] || "" : f.url })), events: events || [] };
+  const [raws, forTask] = await Promise.all([rawRequests(id), t.for_task_id ? forTaskOf(t.for_task_id) : null]);
+  return { ...t, files: (files || []).map((f) => ({ ...f, href: f.storage_path ? signed[f.storage_path] || "" : f.url })), events: events || [], raws, forTask };
+}
+
+/**
+ * The "shoot" tasks production was given for this task (raw photos / footage), each with the files it
+ * delivered. Empty before migration 027.
+ */
+async function rawRequests(taskId) {
+  const { data, error } = await db()
+    .from("tasks")
+    .select("id, title, status, due_at, revision, brief, created_at, assignee:members!tasks_assignee_id_fkey(id, name)")
+    .eq("for_task_id", taskId)
+    .order("created_at");
+  if (error || !data?.length) return [];
+  const { data: files } = await db()
+    .from("task_files")
+    .select("id, task_id, revision, role, name, storage_path, url, size, created_at")
+    .in("task_id", data.map((r) => r.id))
+    .eq("role", "deliverable")
+    .order("created_at");
+  const paths = (files || []).filter((f) => f.storage_path).map((f) => f.storage_path);
+  let signed = {};
+  if (paths.length) {
+    const { data: s } = await db().storage.from("lead-docs").createSignedUrls(paths, 3600);
+    signed = Object.fromEntries((s || []).filter((x) => x.signedUrl).map((x) => [x.path, x.signedUrl]));
+  }
+  return data.map((r) => ({
+    ...r,
+    files: (files || []).filter((f) => f.task_id === r.id).map((f) => ({ ...f, href: f.storage_path ? signed[f.storage_path] || "" : f.url })),
+  }));
+}
+
+/** The task a shoot was asked for: its title and who is waiting on it. */
+async function forTaskOf(id) {
+  const { data } = await db().from("tasks").select("id, title, kind, status, assignee:members!tasks_assignee_id_fkey(id, name)").eq("id", id).maybeSingle();
+  return data || null;
+}
+
+/** People in the Production group(s), team leads first — who raw photos / footage can be asked from. */
+export async function productionPeople() {
+  const groups = (await listGroups()).filter((g) => g.kind === "production");
+  const leads = new Set(groups.flatMap(teamLeadIdsOf));
+  const byId = new Map();
+  for (const g of groups) for (const m of g.members) if (m.active) byId.set(m.id, { id: m.id, name: m.name, lead: leads.has(m.id) });
+  return [...byId.values()].sort((a, b) => Number(b.lead) - Number(a.lead) || a.name.localeCompare(b.name));
 }
 
 /** People who can take tasks: active members of the designer / developer / video groups (and heads). */

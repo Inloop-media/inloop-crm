@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import TaskView from "@/components/TaskView";
 import { requireMember } from "@/lib/auth";
-import { getTask, listMakers } from "@/lib/tasks";
+import { getTask, listMakers, productionPeople } from "@/lib/tasks";
 import { canAssignTasks } from "@/lib/permissions";
 
 export async function generateMetadata({ params }) {
@@ -17,6 +17,6 @@ export default async function TaskPage({ params }) {
   const task = await getTask(me, id);
   if (!task) notFound();
   const head = canAssignTasks(me);
-  const people = head ? await listMakers(me) : [];
-  return <TaskView task={task} head={head} mine={task.assignee_id === me.id} people={people} />;
+  const [people, crew] = head ? await Promise.all([listMakers(me), task.kind === "shoot" ? [] : productionPeople()]) : [[], []];
+  return <TaskView task={task} head={head} mine={task.assignee_id === me.id} people={people} crew={crew} />;
 }

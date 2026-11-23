@@ -125,6 +125,7 @@ export const TASK_KINDS = [
   { id: "video", label: "Video", group: "video" },
   { id: "design", label: "Design", group: "design" },
   { id: "website", label: "Website", group: "development" },
+  { id: "shoot", label: "Shoot", group: "production" },
   { id: "other", label: "Other" },
 ];
 /** Was this task given from a brand's content calendar? (tasks come with `calendar` from TASK_FIELDS) */
@@ -132,6 +133,13 @@ export const fromCalendar = (t) => Array.isArray(t?.calendar) ? t.calendar.lengt
 export const taskKindLabel = (id) => TASK_KINDS.find((k) => k.id === id)?.label || "Task";
 
 // `who` = whose move it is: the employee (maker), the execution head, the client, or nobody
+/** What production is asked for on a "shoot" task (raw request). */
+export const RAW_WHAT = [
+  ["photos", "Raw photos"],
+  ["footage", "Raw footage"],
+  ["shoot", "A shoot"],
+];
+
 export const TASK_STATUSES = {
   assigned: { label: "To do", color: "#60a5fa", who: "maker" },
   in_progress: { label: "In progress", color: "#fbbf24", who: "maker" },
@@ -194,4 +202,4 @@ export const platformLabel = (v) => platformList(v).map((id) => PLATFORMS.find((
 export const kindPlural = (id) => ({ post: "Static posts", story: "Stories", other: "Other" })[id] || `${taskKindLabel(id)}s`;
 
 /** One colour per kind of content (calendar chips, task tags) */
-export const KIND_COLOR = { post: "#3b82f6", carousel: "#8b5cf6", story: "#ec4899", reel: "#f59e0b", video: "#06b6d4", design: "#10b981", website: "#64748b", other: "#64748b" };
+export const KIND_COLOR = { post: "#3b82f6", carousel: "#8b5cf6", story: "#ec4899", reel: "#f59e0b", video: "#06b6d4", design: "#10b981", website: "#64748b", shoot: "#ef4444", other: "#64748b" };
