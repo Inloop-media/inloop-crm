@@ -10,6 +10,8 @@ import Icon from "@/components/Icon";
 import MonthGrid, { todayKey } from "@/components/MonthGrid";
 import CalendarImport from "@/components/CalendarImport";
 import { PersonSelect, PrioritySelect } from "@/components/TaskForms";
+import { RawToggle } from "@/components/RawRequest";
+import { requestRaw } from "@/app/(crm)/tasks/actions";
 import { assignCalendarItem, clearCalendarMonth, deleteCalendarItem, moveCalendarItem, saveCalendarItem, savePlan, setCalendarLock, setCalendarPosted } from "@/app/(crm)/calendar/actions";
 import WorkBar from "@/components/WorkBar";
 import { Avatar } from "@/components/ui";
@@ -196,6 +198,7 @@ function Drawer({ item, brandId, people, canEdit, canPost = canEdit, canAssign, 
   const [refs, setRefs] = useState(item.refs?.length ? item.refs : [""]);
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
   const [who, setWho] = useState("");
+  const [raw, setRaw] = useState(null); // needs raw photos / footage from Production first
   const twoDaysBefore = (() => {
     const d = new Date(`${f.publish_on}T00:00:00Z`);
     d.setUTCDate(d.getUTCDate() - 2);
@@ -328,7 +331,7 @@ function Drawer({ item, brandId, people, canEdit, canPost = canEdit, canAssign, 
 
           {!isNew && (
             <section className="well flex flex-col gap-3 p-4">
-              <h3 className="text-xs font-medium text-muted">Production</h3>
+              <h3 className="text-xs font-medium text-muted">{item.task ? "Task" : "Give it to a designer / editor"}</h3>
               {item.task ? (
                 <Link href={`/tasks/${item.task.id}`} className="flex items-center justify-between gap-3 text-sm hover:text-brand">
                   <span>
@@ -346,8 +349,21 @@ function Drawer({ item, brandId, people, canEdit, canPost = canEdit, canAssign, 
                     <input type="date" className="field" value={due} onChange={(e) => setDue(e.target.value)} />
                     <PrioritySelect value={priority} onChange={setPriority} />
                   </div>
-                  <button type="button" disabled={!who || pending} onClick={() => run(() => assignCalendarItem(item.id, { assignee_id: who, due_at: due, priority }), onClose)} className="btn-primary btn-sm self-start">
-                    <Icon name="tasks" size={13} /> Assign as task
+                  <RawToggle value={raw} onChange={setRaw} kind={f.kind} who={people.find((p) => p.id === who)?.name.split(" ")[0]} />
+                  <button
+                    type="button"
+                    disabled={!who || pending || (raw && (!raw.assignee_id || !raw.brief.trim()))}
+                    onClick={() =>
+                      run(async () => {
+                        const r = await assignCalendarItem(item.id, { assignee_id: who, due_at: due, priority });
+                        if (!r.ok || !raw) return r;
+                        const q = await requestRaw(r.taskId, raw);
+                        return q.ok ? r : { ok: false, error: `Task given, but the Production request didn't go: ${q.error} — ask from the task page.` };
+                      }, onClose)
+                    }
+                    className="btn-primary btn-sm self-start"
+                  >
+                    <Icon name="tasks" size={13} /> {raw ? "Assign + ask Production" : "Assign as task"}
                   </button>
                   <p className="text-[11px] text-muted">The whole brief (direction, copy, references) goes into the task.</p>
                 </div>

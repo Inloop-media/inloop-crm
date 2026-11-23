@@ -5,7 +5,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Icon from "@/components/Icon";
-import { addTaskFile, requestRaw, startTaskUpload } from "@/app/(crm)/tasks/actions";
+import { addTaskFile, listProductionCrew, requestRaw, startTaskUpload } from "@/app/(crm)/tasks/actions";
 import { createClient } from "@/lib/supabase/browser";
 import { RAW_WHAT } from "@/lib/constants";
 
@@ -174,5 +174,82 @@ export default function RawRequest({ task, crew = [], mine = false }) {
         {status || (pending ? "Sending…" : `Send to ${crew.find((p) => p.id === f.assignee_id)?.name.split(" ")[0] || "Production"}`)} <Icon name="arrow" size={13} />
       </button>
     </form>
+  );
+}
+
+/**
+ * The "Needs raw photos / footage from Production" switch for places that give a task (the content
+ * calendar's post panel). `value` is null when off, else { what, assignee_id, brief, due_at }; the caller
+ * sends it with requestRaw(taskId, value) right after the task is made.
+ */
+export function RawToggle({ value, onChange, kind, who = "" }) {
+  const [crew, setCrew] = useState(null);
+  const video = ["reel", "video"].includes(kind);
+  const toggle = () => {
+    if (value) return onChange(null);
+    onChange({ what: video ? "footage" : "photos", assignee_id: "", brief: "", due_at: dueIn(0) });
+    if (!crew)
+      listProductionCrew().then((list) => {
+        setCrew(list);
+        onChange((r) => (r && !r.assignee_id ? { ...r, assignee_id: (list.find((p) => p.lead) || list[0])?.id || "" } : r));
+      });
+  };
+  const set = (k, v) => onChange((r) => ({ ...r, [k]: v }));
+  return (
+    <div className={`rounded-2xl border transition ${value ? "border-brand/40 bg-brand/[0.03]" : "border-line bg-panel"}`}>
+      <button type="button" onClick={toggle} className="flex w-full items-center gap-3 px-3.5 py-3 text-left">
+        <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-full ${value ? "bg-brand text-white" : "bg-brand/10 text-brand"}`}>
+          <Icon name="video" size={14} />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block text-[12.5px] font-medium">Needs raw {video ? "footage" : "photos"} from Production</span>
+          <span className="block text-[11px] text-muted">They shoot first; {who || "the designer / editor"} is notified when it&apos;s uploaded</span>
+        </span>
+        <span className={`relative h-5 w-9 shrink-0 rounded-full transition ${value ? "bg-brand" : "bg-panel-3"}`}>
+          <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-all ${value ? "left-[18px]" : "left-0.5"}`} />
+        </span>
+      </button>
+      {value && (
+        <div className="flex flex-col gap-3 border-t border-line px-3.5 pb-3.5 pt-3">
+          <div className="flex flex-wrap gap-1.5">
+            {RAW_WHAT.map(([id, l]) => (
+              <Chip key={id} on={value.what === id} onClick={() => set("what", id)}>
+                {l}
+              </Chip>
+            ))}
+          </div>
+          <div className="flex flex-col gap-2">
+            {crew === null ? (
+              <div className="field text-muted">Loading…</div>
+            ) : crew.length ? (
+              <select className="field" value={value.assignee_id} onChange={(e) => set("assignee_id", e.target.value)} aria-label="Who shoots it">
+                {crew.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                    {p.lead ? " · Team lead" : ""}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <p className="text-[12px] text-muted">No one in the Production group yet.</p>
+            )}
+            <div className="flex flex-wrap items-center gap-1.5">
+              {DUE.slice(0, 3).map(([l, d]) => (
+                <Chip key={l} on={value.due_at === dueIn(d)} onClick={() => set("due_at", dueIn(d))}>
+                  {l}
+                </Chip>
+              ))}
+            </div>
+          </div>
+          <textarea
+            className="field resize-y"
+            rows={3}
+            value={value.brief}
+            onChange={(e) => set("brief", e.target.value)}
+            placeholder={value.what === "footage" ? "What to shoot — e.g. 3 product clips in motion, vertical 9:16…" : "What to shoot — e.g. front + side of the pack on white, 4–5 lifestyle shots…"}
+          />
+        </div>
+      )}
+    </div>
   );
 }
