@@ -8,7 +8,7 @@ export const metadata = {
 const SECTIONS = [
   [
     "Who we are",
-    "Inloop Media is a marketing agency. This policy covers the Inloop CRM (inloop-crm.vercel.app), the internal tool our team and clients sign in to, and our website.",
+    "Inloop Media is a creative agency. This policy covers loop, the Inloop Media CRM (inloophub.com), the internal tool our team and clients sign in to, and our website.",
   ],
   [
     "What we collect",

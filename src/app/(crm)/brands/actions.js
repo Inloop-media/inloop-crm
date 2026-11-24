@@ -72,7 +72,7 @@ export async function markMouSent(brandId) {
   if (!(brand.services || []).length) return { ok: false, error: "Add at least one service to the MOU first." };
   if (!brand.terms?.client_email) return { ok: false, error: "Add the client's login email — the dashboard login goes there." };
   const version = (brand.mou_version || 0) + 1;
-  const bytes = await buildMouPdf({ brand: { ...brand, mou_version: version }, lead: brand.lead, crmUrl: process.env.CRM_URL || "https://inloop-crm.vercel.app" });
+  const bytes = await buildMouPdf({ brand: { ...brand, mou_version: version }, lead: brand.lead, crmUrl: process.env.CRM_URL || "https://inloophub.com" });
   const safe = brand.name.replace(/[^\w]+/g, "_").slice(0, 60) || "Client";
   const name = `MOU_${safe}_x_Inloop_v${version}.pdf`;
   const path = `${brand.lead.code}/mou/${Date.now()}-${name}`;

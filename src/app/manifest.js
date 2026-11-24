@@ -1,9 +1,9 @@
 /** Lets the CRM install as an app ("Add to Home Screen") — needed for push notifications on iPhone. */
 export default function manifest() {
   return {
-    name: "Inloop",
-    short_name: "Inloop",
-    description: "The Inloop Media workspace",
+    name: "loop",
+    short_name: "loop",
+    description: "loop — the Inloop Media workspace",
     start_url: "/",
     scope: "/",
     display: "standalone",

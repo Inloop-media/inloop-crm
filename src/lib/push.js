@@ -12,7 +12,7 @@ function configured() {
   const pub = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
   const priv = process.env.VAPID_PRIVATE_KEY;
   ready = Boolean(pub && priv);
-  if (ready) webpush.setVapidDetails(process.env.VAPID_SUBJECT || process.env.CRM_URL || "https://inloop-crm.vercel.app", pub, priv);
+  if (ready) webpush.setVapidDetails(process.env.VAPID_SUBJECT || process.env.CRM_URL || "https://inloophub.com", pub, priv);
   return ready;
 }
 

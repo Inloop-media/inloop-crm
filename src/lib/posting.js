@@ -72,7 +72,7 @@ export async function queuePosting(task, actor) {
  * files (the approved version of its design / video task, carousel slides in order), and who posted it.
  */
 export async function postingKit(itemId) {
-  const { data: item } = await db().from("calendar_items").select("*, task:tasks(id, status, revision, assignee:members!tasks_assignee_id_fkey(name))").eq("id", itemId).maybeSingle();
+  const { data: item } = await db().from("calendar_items").select("*, task:tasks!calendar_items_task_id_fkey(id, status, revision, assignee:members!tasks_assignee_id_fkey(name))").eq("id", itemId).maybeSingle();
   if (!item) return null;
   const work = item.task;
   const approved = item.status === "posted" || work?.status === "done";

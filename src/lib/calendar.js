@@ -15,7 +15,7 @@ export const monthStart = (m) => `${m}-01`;
 export const monthLabel = (m) => new Intl.DateTimeFormat("en-IN", { month: "long", year: "numeric", timeZone: "UTC" }).format(new Date(`${m}-01T00:00:00Z`));
 
 // "*" so the brief fields (migration 016) come along when they exist
-const ITEM_FIELDS = "*, task:tasks(id, status, due_at, revision, assignee:members!tasks_assignee_id_fkey(id, name))";
+const ITEM_FIELDS = "*, task:tasks!calendar_items_task_id_fkey(id, status, due_at, revision, assignee:members!tasks_assignee_id_fkey(id, name))";
 
 /** Calendar items for one brand (or several) in a month. */
 export async function loadItems(brandIds, month) {

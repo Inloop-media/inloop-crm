@@ -187,7 +187,7 @@ export default async function LeadPage({ params }) {
               }
             >
               {brand?.stage === "active" && account ? (
-                <ClientLogin account={{ ...account, brand }} origin={process.env.CRM_URL || "https://inloop-crm.vercel.app"} />
+                <ClientLogin account={{ ...account, brand }} origin={process.env.CRM_URL || "https://inloophub.com"} />
               ) : (
                 <OnboardButton leadId={lead.id} />
               )}
