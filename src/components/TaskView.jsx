@@ -5,6 +5,7 @@ import Icon from "@/components/Icon";
 import { Avatar } from "@/components/ui";
 import { HoldPanel, MainAction, ReviewPanel, TaskAdmin, TaskFiles } from "@/components/TaskForms";
 import RawRequest from "@/components/RawRequest";
+import PostKit from "@/components/PostKit";
 import { KIND_COLOR, OPEN_TASK, TASK_STATUSES, taskKindLabel } from "@/lib/constants";
 import { ago, fmtDateTime } from "@/lib/format";
 
@@ -26,6 +27,8 @@ export const EVENT = {
   reassign: (d) => `gave revision ${d.revision || ""}`,
   raw_requested: (d) => `asked ${d.to || "Production"} for ${d.what || "raw files"}`,
   raw_ready: () => "uploaded the raw files from the shoot",
+  posted: () => "marked it posted",
+  unposted: () => "undid the post",
 };
 
 const RAW_STATE = {
@@ -271,6 +274,12 @@ export default function TaskView({ task, head, mine, people = [], crew = [] }) {
             </section>
           )}
 
+          {task.kind === "posting" && task.post_item_id && (
+            <section className="rounded-[22px] border border-line bg-panel p-6 shadow-[0_1px_2px_rgb(16_24_40/0.04),0_8px_24px_-12px_rgb(16_24_40/0.12)]">
+              <PostKit itemId={task.post_item_id} />
+            </section>
+          )}
+
           {raws.length > 0 && <RawFiles raws={raws} />}
 
           {(task.brief || refs.length > 0) && (
@@ -327,7 +336,8 @@ export default function TaskView({ task, head, mine, people = [], crew = [] }) {
         <aside className="flex flex-col gap-5 lg:sticky lg:top-4">
           <Card>
             <div className="flex flex-col gap-3">
-              {mine && <MainAction task={task} />}
+              {mine && task.kind !== "posting" && <MainAction task={task} />}
+              {mine && task.kind === "posting" && task.status !== "done" && <p className="text-center text-[12.5px] text-muted">Post it, then press “Mark as posted” in the post kit.</p>}
               {head && !mine && task.status !== "on_hold" && <ReviewPanel task={task} people={people} />}
               {head && mine && ["completed", "ready", "client_rejected", "sent_to_client"].includes(task.status) && <ReviewPanel task={task} people={people} />}
               {head && !mine && OPEN_TASK.includes(task.status) && <p className="text-center text-[12px] text-muted">{task.assignee?.name.split(" ")[0] || "They"} is on it — you&apos;ll be notified when it&apos;s submitted.</p>}
@@ -341,7 +351,7 @@ export default function TaskView({ task, head, mine, people = [], crew = [] }) {
             </div>
           </Card>
 
-          {(head || mine) && task.kind !== "shoot" && task.status !== "done" && (
+          {(head || mine) && !["shoot", "posting"].includes(task.kind) && task.status !== "done" && (
             <Card>
               <RawRequest task={task} crew={crew} mine={mine} />
             </Card>

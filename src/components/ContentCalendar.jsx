@@ -11,8 +11,9 @@ import MonthGrid, { todayKey } from "@/components/MonthGrid";
 import CalendarImport from "@/components/CalendarImport";
 import { PersonSelect, PrioritySelect } from "@/components/TaskForms";
 import { RawToggle } from "@/components/RawRequest";
+import PostKit from "@/components/PostKit";
 import { requestRaw } from "@/app/(crm)/tasks/actions";
-import { assignCalendarItem, clearCalendarMonth, deleteCalendarItem, moveCalendarItem, saveCalendarItem, savePlan, setCalendarLock, setCalendarPosted } from "@/app/(crm)/calendar/actions";
+import { assignCalendarItem, clearCalendarMonth, deleteCalendarItem, moveCalendarItem, saveCalendarItem, savePlan, setCalendarLock } from "@/app/(crm)/calendar/actions";
 import WorkBar from "@/components/WorkBar";
 import { Avatar } from "@/components/ui";
 import { bucketOf, countBuckets } from "@/lib/workStatus";
@@ -25,7 +26,8 @@ const fmtKey = (k) => dayFmt.format(new Date(`${k}T00:00:00Z`));
 
 /** Where an item stands, in one word. */
 export function itemState(i) {
-  if (i.status === "posted") return { label: "Posted", color: "#4ade80" };
+  if (i.status === "posted") return { label: "Posted", color: "#059669" };
+  if (i.task?.status === "done") return { label: "Approved · to post", color: "#0ea5e9" };
   if (i.task) {
     const s = TASK_STATUSES[i.task.status];
     return { label: i.task.status === "completed" ? "In review" : s?.label || "Assigned", color: s?.color || "#60a5fa" };
@@ -180,7 +182,7 @@ function PlanCard({ brandId, month, monthName, plan, progress, canPlan }) {
 
 /* ------------------------------ Item drawer ------------------------------ */
 
-function Drawer({ item, brandId, people, canEdit, canPost = canEdit, canAssign, canDelete = false, onClose }) {
+function Drawer({ item, brandId, people, canEdit, canAssign, canDelete = false, onClose }) {
   const { pending, error, run } = useRun();
   const isNew = !item.id;
   const [f, setF] = useState({
@@ -332,7 +334,11 @@ function Drawer({ item, brandId, people, canEdit, canPost = canEdit, canAssign, 
           {!isNew && (
             <section className="well flex flex-col gap-3 p-4">
               <h3 className="text-xs font-medium text-muted">{item.task ? "Task" : "Give it to a designer / editor"}</h3>
-              {item.task ? (
+              {item.task && !canAssign ? (
+                <p className="text-sm">
+                  Made by <b className="font-medium">{item.task.assignee?.name || "—"}</b> · <span className="text-muted">{itemState(item).label}</span>
+                </p>
+              ) : item.task ? (
                 <Link href={`/tasks/${item.task.id}`} className="flex items-center justify-between gap-3 text-sm hover:text-brand">
                   <span>
                     Task with <b className="font-medium">{item.task.assignee?.name || "—"}</b>
@@ -370,12 +376,12 @@ function Drawer({ item, brandId, people, canEdit, canPost = canEdit, canAssign, 
               ) : (
                 <p className="text-xs text-muted">Not assigned yet — the CBOs assign it to a designer or editor.</p>
               )}
-              {canPost && (
-                <label className="flex cursor-pointer items-center gap-2 text-sm">
-                  <input type="checkbox" checked={item.status === "posted"} onChange={(e) => run(() => setCalendarPosted(item.id, e.target.checked))} className="h-4 w-4 accent-[var(--color-brand)]" />
-                  Posted
-                </label>
-              )}
+            </section>
+          )}
+          {!isNew && (item.task || item.status === "posted") && (
+            <section className="well flex flex-col gap-3 p-4">
+              <h3 className="text-xs font-medium text-muted">Posting</h3>
+              <PostKit itemId={item.id} />
             </section>
           )}
           {error && <p className="text-xs text-rose-400">{error}</p>}
@@ -566,7 +572,8 @@ function LockBar({ brandId, lock, canLock }) {
 /* ------------------------------ Calendar ------------------------------ */
 
 const STATUS_TILES = [
-  { id: "done", label: "Approved", buckets: ["done"], tone: "text-emerald-500", dot: "#10b981" },
+  { id: "posted", label: "Posted", buckets: ["posted"], tone: "text-emerald-500", dot: "#059669" },
+  { id: "done", label: "To post", buckets: ["done"], tone: "text-sky-500", dot: "#38bdf8" },
   { id: "ready", label: "Ready to share", buckets: ["ready"], tone: "text-emerald-500", dot: "#6ee7b7" },
   { id: "shared", label: "Shared with client", buckets: ["shared"], tone: "text-cyan-500", dot: "#22d3ee" },
   { id: "progress", label: "In progress", buckets: ["progress", "review"], tone: "text-amber-500", dot: "#fbbf24" },
@@ -590,13 +597,13 @@ export function WorkStatus({ items, monthName, onOpen }) {
           <p className="text-xs text-muted">Where {monthName}&apos;s posts stand · tap a number to see the posts</p>
           <p className="mt-1 flex items-end gap-2">
             <span className="text-[34px] font-light leading-none tabular-nums tracking-[-0.03em]">
-              {c.done}
+              {c.posted}
               <span className="text-[18px] text-faint">/{c.total}</span>
             </span>
-            <span className="mb-1 text-[12px] text-muted">approved</span>
+            <span className="mb-1 text-[12px] text-muted">posted{c.done ? ` · ${c.done} approved, to post` : ""}</span>
           </p>
         </div>
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
           {STATUS_TILES.map((t) => {
             const v = t.buckets.reduce((n, b) => n + c[b], 0);
             const on = pick === t.id;
@@ -811,7 +818,7 @@ export default function ContentCalendar({ brand, month, monthName, items: initia
         )}
       </section>
 
-      {open && <Drawer key={open.id || open.publish_on} item={open} brandId={brand.id} people={people} canEdit={canEdit} canPost={mayEdit} canAssign={canAssign} canDelete={canEdit && canDelete} onClose={() => setOpen(null)} />}
+      {open && <Drawer key={open.id || open.publish_on} item={open} brandId={brand.id} people={people} canEdit={canEdit} canAssign={canAssign} canDelete={canEdit && canDelete} onClose={() => setOpen(null)} />}
     </div>
   );
 }

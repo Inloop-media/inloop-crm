@@ -2,7 +2,8 @@
 // the "Brands this month" block on the admin / CBO dashboards. Client-safe (no server imports).
 
 export const BUCKETS = [
-  { id: "done", label: "Approved", color: "#10b981" },
+  { id: "posted", label: "Posted", color: "#059669" },
+  { id: "done", label: "Approved · to post", color: "#38bdf8" },
   { id: "shared", label: "Shared with client", color: "#22d3ee" },
   { id: "ready", label: "Ready for client", color: "#6ee7b7" },
   { id: "review", label: "In review", color: "#a78bfa" },
@@ -12,7 +13,8 @@ export const BUCKETS = [
 
 /** One calendar item → its bucket id. */
 export function bucketOf(i) {
-  if (i.status === "posted" || i.task?.status === "done") return "done";
+  if (i.status === "posted") return "posted";
+  if (i.task?.status === "done") return "done";
   if (!i.task) return "unassigned";
   if (i.task.status === "ready") return "ready";
   if (i.task.status === "sent_to_client") return "shared";

@@ -50,7 +50,7 @@ export default async function BrandMonth() {
           </div>
           <div className="flex items-center gap-2">
             <span className="rounded-full bg-panel-2 px-3 py-1.5 text-[12px] text-muted">
-              <b className="font-medium tabular-nums text-ink">{all.done}</b>/{all.total} approved · <b className="font-medium tabular-nums text-ink">{all.unassigned}</b> not assigned
+              <b className="font-medium tabular-nums text-ink">{all.posted}</b>/{all.total} posted · <b className="font-medium tabular-nums text-ink">{all.done}</b> to post · <b className="font-medium tabular-nums text-ink">{all.unassigned}</b> not assigned
             </span>
             <RoundLink href={`/calendar?month=${month}`} label="All brands calendar" />
           </div>
@@ -68,8 +68,13 @@ export default async function BrandMonth() {
                   <WorkBar c={c} className="h-2" />
                   <span className="mt-1.5 flex flex-wrap gap-x-3 text-[11.5px] text-muted">
                     <span>
-                      <b className="font-medium tabular-nums text-emerald-600 dark:text-emerald-400">{c.done}</b>/{c.total} approved
+                      <b className="font-medium tabular-nums text-emerald-600 dark:text-emerald-400">{c.posted}</b>/{c.total} posted
                     </span>
+                    {c.done > 0 && (
+                      <span>
+                        <b className="font-medium tabular-nums text-sky-600 dark:text-sky-400">{c.done}</b> to post
+                      </span>
+                    )}
                     {c.ready + c.shared > 0 && (
                       <span>
                         <b className="font-medium tabular-nums text-cyan-600 dark:text-cyan-400">{c.ready + c.shared}</b> with client

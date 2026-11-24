@@ -8,7 +8,8 @@ import { getBrand } from "@/lib/brands";
 import { pingLive } from "@/lib/live";
 import { canAssignTo, logTask, notifyTask, productionPeople, sharerIds, TASK_FIELDS } from "@/lib/tasks";
 import { MAKER_STATUS_OPTIONS, OPEN_TASK, PRIORITIES, RAW_WHAT, TASK_KINDS, TASK_STATUSES, taskKindLabel } from "@/lib/constants";
-import { canAssignTasks, canReviewTask } from "@/lib/permissions";
+import { canAssignTasks, canPostContent, canReviewTask, canSeeCalendar } from "@/lib/permissions";
+import { postingKit, queuePosting } from "@/lib/posting";
 
 const str = (v, max = 4000) => String(v ?? "").trim().slice(0, max);
 const isUuid = (v) => /^[0-9a-f-]{36}$/i.test(String(v || ""));
@@ -267,6 +268,11 @@ export async function reviewTask(id, action, { feedback = "", assignee_id, due_a
   await logTask(id, me.id, action, { feedback: note || undefined, to: changes.assignee_id && changes.assignee_id !== task.assignee_id ? "new" : undefined, revision: changes.revision });
   if (notify?.to?.length) after(() => notifyTask(notify.to, task, notify.title, notify.body));
   if (alsoNotify?.to?.length) after(() => notifyTask(alsoNotify.to, task, alsoNotify.title, alsoNotify.body));
+  // A content-calendar post approved for good goes to the Social Media team to post
+  if (changes.status === "done") {
+    const posting = await queuePosting(task, me);
+    if (posting) refresh(posting);
+  }
   refresh(task);
   return { ok: true };
 }
@@ -421,5 +427,63 @@ export async function resumeTask(id) {
   const tell = [mine ? task.assigned_by : task.assignee_id].filter((x) => x && x !== me.id);
   if (tell.length) after(() => notifyTask(tell, task, `▶ Back on — ${me.name.split(" ")[0]} resumed it`));
   refresh(task);
+  return { ok: true };
+}
+
+/* ------------------------------ Posting ------------------------------ */
+
+/** The posting kit for a calendar post: details, final files, caption, and whether it's posted. */
+export async function getPostingKit(itemId) {
+  const me = await requireMember();
+  if (!isUuid(itemId)) return { ok: false, error: "Not found." };
+  const kit = await postingKit(itemId);
+  if (!kit) return { ok: false, error: "Not found." };
+  const mine = kit.posting?.assignee?.id === me.id;
+  if (!canSeeCalendar(me) && !canAssignTasks(me) && !mine) return { ok: false, error: "You can't see this post." };
+  return { ok: true, kit, canPost: canPostContent(me) || mine, canUndo: me.role === "admin" };
+}
+
+/** Posted it (on Instagram etc.): the calendar post becomes Posted and the posting task is done. */
+export async function markPosted(itemId, url = "") {
+  const me = await requireMember();
+  const kit = isUuid(itemId) ? await postingKit(itemId) : null;
+  if (!kit) return { ok: false, error: "Not found." };
+  const mine = kit.posting?.assignee?.id === me.id;
+  if (!canPostContent(me) && !mine) return { ok: false, error: "Only the Social Media team marks posts as posted." };
+  if (!kit.approved && me.role !== "admin") return { ok: false, error: "The client hasn't approved it yet." };
+  const link = str(url, 1000);
+  if (link && !/^https?:\/\/\S+$/i.test(link)) return { ok: false, error: "Paste the full post link, starting with https://" };
+  const now = new Date().toISOString();
+  const { error } = await db().from("calendar_items").update({ status: "posted", posted_at: now, posted_by: me.id, post_url: link, updated_at: now }).eq("id", itemId);
+  if (error) return { ok: false, error: /posted_at|posted_by|post_url/.test(error.message) ? "Run migration 029_posting.sql in Supabase first." : error.message };
+  if (kit.posting && kit.posting.status !== "done") {
+    const posting = await loadTask(kit.posting.id);
+    await db().from("tasks").update({ status: "done", done_at: now, updated_at: now }).eq("id", posting.id);
+    await logTask(posting.id, me.id, "posted", { url: link || undefined });
+    if (posting.assigned_by && posting.assigned_by !== me.id) after(() => notifyTask([posting.assigned_by], posting, "✅ Posted", `${me.name.split(" ")[0]} posted it${link ? " — tap to see the task and the link" : ""}.`));
+    refresh(posting);
+  }
+  pingLive("calendar");
+  revalidatePath("/calendar");
+  revalidatePath(`/brands/${kit.item.brand_id}`);
+  return { ok: true };
+}
+
+/** Admin only: undo a mistaken "posted" — the post and its posting task go back to waiting. */
+export async function unmarkPosted(itemId) {
+  const me = await requireMember();
+  if (me.role !== "admin") return { ok: false, error: "Only admin can undo a post." };
+  const kit = isUuid(itemId) ? await postingKit(itemId) : null;
+  if (!kit) return { ok: false, error: "Not found." };
+  const now = new Date().toISOString();
+  await db().from("calendar_items").update({ status: "planned", posted_at: null, posted_by: null, post_url: "", updated_at: now }).eq("id", itemId);
+  if (kit.posting) {
+    await db().from("tasks").update({ status: "assigned", done_at: null, updated_at: now }).eq("id", kit.posting.id);
+    await logTask(kit.posting.id, me.id, "unposted", {});
+    const posting = await loadTask(kit.posting.id);
+    if (posting) refresh(posting);
+  }
+  pingLive("calendar");
+  revalidatePath("/calendar");
   return { ok: true };
 }

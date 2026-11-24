@@ -126,15 +126,7 @@ export async function moveCalendarItem(id, day) {
   return { ok: true };
 }
 
-export async function setCalendarPosted(id, posted) {
-  const me = await requireMember();
-  if (!canEditCalendar(me)) return { ok: false, error: "You can't edit the calendar." };
-  const item = await loadItem(id);
-  if (!item) return { ok: false, error: "Not found." };
-  await db().from("calendar_items").update({ status: posted ? "posted" : "planned", updated_at: new Date().toISOString() }).eq("id", id);
-  refresh(item.brand_id);
-  return { ok: true };
-}
+// Posting is marked by the Social Media team from the post kit (tasks/actions.js markPosted) — no manual toggle here.
 
 export async function deleteCalendarItem(id) {
   const me = await requireMember();

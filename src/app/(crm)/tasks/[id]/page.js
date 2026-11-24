@@ -18,6 +18,6 @@ export default async function TaskPage({ params }) {
   if (!task) notFound();
   const head = canAssignTasks(me);
   const mine = task.assignee_id === me.id;
-  const [people, crew] = await Promise.all([head ? listMakers(me) : [], (head || mine) && task.kind !== "shoot" ? productionPeople() : []]);
+  const [people, crew] = await Promise.all([head ? listMakers(me) : [], (head || mine) && !["shoot", "posting"].includes(task.kind) ? productionPeople() : []]);
   return <TaskView task={task} head={head} mine={mine} people={people} crew={crew} />;
 }

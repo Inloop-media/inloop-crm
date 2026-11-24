@@ -67,8 +67,13 @@ export const canSeeTask = (me, t) => canAssignTasks(me) || t.assignee_id === me.
 export const canReviewTask = (me, t) => isStaff(me) || t.assigned_by === me.id || isExecHead(me);
 
 // Content calendar: the strategists build it, heads / staff can too; the monthly plan is the heads' call
-export const canSeeCalendar = (me) => isStaff(me) || isExecHead(me) || isStrategist(me);
-export const canEditCalendar = canSeeCalendar;
+/** The Social Media Management team: posts the client-approved content. */
+export const isSocial = (me) => inGroupKind(me, "social");
+// Content calendar: the strategists build it, heads / staff can too; the social team sees it (read-only) to post
+export const canEditCalendar = (me) => isStaff(me) || isExecHead(me) || isStrategist(me);
+export const canSeeCalendar = (me) => canEditCalendar(me) || isSocial(me);
+/** Marking a client-approved calendar post as posted: the social team and staff. */
+export const canPostContent = (me) => isStaff(me) || isSocial(me);
 /**
  * Lock / unlock a brand's content calendar: the creative strategists' team lead, whoever runs that group
  * (its manager / CBO) and admin. While it's locked, no one can change it.
