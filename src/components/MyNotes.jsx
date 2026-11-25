@@ -120,13 +120,13 @@ export default function MyNotes({ initial }) {
           </form>
           {error && <p className="mt-2 text-[12px] text-rose-400">{error}</p>}
           {open.length ? (
-            <ul className="mt-2 divide-y divide-line">
+            <ul className="mt-2 max-h-[300px] divide-y divide-line overflow-y-auto pr-1">
               {open.map((n) => (
                 <Row key={n.id} note={n} onToggle={() => toggle(n)} onSave={(t) => saveText(n, t)} onDelete={() => remove(n)} />
               ))}
             </ul>
           ) : (
-            <p className="py-4 text-[12.5px] text-muted">Nothing on your list. Write what you need to get done.</p>
+            <p className="pt-3 text-[12.5px] text-muted">Nothing on your list yet.</p>
           )}
           {done.length > 0 && (
             <div className="mt-2 border-t border-line pt-2">

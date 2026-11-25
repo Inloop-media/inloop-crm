@@ -133,8 +133,11 @@ async function Notes({ me }) {
 function AdminTop({ me }) {
   return (
     <div className="flex flex-col gap-4">
-      <Notes me={me} />
-      <Meetings me={me} />
+      {/* Notes and meetings side by side — each is a short list, full width wasted the space */}
+      <div className={`grid gap-4 ${canKeepNotes(me) ? "lg:grid-cols-2 lg:[&>*]:h-full" : ""}`}>
+        <Notes me={me} />
+        <Meetings me={me} />
+      </div>
       <BrandMonth />
       <GroupCards me={me} />
     </div>
