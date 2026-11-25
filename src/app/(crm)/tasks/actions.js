@@ -135,16 +135,23 @@ export async function updateTask(id, patch) {
   const task = await loadTask(id);
   if (!task || !canAssignTasks(me)) return { ok: false, error: "You can't edit this task." };
   const changes = {};
-  if ("title" in patch) changes.title = str(patch.title, 160) || task.title;
-  if ("brief" in patch) changes.brief = str(patch.brief, 8000);
-  if ("kind" in patch && TASK_KINDS.some((k) => k.id === patch.kind)) changes.kind = patch.kind;
-  if ("priority" in patch && PRIORITIES.some((p) => p.id === patch.priority)) changes.priority = patch.priority;
+  // Only what actually changed, so the person doing it is told exactly that
+  if ("title" in patch) {
+    const t = str(patch.title, 160);
+    if (!t) return { ok: false, error: "The task needs a title." };
+    if (t !== task.title) changes.title = t;
+  }
+  if ("brief" in patch && str(patch.brief, 8000) !== (task.brief || "")) changes.brief = str(patch.brief, 8000);
+  if ("kind" in patch && patch.kind !== task.kind && TASK_KINDS.some((k) => k.id === patch.kind)) changes.kind = patch.kind;
+  if ("priority" in patch && patch.priority !== (task.priority || "medium") && PRIORITIES.some((p) => p.id === patch.priority)) changes.priority = patch.priority;
   if ("due_at" in patch) {
     const due = dueAt(patch.due_at);
     if (due === undefined) return { ok: false, error: "The due date isn't valid." };
-    changes.due_at = due;
-    changes.due_soon_notified_at = null;
-    changes.overdue_notified_at = null;
+    if ((due || null) !== (task.due_at ? new Date(task.due_at).toISOString() : null)) {
+      changes.due_at = due;
+      changes.due_soon_notified_at = null;
+      changes.overdue_notified_at = null;
+    }
   }
   let newAssignee = null;
   if ("assignee_id" in patch && patch.assignee_id !== task.assignee_id) {
@@ -157,8 +164,20 @@ export async function updateTask(id, patch) {
   changes.updated_at = new Date().toISOString();
   const { error } = await db().from("tasks").update(changes).eq("id", id);
   if (error) return { ok: false, error: /priority/.test(error.message) ? "Priority needs migration 017 — ask the admin to run it." : error.message };
-  await logTask(id, me.id, "edited", { fields: Object.keys(changes).filter((k) => !k.endsWith("_at") || k === "due_at"), to: newAssignee?.name });
-  if (newAssignee && newAssignee.id !== me.id) after(() => notifyTask([newAssignee.id], { ...task, ...changes }, "Task assigned to you"));
+  const fields = Object.keys(changes).filter((k) => !k.endsWith("_at") || k === "due_at");
+  await logTask(id, me.id, "edited", { fields, to: newAssignee?.name });
+  const after_ = { ...task, ...changes };
+  const first = me.name.split(" ")[0];
+  if (newAssignee) {
+    if (newAssignee.id !== me.id) after(() => notifyTask([newAssignee.id], after_, "Task assigned to you"));
+    // The person it was taken from should know too
+    if (task.assignee_id && task.assignee_id !== me.id) after(() => notifyTask([task.assignee_id], after_, "Task moved", `${first} gave it to ${newAssignee.name.split(" ")[0]}`));
+  } else if (task.assignee_id && task.assignee_id !== me.id) {
+    const LABEL = { title: "title", brief: "brief", kind: "type", priority: "priority", due_at: "due date" };
+    const what = fields.map((f) => LABEL[f]).filter(Boolean);
+    const due = changes.due_at ? ` — now due ${new Date(changes.due_at).toLocaleString("en-IN", { timeZone: "Asia/Kolkata", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" })}` : "";
+    if (what.length) after(() => notifyTask([task.assignee_id], after_, "✏️ Task updated", `${first} changed the ${what.join(", ").replace(/, ([^,]*)$/, " and $1")}${due}`));
+  }
   refresh(task);
   return { ok: true };
 }

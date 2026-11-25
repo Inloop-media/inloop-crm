@@ -505,19 +505,53 @@ export function ReviewPanel({ task, people }) {
   return <p className="text-sm text-muted">{s === "done" ? "Approved and done." : `With ${task.assignee?.name || "the team"} — you'll be notified when it's completed.`}</p>;
 }
 
-/** Edit due date / assignee / delete — for the head. */
+/** Edit the task (title, type, brief, assignee, due, priority) or delete it — for the head. The person doing it is told what changed. */
 export function TaskAdmin({ task, people }) {
   const router = useRouter();
   const { pending, error, run } = useRun();
+  const [title, setTitle] = useState(task.title || "");
+  const [kind, setKind] = useState(task.kind || "other");
+  const [brief, setBrief] = useState(task.brief || "");
   const [due, setDue] = useState(toLocal(task.due_at));
   const [assignee, setAssignee] = useState(task.assignee_id || "");
   const [priority, setPriority] = useState(task.priority || "medium");
-  const changed = due !== toLocal(task.due_at) || assignee !== (task.assignee_id || "") || priority !== (task.priority || "medium");
+  const [saved, setSaved] = useState(false);
+  const patch = {
+    ...(title.trim() !== task.title ? { title } : {}),
+    ...(kind !== task.kind ? { kind } : {}),
+    ...(brief.trim() !== (task.brief || "").trim() ? { brief } : {}),
+    ...(due !== toLocal(task.due_at) ? { due_at: due } : {}),
+    ...(priority !== (task.priority || "medium") ? { priority } : {}),
+    ...(assignee !== (task.assignee_id || "") ? { assignee_id: assignee } : {}),
+  };
+  const changed = Object.keys(patch).length > 0;
+  // Posting tasks come from the calendar and shoots from a request — their type stays as it is
+  const fixedKind = ["posting", "shoot"].includes(task.kind);
   return (
     <div className="flex flex-col gap-3">
       <label className="flex flex-col gap-1.5">
+        <span className="text-xs text-muted">Title</span>
+        <input className="field" value={title} maxLength={160} onChange={(e) => setTitle(e.target.value)} />
+      </label>
+      {!fixedKind && (
+        <label className="flex flex-col gap-1.5">
+          <span className="text-xs text-muted">Type</span>
+          <select className="field" value={kind} onChange={(e) => setKind(e.target.value)}>
+            {TASK_KINDS.filter((k) => !["posting", "shoot"].includes(k.id)).map((k) => (
+              <option key={k.id} value={k.id}>
+                {k.label}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
+      <label className="flex flex-col gap-1.5">
+        <span className="text-xs text-muted">Brief</span>
+        <textarea className="field resize-y" rows={4} maxLength={8000} placeholder="Copy, references, sizes, links…" value={brief} onChange={(e) => setBrief(e.target.value)} />
+      </label>
+      <label className="flex flex-col gap-1.5">
         <span className="text-xs text-muted">Assigned to</span>
-        <PersonSelect people={people} value={assignee} onChange={setAssignee} kind={task.kind} />
+        <PersonSelect people={people} value={assignee} onChange={setAssignee} kind={kind} />
       </label>
       <label className="flex flex-col gap-1.5">
         <span className="text-xs text-muted">Due</span>
@@ -529,12 +563,20 @@ export function TaskAdmin({ task, people }) {
       </label>
       <div className="flex items-center gap-2">
         <button
-          onClick={() => run(() => updateTask(task.id, { due_at: due, ...(priority !== (task.priority || "medium") ? { priority } : {}), ...(assignee !== task.assignee_id ? { assignee_id: assignee } : {}) }))}
-          disabled={pending || !changed}
-          className="btn-ghost btn-sm"
+          onClick={() => {
+            if (!title.trim()) return;
+            run(() => updateTask(task.id, patch), () => (setSaved(true), setTimeout(() => setSaved(false), 4000)));
+          }}
+          disabled={pending || !changed || !title.trim()}
+          className="btn-primary btn-sm"
         >
-          Save
+          {pending ? "Saving…" : "Save changes"}
         </button>
+        {saved && !changed && (
+          <span className="flex items-center gap-1 text-xs text-emerald-500">
+            <Icon name="check" size={12} /> Saved{task.assignee?.name ? ` · ${task.assignee.name.split(" ")[0]} is notified` : ""}
+          </span>
+        )}
         <button
           onClick={() => {
             if (confirm("Delete this task and its files? This can't be undone.")) run(() => deleteTask(task.id), () => router.push(`/brands/${task.brand_id}`));

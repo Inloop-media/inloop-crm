@@ -11,7 +11,12 @@ import { ago, fmtDateTime } from "@/lib/format";
 
 export const EVENT = {
   created: (d) => `gave it to ${d.to || "—"}`,
-  edited: (d) => (d.to ? `reassigned it to ${d.to}` : "changed the details"),
+  edited: (d) => {
+    if (d.to) return `reassigned it to ${d.to}`;
+    const L = { title: "title", brief: "brief", kind: "type", priority: "priority", due_at: "due date" };
+    const what = (d.fields || []).map((f) => L[f]).filter(Boolean);
+    return what.length ? `changed the ${what.join(", ").replace(/, ([^,]*)$/, " and $1")}` : "changed the details";
+  },
   status: (d) => `moved it to ${TASK_STATUSES[d.to]?.label || String(d.to || "").replace("_", " ")}`,
   file: (d) => `uploaded ${d.name}`,
   note: () => "added a note",
@@ -403,7 +408,7 @@ export default function TaskView({ task, head, mine, people = [], crew = [] }) {
           {head && (
             <details className="group rounded-[22px] border border-line bg-panel p-5">
               <summary className="flex cursor-pointer list-none items-center justify-between text-[14px] font-semibold">
-                Edit details
+                Edit task
                 <Icon name="chevron" size={14} className="text-muted transition group-open:rotate-180" />
               </summary>
               <div className="mt-4">
