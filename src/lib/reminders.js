@@ -4,10 +4,12 @@ import "server-only";
 // often as you like:
 //   • evening digest (19:00–23:00 IST) — "Kal tumhare 3 tasks due hain"            once per person per day
 //   • morning digest (10:00–14:00 IST) — "Aaj 2 due, 1 late" + heads get their team's late work, once a day
+//   • content calendar (lib/calendarReminders.js) — posts not assigned a week ahead, calendars short of deliverables
 //   • follow-up reminders on leads   — at the time the salesperson picked, once per reminder
 import { db } from "@/lib/supabase/server";
 import { pushTo, staffIds } from "@/lib/push";
 import { OPEN_TASK } from "@/lib/constants";
+import { calendarReminders } from "@/lib/calendarReminders";
 
 const IST = "Asia/Kolkata";
 const DAY = 864e5;
@@ -121,7 +123,7 @@ export async function runReminders(now = Date.now()) {
   const hour = istHour(now);
   const out = { ...(await followUps(now)) };
   // Only inside their windows, so a worker that was off all morning doesn't send "today" at night
-  if (hour >= 10 && hour < 14) Object.assign(out, await morning(now));
+  if (hour >= 10 && hour < 14) Object.assign(out, await morning(now), await calendarReminders(now).catch((e) => ({ calendar: String(e?.message || e) })));
   if (hour >= 19 && hour < 23) Object.assign(out, await evening(now));
   return out;
 }

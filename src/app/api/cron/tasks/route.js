@@ -4,6 +4,7 @@ import { notifyTask, TASK_FIELDS } from "@/lib/tasks";
 import { OPEN_TASK } from "@/lib/constants";
 import { workerAuthorised } from "@/lib/worker-auth";
 import { runReminders } from "@/lib/reminders";
+import { calendarReminders } from "@/lib/calendarReminders";
 
 const HOUR = 3600 * 1000;
 
@@ -29,6 +30,8 @@ const inHours = (ms) => {
 export async function GET(request) {
   if (!authorised(request)) return Response.json({ ok: false, error: "unauthorized" }, { status: 401 });
   const now = Date.now();
+  // ?dry=calendar — show what the calendar reminders would send right now, without sending anything
+  if (new URL(request.url).searchParams.get("dry") === "calendar") return Response.json(await calendarReminders(now, { dry: true }));
   const iso = (t) => new Date(t).toISOString();
 
   const digests = await runReminders(now);
