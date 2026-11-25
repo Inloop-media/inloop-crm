@@ -14,9 +14,24 @@ const href = (p) => {
   const s = q.toString();
   return `/calendar${s ? `?${s}` : ""}`;
 };
+/** Locked (nobody can change it) or unlocked (someone is editing) — the same state as inside the brand's calendar. */
+function LockMark({ lock, light = false }) {
+  if (!lock) return null;
+  const title = lock.locked ? "Calendar locked" : `Calendar unlocked${lock.by ? ` by ${lock.by}` : ""} — being edited`;
+  return (
+    <span
+      title={title}
+      aria-label={title}
+      className={`grid h-8 w-8 shrink-0 place-items-center rounded-full ${lock.locked ? (light ? "bg-white/10 text-white/70" : "bg-panel-2 text-muted") : "bg-amber-400/25 text-amber-600 ring-1 ring-amber-500/40"}`}
+    >
+      <Icon name={lock.locked ? "lock" : "unlock"} size={16} />
+    </span>
+  );
+}
+
 const share = (p) => (p.target ? Math.min(100, Math.round((p.planned / p.target) * 100)) : p.planned ? 100 : 0);
 
-function PlanCard({ b, plan, p, month, dark }) {
+function PlanCard({ b, plan, p, month, dark, lock }) {
   const pct = share(p);
   const muted = dark ? "text-white/60" : "text-muted";
   const note = !p.target ? "No targets set" : p.planned >= p.target ? "Fully planned" : p.planned ? `${p.target - p.planned} still to plan` : "Not started";
@@ -33,6 +48,7 @@ function PlanCard({ b, plan, p, month, dark }) {
           <div className="truncate text-[16px] font-medium tracking-[-0.01em]">{b.name}</div>
           <div className={`text-[11.5px] ${!dark && p.target && !p.planned ? "text-brand" : muted}`}>{note}</div>
         </div>
+        <LockMark lock={lock} light={dark} />
         <Ring pct={pct} light={dark} />
       </div>
 
@@ -73,7 +89,7 @@ function PlanCard({ b, plan, p, month, dark }) {
   );
 }
 
-export default function PlansOverview({ brands, plans, items, month }) {
+export default function PlansOverview({ brands, plans, items, month, locks = {} }) {
   if (!brands.length)
     return (
       <div className="card">
@@ -153,7 +169,7 @@ export default function PlansOverview({ brands, plans, items, month }) {
       {live.length > 0 && (
         <div className="grid items-stretch gap-5 sm:grid-cols-2 xl:grid-cols-3">
           {live.map(({ b, plan, p }) => (
-            <PlanCard key={b.id} b={b} plan={plan} p={p} month={month} dark={b.id === lead} />
+            <PlanCard key={b.id} b={b} plan={plan} p={p} month={month} dark={b.id === lead} lock={locks[b.id]} />
           ))}
         </div>
       )}
@@ -175,6 +191,7 @@ export default function PlansOverview({ brands, plans, items, month }) {
                   <span className="block truncate text-[13px] font-medium">{b.name}</span>
                   <span className="block text-[11px] text-muted">Set deliverables</span>
                 </span>
+                <LockMark lock={locks[b.id]} />
                 <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-panel text-ink shadow-[var(--card-shadow)] transition group-hover:bg-solid group-hover:text-on-solid">
                   <Icon name="plus" size={13} />
                 </span>

@@ -79,6 +79,14 @@ export function planProgress(plan, items) {
  * Is this brand's content calendar locked? { locked, by, at } — by = who unlocked it.
  * Before migration 023 there is no lock: it reads as unlocked so nothing stops working.
  */
+/** { brandId: { locked, by } } for the brand cards — empty before migration 023. */
+export async function calendarLocks(brandIds) {
+  if (!brandIds.length) return {};
+  const { data, error } = await db().from("brands").select("id, calendar_unlocked_at, unlocker:members!brands_calendar_unlocked_by_fkey(name)").in("id", brandIds);
+  if (error) return {};
+  return Object.fromEntries((data || []).map((b) => [b.id, { locked: !b.calendar_unlocked_at, by: b.unlocker?.name || "" }]));
+}
+
 export async function calendarLock(brandId) {
   const { data, error } = await db().from("brands").select("calendar_unlocked_at, unlocker:members!brands_calendar_unlocked_by_fkey(name)").eq("id", brandId).maybeSingle();
   if (error) return { locked: false, by: "", at: null, ready: false };

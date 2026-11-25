@@ -8,7 +8,7 @@ import { Avatar, Empty } from "@/components/ui";
 import { requireMember } from "@/lib/auth";
 import { listBrands } from "@/lib/brands";
 import { listMakers } from "@/lib/tasks";
-import { calendarLock, loadItems, loadPlans, monthLabel, planProgress, shiftMonth, validMonth } from "@/lib/calendar";
+import { calendarLock, calendarLocks, loadItems, loadPlans, monthLabel, planProgress, shiftMonth, validMonth } from "@/lib/calendar";
 import { canAssignTasks, canEditCalendar, canSeeCalendar, canLockCalendar, canDeleteCalendar, canSetPlan } from "@/lib/permissions";
 
 export const metadata = { title: "Content calendar" };
@@ -41,7 +41,13 @@ export default async function CalendarPage({ searchParams }) {
   const brand = brands.find((b) => b.id === sp.brand) || null;
   const view = !brand && sp.view === "plans" ? "plans" : "";
   const ids = brand ? [brand.id] : brands.map((b) => b.id);
-  const [items, plans, people, lock] = await Promise.all([loadItems(ids, month), loadPlans(ids, month), brand && canAssignTasks(me) ? listMakers(me) : [], brand ? calendarLock(brand.id) : null]);
+  const [items, plans, people, lock, locks] = await Promise.all([
+    loadItems(ids, month),
+    loadPlans(ids, month),
+    brand && canAssignTasks(me) ? listMakers(me) : [],
+    brand ? calendarLock(brand.id) : null,
+    view === "plans" ? calendarLocks(ids) : {},
+  ]);
 
   return (
     <div className="page">
@@ -106,7 +112,7 @@ export default async function CalendarPage({ searchParams }) {
               canDelete={canDeleteCalendar(me)}
           />
         ) : view === "plans" ? (
-          <PlansOverview brands={brands} plans={plans} items={items} month={month} />
+          <PlansOverview brands={brands} plans={plans} items={items} month={month} locks={locks} />
         ) : brands.length ? (
           <MasterCalendar month={month} brands={brands.map((b) => ({ id: b.id, name: b.name }))} items={items} />
         ) : (
