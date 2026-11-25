@@ -28,7 +28,7 @@ export const EVENT = {
   raw_requested: (d) => `asked ${d.to || "Production"} for ${d.what || "raw files"}`,
   raw_ready: () => "uploaded the raw files from the shoot",
   posted: () => "marked it posted",
-  unposted: () => "undid the post",
+  unposted: (d) => `undid the post${d.reason ? ` — “${d.reason}”` : ""}`,
 };
 
 const RAW_STATE = {

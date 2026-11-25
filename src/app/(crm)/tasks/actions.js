@@ -8,7 +8,7 @@ import { getBrand } from "@/lib/brands";
 import { pingLive } from "@/lib/live";
 import { canAssignTo, logTask, notifyTask, productionPeople, sharerIds, TASK_FIELDS } from "@/lib/tasks";
 import { MAKER_STATUS_OPTIONS, OPEN_TASK, PRIORITIES, RAW_WHAT, TASK_KINDS, TASK_STATUSES, taskKindLabel } from "@/lib/constants";
-import { canAssignTasks, canPostContent, canReviewTask, canSeeCalendar } from "@/lib/permissions";
+import { canAssignTasks, canPostContent, canReviewTask, canSeeCalendar, isOpsHead } from "@/lib/permissions";
 import { postingKit, queuePosting } from "@/lib/posting";
 
 const str = (v, max = 4000) => String(v ?? "").trim().slice(0, max);
@@ -440,10 +440,13 @@ export async function getPostingKit(itemId) {
   if (!kit) return { ok: false, error: "Not found." };
   const mine = kit.posting?.assignee?.id === me.id;
   if (!canSeeCalendar(me) && !canAssignTasks(me) && !mine) return { ok: false, error: "You can't see this post." };
-  return { ok: true, kit, canPost: canPostContent(me) || mine, canUndo: me.role === "admin" };
+  return { ok: true, kit, canPost: canPostContent(me) || mine, canUndo: canUndoPost(me) };
 }
 
-/** Posted it (on Instagram etc.): the calendar post becomes Posted and the posting task is done. */
+/** Admin and the CBOs (Krrish, Udit) can take a post back. */
+const canUndoPost = (me) => me.role === "admin" || isOpsHead(me);
+
+/** Posted it (on Instagram etc.): the calendar post becomes Posted and the posting task is done. The post's link is required. */
 export async function markPosted(itemId, url = "") {
   const me = await requireMember();
   const kit = isUuid(itemId) ? await postingKit(itemId) : null;
@@ -452,7 +455,8 @@ export async function markPosted(itemId, url = "") {
   if (!canPostContent(me) && !mine) return { ok: false, error: "Only the Social Media team marks posts as posted." };
   if (!kit.approved && me.role !== "admin") return { ok: false, error: "The client hasn't approved it yet." };
   const link = str(url, 1000);
-  if (link && !/^https?:\/\/\S+$/i.test(link)) return { ok: false, error: "Paste the full post link, starting with https://" };
+  if (!link) return { ok: false, error: "Paste the link of the live post first (Instagram / LinkedIn / YouTube…)." };
+  if (!/^https?:\/\/\S+\.\S+$/i.test(link)) return { ok: false, error: "Paste the full post link, starting with https://" };
   const now = new Date().toISOString();
   const { error } = await db().from("calendar_items").update({ status: "posted", posted_at: now, posted_by: me.id, post_url: link, updated_at: now }).eq("id", itemId);
   if (error) return { ok: false, error: /posted_at|posted_by|post_url/.test(error.message) ? "Run migration 029_posting.sql in Supabase first." : error.message };
@@ -469,19 +473,34 @@ export async function markPosted(itemId, url = "") {
   return { ok: true };
 }
 
-/** Admin only: undo a mistaken "posted" — the post and its posting task go back to waiting. */
-export async function unmarkPosted(itemId) {
+/**
+ * Admin / CBOs: take a post back (wrong post, needs a re-post…) with a reason. The post goes back to waiting and
+ * its posting task goes back to the Social Media team (Nilav) as "To do", with the reason, so they post it again.
+ */
+export async function unmarkPosted(itemId, reason = "") {
   const me = await requireMember();
-  if (me.role !== "admin") return { ok: false, error: "Only admin can undo a post." };
+  if (!canUndoPost(me)) return { ok: false, error: "Only admin and the CBOs can undo a post." };
+  const why = str(reason, 1000);
+  if (why.length < 3) return { ok: false, error: "Write why it's being undone — the Social Media team sees this." };
   const kit = isUuid(itemId) ? await postingKit(itemId) : null;
   if (!kit) return { ok: false, error: "Not found." };
   const now = new Date().toISOString();
-  await db().from("calendar_items").update({ status: "planned", posted_at: null, posted_by: null, post_url: "", updated_at: now }).eq("id", itemId);
-  if (kit.posting) {
-    await db().from("tasks").update({ status: "assigned", done_at: null, updated_at: now }).eq("id", kit.posting.id);
-    await logTask(kit.posting.id, me.id, "unposted", {});
-    const posting = await loadTask(kit.posting.id);
-    if (posting) refresh(posting);
+  const { error } = await db().from("calendar_items").update({ status: "planned", posted_at: null, posted_by: null, post_url: "", updated_at: now }).eq("id", itemId);
+  if (error) return { ok: false, error: error.message };
+  // The posting task: reopen it — or, if it never had one (posted from the calendar), make one now
+  let posting = kit.posting ? await loadTask(kit.posting.id) : null;
+  if (posting) {
+    await db().from("tasks").update({ status: "assigned", done_at: null, updated_at: now }).eq("id", posting.id);
+  } else {
+    const { data: item } = await db().from("calendar_items").select("task_id").eq("id", itemId).maybeSingle();
+    const work = item?.task_id ? await loadTask(item.task_id) : null;
+    posting = work ? await queuePosting(work, me) : null;
+  }
+  if (posting) {
+    await logTask(posting.id, me.id, "unposted", { reason: why, url: kit.item.post_url || undefined });
+    const to = posting.assignee_id || posting.assignee?.id;
+    if (to && to !== me.id) after(() => notifyTask([to], posting, "↩️ Post it again", `${me.name.split(" ")[0]} undid the post: ${why}`));
+    refresh(posting);
   }
   pingLive("calendar");
   revalidatePath("/calendar");

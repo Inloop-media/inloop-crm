@@ -100,6 +100,12 @@ export async function postingKit(itemId) {
     db().from("tasks").select("id, status, assignee:members!tasks_assignee_id_fkey(id, name)").eq("post_item_id", item.id).limit(1),
     item.posted_by ? db().from("members").select("name").eq("id", item.posted_by).maybeSingle() : { data: null },
   ]);
+  // Why it was last taken back (shown to the Social Media team until it's posted again)
+  let undo = null;
+  if (posting?.[0] && item.status !== "posted") {
+    const { data: ev } = await db().from("task_events").select("data, created_at, actor:members(name)").eq("task_id", posting[0].id).eq("type", "unposted").order("created_at", { ascending: false }).limit(1);
+    if (ev?.[0]) undo = { reason: ev[0].data?.reason || "", by: ev[0].actor?.name || "", at: ev[0].created_at };
+  }
   return {
     item: {
       id: item.id,
@@ -120,5 +126,6 @@ export async function postingKit(itemId) {
     maker: work?.assignee?.name || "",
     files,
     posting: posting?.[0] || null,
+    undo,
   };
 }

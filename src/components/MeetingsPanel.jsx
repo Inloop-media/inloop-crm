@@ -389,7 +389,7 @@ export default function MeetingsPanel({ lead, meetings, me, canDiscovery, canPro
           guests={guests}
           clientEmails={clientEmails}
           ready={lead.has_brief && proposalReady}
-          blockedReason={!proposalReady ? `Do the discovery call first — set the status to "${DISCOVERY_STATUS}".` : "Write the client brief in Notes first — it goes to the creative strategists when this meeting is booked."}
+          blockedReason={!proposalReady ? `Do the discovery call first — book it above, or set the status to "${DISCOVERY_STATUS}".` : "Write the client brief in Notes first — it goes to the creative strategists when this meeting is booked."}
           connected={connected}
           domain={domain}
         />

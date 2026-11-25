@@ -312,8 +312,11 @@ export async function scheduleMeeting(leadId, kind, when, guestIds = [], extra =
     if (lead.status !== DISCOVERY_STATUS) return { ok: false, error: `Set the status to "${DISCOVERY_STATUS}" first.` };
   } else {
     if (!canBookProposal(me, lead)) return { ok: false, error: "Only the executive on this lead (or an admin) can book the proposal meeting." };
-    if (!canSeeAllLeads(me) && !isSalesHead(me) && lead.status !== DISCOVERY_STATUS)
-      return { ok: false, error: `Finish the discovery call first — the lead should be at "${DISCOVERY_STATUS}".` };
+    if (!canSeeAllLeads(me) && !isSalesHead(me) && lead.status !== DISCOVERY_STATUS) {
+      // The executive on the lead: fine once the discovery call is booked / done, whatever the status says now
+      const { count } = await db().from("meetings").select("id", { count: "exact", head: true }).eq("lead_id", lead.id).eq("kind", "discovery").is("cancelled_at", null);
+      if (!count) return { ok: false, error: `Do the discovery call first — book it, or set the status to "${DISCOVERY_STATUS}".` };
+    }
     if (!lead.brief.trim()) return { ok: false, error: "Add the client brief first — it goes to the creative strategists." };
   }
 

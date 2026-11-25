@@ -214,7 +214,8 @@ export default async function LeadPage({ params }) {
               meetings={lead.meetings}
               me={{ id: me.id, role: me.role }}
               canDiscovery={canBookDiscovery(me, lead)}
-              canProposal={canBookProposal(me, lead) && (canSeeAllLeads(me) || isSalesHead(me) || lead.status === DISCOVERY_STATUS)}
+              canProposal={canBookProposal(me, lead)}
+              proposalReady={canSeeAllLeads(me) || isSalesHead(me) || lead.status === DISCOVERY_STATUS || lead.meetings.some((m) => m.kind === "discovery")}
               clientEmails={clientEmails}
               connected={Boolean(me.calendar_connected_at)}
               domain={process.env.ALLOWED_DOMAIN}

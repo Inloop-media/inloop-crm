@@ -34,9 +34,11 @@ function childFolders(names, items, at) {
     return { name: k, full, count: items.filter((f) => f.subfolder === full || (f.subfolder || "").startsWith(`${full} / `)).length };
   });
 }
+/** Lowercase, no accents — so "monesh" finds "Monèshrey". */
+const norm = (v) => String(v || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 const KIND = { post: "Static", carousel: "Carousel", reel: "Reel", story: "Story", video: "Video", design: "Design", website: "Website", other: "Other" };
 
-function FileCard({ f, canManage, canDelete = false, folders, onDelete, onMove, onMoveSub, subNames = [], busy }) {
+function FileCard({ f, canManage, canDelete = false, folders, onDelete, onMove, onMoveSub, subNames = [], busy, where, onWhere }) {
   const link = !f.storage_path;
   return (
     <div className="group flex flex-col overflow-hidden rounded-2xl border border-line bg-panel">
@@ -62,6 +64,12 @@ function FileCard({ f, canManage, canDelete = false, folders, onDelete, onMove, 
           <div className="truncate text-[13px] font-medium" title={f.name}>
             {f.name}
           </div>
+          {where && (
+            <button type="button" onClick={onWhere} className="mt-0.5 flex max-w-full items-center gap-1 text-[11px] font-medium text-brand hover:underline" title={`Open ${where}`}>
+              <Icon name="board" size={10} className="shrink-0" />
+              <span className="truncate">{where}</span>
+            </button>
+          )}
           <div className="truncate text-[11px] text-muted">
             {[link ? "Link" : fmtSize(f.size), f.uploader?.name?.split(" ")[0], f.created_at && dateFmt.format(new Date(f.created_at))].filter(Boolean).join(" · ")}
           </div>
@@ -113,12 +121,37 @@ export default function LibraryView({ brand, assets, subfolders = {}, foldersRea
   const [link, setLink] = useState({ url: "", name: "" });
   const [pending, start] = useTransition();
   const [sub, setSub] = useState(""); // the folder open inside the section ("" = the section itself)
+  const [q, setQ] = useState(""); // search across every folder of this brand
   const current = folders.find((f) => f.id === folder);
   const all = folder === "completed" ? [] : assets[folder] || [];
   const names = subfolders[folder] || [];
   const kids = childFolders(names, all, sub);
   const items = all.filter((f) => (f.subfolder || "") === sub);
   const doneFiles = completed.reduce((n, c) => n + c.files.length, 0);
+
+  // Search: every file this person can open — all folders and sub-folders, and the finished work
+  const words = norm(q).split(/\s+/).filter(Boolean);
+  const hit = (...fields) => {
+    const text = norm(fields.join(" "));
+    return words.every((w) => text.includes(w));
+  };
+  const results = !words.length
+    ? []
+    : [
+        ...folders
+          .filter((x) => !locked.includes(x.id))
+          .flatMap((x) =>
+            (assets[x.id] || []).filter((f) => hit(f.name, f.subfolder, x.label, f.uploader?.name)).map((f) => ({ f, key: f.id, section: x.id, subfolder: f.subfolder || "", where: joinSub(x.label, f.subfolder) }))
+          ),
+        ...completed.flatMap(({ task, files }) =>
+          files.filter((f) => hit(f.name, task.title, KIND[task.kind] || task.kind, task.assignee?.name, "completed finished")).map((f, i) => ({ f, key: `${task.id}-${i}`, section: "completed", subfolder: "", where: `Completed work / ${task.title}` }))
+        ),
+      ];
+  const openWhere = (r) => {
+    setFolder(r.section);
+    setSub(r.subfolder);
+    setQ("");
+  };
 
   // list: Files, or [{ file, section, subfolder }] from Upload folder
   const upload = async (list) => {
@@ -209,10 +242,40 @@ export default function LibraryView({ brand, assets, subfolders = {}, foldersRea
             {Object.values(assets).reduce((n, l) => n + l.length, 0) + Object.values(lockedCount).reduce((n, c) => n + (locked.length ? c : 0), 0)} files from the client · {completed.length} finished pieces ({doneFiles} files)
           </p>
         </div>
+        <div className="relative w-full sm:w-80">
+          <Icon name="search" size={14} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-faint" />
+          <input value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => e.key === "Escape" && setQ("")} placeholder={`Search ${brand.name}'s files`} aria-label={`Search ${brand.name}'s files`} className="field !rounded-full py-2 !pl-9 !pr-9" />
+          {q && (
+            <button type="button" onClick={() => setQ("")} aria-label="Clear search" className="absolute right-2.5 top-1/2 grid h-6 w-6 -translate-y-1/2 place-items-center rounded-full text-faint hover:bg-panel-2 hover:text-ink">
+              <Icon name="x" size={12} />
+            </button>
+          )}
+        </div>
       </header>
 
       {missing && <p className="card mb-4 p-4 text-sm text-muted">The library isn&apos;t set up yet — run migration 020 in Supabase. Completed work below already works.</p>}
 
+      {words.length > 0 ? (
+        <section className="rise">
+          <p className="mb-3 text-[13px] text-muted">
+            {results.length ? (
+              <>
+                <b className="font-medium text-ink">{results.length}</b> {results.length === 1 ? "file" : "files"} for “{q.trim()}” across all folders{locked.length ? " (not the locked ones)" : ""}
+              </>
+            ) : (
+              <>Nothing matches “{q.trim()}”. Try part of the file name, a folder name or a task title.</>
+            )}
+          </p>
+          {results.length > 0 && (
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+              {results.slice(0, 200).map((r) => (
+                <FileCard key={r.key} f={r.f} canManage={false} folders={folders} where={r.where} onWhere={() => openWhere(r)} />
+              ))}
+            </div>
+          )}
+        </section>
+      ) : (
+        <>
       <nav className="rise mb-4 flex max-w-full gap-1 overflow-x-auto rounded-full bg-panel p-1 shadow-[var(--card-shadow)] sm:inline-flex">
         {tabs.map((t) => (
           <button
@@ -413,6 +476,8 @@ export default function LibraryView({ brand, assets, subfolders = {}, foldersRea
             </div>
           )}
         </div>
+      )}
+        </>
       )}
     </div>
   );

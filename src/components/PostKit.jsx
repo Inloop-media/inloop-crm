@@ -53,6 +53,8 @@ export default function PostKit({ itemId, compact = false }) {
   const [error, setError] = useState("");
   const [link, setLink] = useState("");
   const [copied, setCopied] = useState(false);
+  const [undoOpen, setUndoOpen] = useState(false);
+  const [reason, setReason] = useState("");
   const [pending, start] = useTransition();
 
   const load = () => getPostingKit(itemId).then(setState);
@@ -116,11 +118,53 @@ export default function PostKit({ itemId, compact = false }) {
               View post <Icon name="external" size={12} />
             </a>
           )}
-          {canUndo && (
-            <button type="button" disabled={pending} onClick={() => confirm("Mark this post as not posted?") && run(() => unmarkPosted(itemId))} className="text-[12px] text-muted hover:text-ink">
+          {canUndo && !undoOpen && (
+            <button type="button" disabled={pending} onClick={() => setUndoOpen(true)} className="text-[12px] text-muted hover:text-ink">
               Undo
             </button>
           )}
+        </div>
+      ) : null}
+
+      {posted && undoOpen && (
+        <form
+          className="flex flex-col gap-2 rounded-2xl border border-line p-3.5"
+          onSubmit={(e) => {
+            e.preventDefault();
+            run(async () => {
+              const r = await unmarkPosted(itemId, reason);
+              if (r.ok) {
+                setUndoOpen(false);
+                setReason("");
+              }
+              return r;
+            });
+          }}
+        >
+          <label className="text-[12.5px] font-medium" htmlFor={`undo-${itemId}`}>
+            Why undo it? <span className="font-normal text-muted">— it goes back to the Social Media team with this note</span>
+          </label>
+          <textarea id={`undo-${itemId}`} className="field min-h-[70px]" placeholder="e.g. Wrong caption went out — delete it and post the corrected one" value={reason} onChange={(e) => setReason(e.target.value)} required minLength={3} autoFocus />
+          <div className="flex justify-end gap-2">
+            <button type="button" onClick={() => (setUndoOpen(false), setReason(""), setError(""))} className="btn-ghost btn-sm">
+              Cancel
+            </button>
+            <button disabled={pending || reason.trim().length < 3} className="btn-primary btn-sm">
+              {pending ? "Saving…" : "Undo and send back"}
+            </button>
+          </div>
+        </form>
+      )}
+
+      {posted ? null : kit.undo ? (
+        <div className="flex items-start gap-2 rounded-2xl bg-amber-500/10 px-4 py-3 text-[12.5px] text-amber-700 dark:text-amber-300">
+          <Icon name="alert" size={14} className="mt-0.5 shrink-0" />
+          <span>
+            <b className="font-medium">Post it again</b>
+            {kit.undo.by ? ` — ${kit.undo.by.split(" ")[0]} undid it` : ""}
+            {kit.undo.at ? ` on ${when.format(new Date(kit.undo.at))}` : ""}
+            {kit.undo.reason ? <span className="mt-0.5 block text-ink">“{kit.undo.reason}”</span> : null}
+          </span>
         </div>
       ) : !approved ? (
         <p className="flex items-start gap-2 rounded-2xl bg-panel-2 px-4 py-3 text-[12.5px] text-muted">
@@ -181,8 +225,8 @@ export default function PostKit({ itemId, compact = false }) {
       {/* Mark as posted */}
       {!posted && approved && canPost && (
         <div className="flex flex-col gap-2 sm:flex-row">
-          <input className="field flex-1" placeholder="Post link (optional) — https://instagram.com/p/…" value={link} onChange={(e) => setLink(e.target.value)} />
-          <button type="button" disabled={pending} onClick={() => run(() => markPosted(itemId, link))} className="btn-primary justify-center">
+          <input className="field flex-1" type="url" inputMode="url" placeholder="Link of the live post — https://instagram.com/p/…" aria-label="Link of the live post (required)" value={link} onChange={(e) => setLink(e.target.value)} />
+          <button type="button" disabled={pending || !/^https?:\/\/\S+\.\S+$/i.test(link.trim())} title={link.trim() ? "" : "Paste the post's link first"} onClick={() => run(() => markPosted(itemId, link.trim()))} className="btn-primary justify-center">
             <Icon name="check" size={14} /> {pending ? "Saving…" : "Mark as posted"}
           </button>
         </div>
