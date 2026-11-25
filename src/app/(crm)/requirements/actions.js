@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { pingLive } from "@/lib/live";
 import { requireMember } from "@/lib/auth";
-import { createRequirement, reqUploadUrl, updateRequirement } from "@/lib/requirements";
+import { createRequirement, markRequirementSeen, reqUploadUrl, updateRequirement } from "@/lib/requirements";
 
 const isUuid = (v) => /^[0-9a-f-]{36}$/i.test(String(v || ""));
 
@@ -34,4 +34,13 @@ export async function requirementUploadUrl(id, name, size) {
   const me = await requireMember();
   if (!isUuid(id)) return { ok: false, error: "Invalid request." };
   return reqUploadUrl(me, id, name, Number(size) || 0);
+}
+
+/** Opened a requirement: its replies / updates stop counting in the sidebar. */
+export async function seenRequirement(id) {
+  const me = await requireMember();
+  if (!/^[0-9a-f-]{36}$/i.test(String(id || ""))) return { ok: false };
+  await markRequirementSeen(me, id).catch(() => {});
+  revalidatePath("/requirements");
+  return { ok: true };
 }

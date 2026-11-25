@@ -1,11 +1,11 @@
 "use client";
 // The list of requirements (click one to see its story and act on it) + the "New requirement" form.
 // The receiver can upload files / assets and submit: they go back to the person who asked.
-import { useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Icon from "@/components/Icon";
 import { Avatar } from "@/components/ui";
-import { addRequirement, changeRequirement, requirementUploadUrl } from "@/app/(crm)/requirements/actions";
+import { addRequirement, changeRequirement, requirementUploadUrl, seenRequirement } from "@/app/(crm)/requirements/actions";
 import { createClient } from "@/lib/supabase/browser";
 
 const MAX_FILE = 50 * 1024 * 1024;
@@ -354,7 +354,27 @@ function Detail({ r, meId, staff, recipients, names }) {
 }
 
 export default function RequirementBoard({ items, meId, staff, recipients, names, openId, box, show }) {
+  const router = useRouter();
   const [open, setOpen] = useState(openId || null);
+  const [read, setRead] = useState([]); // opened in this tab — their "new" dot goes straight away
+  // Opening one marks its replies read, so the sidebar number goes down
+  const markRead = (id) => {
+    const r = items.find((x) => x.id === id);
+    if (!r?.unread || read.includes(id)) return;
+    setRead((x) => [...x, id]);
+    seenRequirement(id).then(() => router.refresh());
+  };
+  const toggle = (id) => {
+    setOpen(open === id ? null : id);
+    if (open !== id) markRead(id);
+  };
+  // Came here from a notification (?open=…): that one counts as read too
+  const fromLink = useRef(openId);
+  useEffect(() => {
+    const id = fromLink.current;
+    fromLink.current = null;
+    if (id && items.some((x) => x.id === id && x.unread)) seenRequirement(id).then(() => router.refresh());
+  }, [items, router]);
   const order = { high: 0, medium: 1, low: 2 };
   const sorted = [...items].sort((a, b) => (show === "open" ? order[a.priority] - order[b.priority] : 0) || b.created_at.localeCompare(a.created_at));
   if (!sorted.length)
@@ -372,12 +392,13 @@ export default function RequirementBoard({ items, meId, staff, recipients, names
         const isOpen = open === r.id;
         return (
           <li key={r.id} className={`card p-4 transition ${isOpen ? "ring-1 ring-brand/40" : ""}`}>
-            <button type="button" onClick={() => setOpen(isOpen ? null : r.id)} className="flex w-full items-center gap-3 text-left">
+            <button type="button" onClick={() => toggle(r.id)} className="flex w-full items-center gap-3 text-left">
               <Avatar name={other?.name || "?"} size={36} />
               <span className="min-w-0 flex-1">
                 <span className="flex items-center gap-2">
                   <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: pc }} title={`${pl} priority`} />
                   <span className="truncate text-[14px] font-medium">{r.title}</span>
+                  {r.unread && !read.includes(r.id) && !(openId === r.id) && <span className="shrink-0 rounded-full bg-brand px-2 py-0.5 text-[10px] font-semibold text-white">New</span>}
                 </span>
                 <span className="mt-0.5 block truncate text-[12px] text-muted">
                   {box === "all" ? `${first(r.from?.name)} → ${first(r.to?.name)}` : box === "sent" ? `To ${r.to?.name}` : `From ${r.from?.name}`} · {CAT[r.category] || "Other"} · {ago(r.created_at)}

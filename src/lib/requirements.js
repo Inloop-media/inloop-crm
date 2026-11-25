@@ -42,7 +42,7 @@ export async function listRequirements(me, box) {
   else q = q.eq("to_id", me.id);
   const { data, error } = await q;
   if (error) return { items: [], missing: /requirements/.test(error.message) };
-  return { items: await signFiles(data || []) };
+  return { items: (await signFiles(data || [])).map((r) => ({ ...r, unread: isUnread(r, me.id) })) };
 }
 
 /** Files delivered on a requirement are private: sign them for an hour (view + download links). */
@@ -74,12 +74,58 @@ export async function reqUploadUrl(me, id, fileName, size) {
   return { ok: true, path: data.path, token: data.token };
 }
 
+/** Something on this requirement happened after I last opened it, and it wasn't me who did it. */
+export function isUnread(r, meId) {
+  const last = [...(r.history || [])].reverse().find((h) => h.by && h.by !== meId);
+  if (!last?.at) return false;
+  if (r.from_id !== meId && r.to_id !== meId) return false;
+  const seen = r.from_id === meId ? r.from_seen_at : r.to_seen_at;
+  if (seen === undefined) return false; // before migration 033
+  return !seen || last.at > seen;
+}
+
+/**
+ * inbox: open ones sent to me · sent: open ones I asked for · badge: the sidebar number — open ones waiting
+ * on me, plus anything with a reply / update I haven't opened yet (either side).
+ */
 export async function requirementCounts(meId) {
-  const [inbox, sent] = await Promise.all([
-    db().from("requirements").select("id", { count: "exact", head: true }).eq("to_id", meId).in("status", OPEN_REQ),
-    db().from("requirements").select("id", { count: "exact", head: true }).eq("from_id", meId).in("status", OPEN_REQ),
-  ]);
-  return { inbox: inbox.error ? 0 : inbox.count || 0, sent: sent.error ? 0 : sent.count || 0 };
+  const since = new Date(Date.now() - 60 * 864e5).toISOString();
+  let { data, error } = await db()
+    .from("requirements")
+    .select("id, from_id, to_id, status, history, from_seen_at, to_seen_at")
+    .or(`from_id.eq.${meId},to_id.eq.${meId}`)
+    .gte("updated_at", since)
+    .limit(500);
+  // Open ones older than 60 days still count as waiting
+  if (!error) {
+    const { data: old } = await db().from("requirements").select("id, from_id, to_id, status").eq("to_id", meId).in("status", OPEN_REQ).lt("updated_at", since).limit(500);
+    data = [...(data || []), ...(old || [])];
+  }
+  if (error && /seen_at/.test(error.message)) {
+    // before migration 033 — just the open counts
+    ({ data, error } = await db().from("requirements").select("id, from_id, to_id, status").or(`from_id.eq.${meId},to_id.eq.${meId}`).in("status", OPEN_REQ).limit(500));
+  }
+  if (error) return { inbox: 0, sent: 0, unread: 0, badge: 0 };
+  const rows = data || [];
+  const open = (r) => OPEN_REQ.includes(r.status);
+  const inbox = rows.filter((r) => r.to_id === meId && open(r));
+  const unread = rows.filter((r) => isUnread(r, meId));
+  return {
+    inbox: inbox.length,
+    sent: rows.filter((r) => r.from_id === meId && open(r)).length,
+    unread: unread.length,
+    sentUnread: unread.filter((r) => r.from_id === meId).length,
+    badge: new Set([...inbox, ...unread].map((r) => r.id)).size,
+  };
+}
+
+/** I opened it: its replies / updates are read. */
+export async function markRequirementSeen(me, id) {
+  const { data: r } = await db().from("requirements").select("id, from_id, to_id").eq("id", id).maybeSingle();
+  if (!r) return;
+  const now = new Date().toISOString();
+  if (r.from_id === me.id) await db().from("requirements").update({ from_seen_at: now }).eq("id", id);
+  if (r.to_id === me.id) await db().from("requirements").update({ to_seen_at: now }).eq("id", id);
 }
 
 const clean = (v, max) => String(v ?? "").trim().slice(0, max);

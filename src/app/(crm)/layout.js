@@ -19,7 +19,7 @@ import { requirementCounts } from "@/lib/requirements";
 import { requireMember } from "@/lib/auth";
 import { db } from "@/lib/supabase/server";
 import { listFeeds } from "@/lib/leads";
-import { canAssignTasks, canCreateLead, canSeeAssets, canSeeLibrary, canManageTeam, canSeeBrands, canSeeBriefs, canSeeCalendar, canSeeLeads, isMaker, isStrategist } from "@/lib/permissions";
+import { canAssign, canAssignTasks, canCreateLead, canSeeAssets, canSeeLibrary, canManageTeam, canSeeBrands, canSeeBriefs, canSeeCalendar, canSeeLeads, isMaker, isStrategist } from "@/lib/permissions";
 import { ROLES } from "@/lib/constants";
 
 /** Work waiting on this member: open briefs for strategists, commercials for admin / ops. */
@@ -29,6 +29,14 @@ async function briefsBadge(me) {
   if (staff) q = q.in("stage", ["awaiting_commercials", "proposal_review", "crl_failed", "proposal_failed"]);
   else if (isStrategist(me)) q = q.or(`strategist_id.is.null,and(strategist_id.eq.${me.id},stage.in.(picked_up,crl_failed))`);
   else return 0;
+  const { count } = await q;
+  return count || 0;
+}
+
+/** Leads nobody has called yet: "New Lead" ones given to me (and, for whoever assigns, the unassigned ones). */
+async function newLeadsBadge(me) {
+  let q = db().from("leads").select("id", { count: "exact", head: true }).eq("status", "New Lead");
+  q = canAssign(me) ? q.or(`assigned_to.eq.${me.id},assigned_to.is.null`) : q.eq("assigned_to", me.id);
   const { count } = await q;
   return count || 0;
 }
@@ -55,17 +63,18 @@ export default async function CrmLayout({ children }) {
     const unread = await unreadCounts((data || []).map((b) => b.id), me.id).catch(() => ({}));
     return Object.values(unread).reduce((n, c) => n + c, 0);
   };
-  const [tasksCount, feeds, dmCount, reqs, briefCount, brandMsgs, feedbackCount, theme, celebrations, announcements] = await Promise.all([
+  const [tasksCount, feeds, dmCount, reqs, briefCount, brandMsgs, feedbackCount, theme, celebrations, announcements, leadCount] = await Promise.all([
     taskBadge(me).catch(() => 0),
     listFeeds(me).catch(() => []),
     dmUnread(me.id).catch(() => 0),
-    requirementCounts(me.id).catch(() => ({ inbox: 0 })),
+    requirementCounts(me.id).catch(() => ({ badge: 0 })),
     canSeeBriefs(me) ? briefsBadge(me).catch(() => 0) : 0,
     canSeeBrands(me) ? brandUnread().catch(() => 0) : 0,
     me.role === "admin" ? newFeedback().catch(() => 0) : 0,
     getTheme(),
     unseenCelebrations(me).catch(() => []),
     unseenAnnouncements(me).catch(() => []),
+    canSeeLeads(me) ? newLeadsBadge(me).catch(() => 0) : 0,
   ]);
   // Sidebar groups: your work, sales, clients, admin
   const main = [{ href: "/", label: "Overview", icon: "home" }];
@@ -74,10 +83,10 @@ export default async function CrmLayout({ children }) {
   if (canSeeCalendar(me)) main.push({ href: "/calendar", label: "Content calendar", icon: "calendar" });
   if (canSeeLibrary(me)) main.push({ href: "/library", label: "Brand library", icon: "board" });
   main.push({ href: "/dm", label: "Direct messages", icon: "chat", badge: dmCount });
-  main.push({ href: "/requirements", label: "Requirements", icon: "list", badge: reqs.inbox });
+  main.push({ href: "/requirements", label: "Requirements", icon: "list", badge: reqs.badge });
   main.push({ href: "/announcements", label: "Announcements", icon: "speaker", badge: announcements.length });
   const sales = [];
-  if (canSeeLeads(me)) sales.push({ href: "/leads", label: "Leads", icon: "leads" });
+  if (canSeeLeads(me)) sales.push({ href: "/leads", label: "Leads", icon: "leads", badge: leadCount });
   if (canSeeAssets(me)) sales.push({ href: "/assets", label: "Brand assets", icon: "brief" });
   if (canSeeBriefs(me)) sales.push({ href: "/briefs", label: "Proposals", icon: "brief", badge: briefCount });
   if (canCreateLead(me)) sales.push({ href: "/leads/new", label: "New lead", icon: "plus" });

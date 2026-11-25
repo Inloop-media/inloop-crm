@@ -13,9 +13,11 @@ export default async function RequirementsPage({ searchParams }) {
   const [to, counts] = await Promise.all([recipients(me), requirementCounts(me.id)]);
   // Heads / team leads land on what was sent to them; everyone else on what they asked for
   const receives = staff || (me.ledGroups || []).length > 0 || (me.leadGroups || []).length > 0 || counts.inbox > 0;
-  const box = ["inbox", "sent", "all"].includes(sp.box) && (sp.box !== "all" || staff) ? sp.box : receives ? "inbox" : "sent";
+  // …unless nothing is waiting on them but someone replied on what they asked for
+  const box = ["inbox", "sent", "all"].includes(sp.box) && (sp.box !== "all" || staff) ? sp.box : receives && !(counts.inbox === 0 && counts.sentUnread) ? "inbox" : "sent";
   const show = sp.show === "closed" ? "closed" : "open";
   const { items, missing } = await listRequirements(me, box);
+  const openCount = items.filter((r) => OPEN_REQ.includes(r.status)).length;
   const shown = items.filter((r) => (show === "open" ? OPEN_REQ.includes(r.status) : !OPEN_REQ.includes(r.status)));
   const names = await memberNames(items.flatMap((r) => (r.history || []).flatMap((h) => [h.by, h.to])));
   const href = (p) => `/requirements?${new URLSearchParams({ box, show, ...p })}`;
@@ -37,8 +39,8 @@ export default async function RequirementsPage({ searchParams }) {
         />
         <FilterPills
           items={[
-            { href: href({ show: "open" }), label: "Open", on: show === "open" },
-            { href: href({ show: "closed" }), label: "Closed", on: show === "closed" },
+            { href: href({ show: "open" }), label: "Open", count: openCount, on: show === "open" },
+            { href: href({ show: "closed" }), label: "Closed", count: items.length - openCount, on: show === "closed" },
           ]}
         />
       </div>
