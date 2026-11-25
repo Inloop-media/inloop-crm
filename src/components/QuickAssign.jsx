@@ -256,7 +256,12 @@ export default function QuickAssign({ brands, people, defaultBrand = "", label =
                   <label className="flex cursor-pointer items-center gap-2 rounded-xl border border-dashed border-line-strong px-4 py-3 text-[13px] text-muted transition hover:border-brand hover:text-ink">
                     <Icon name="paperclip" size={15} />
                     {files.length ? `${files.length} file${files.length > 1 ? "s" : ""} attached — add more` : "Attach references, copy, raw footage… (up to 50 MB each)"}
-                    <input type="file" multiple className="hidden" onChange={(e) => (setFiles((cur) => [...cur, ...(e.target.files ? [...e.target.files] : [])]), (e.target.value = ""))} />
+                    <input type="file" multiple className="hidden" onChange={(e) => {
+                      // Copy the files now: clearing the input empties its list before React runs the update
+                      const picked = [...(e.target.files || [])];
+                      e.target.value = "";
+                      setFiles((cur) => [...cur, ...picked]);
+                    }} />
                   </label>
                   {files.length > 0 && (
                     <ul className="mt-2 flex flex-col gap-1">

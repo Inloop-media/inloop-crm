@@ -152,7 +152,12 @@ export default function RawRequest({ task, crew = [], mine = false }) {
         <label className="flex cursor-pointer items-center gap-2 rounded-xl border border-dashed border-line-strong bg-panel px-3 py-2.5 text-[12.5px] text-muted transition hover:border-brand hover:text-ink">
           <Icon name="paperclip" size={14} />
           {files.length ? `${files.length} reference${files.length > 1 ? "s" : ""} — add more` : "Add references (moodboard, sample shots…)"}
-          <input type="file" multiple className="hidden" onChange={(e) => (setFiles((cur) => [...cur, ...(e.target.files ? [...e.target.files] : [])]), (e.target.value = ""))} />
+          <input type="file" multiple className="hidden" onChange={(e) => {
+                      // Copy the files now: clearing the input empties its list before React runs the update
+                      const picked = [...(e.target.files || [])];
+                      e.target.value = "";
+                      setFiles((cur) => [...cur, ...picked]);
+                    }} />
         </label>
         {files.length > 0 && (
           <ul className="mt-2 flex flex-col gap-1">
