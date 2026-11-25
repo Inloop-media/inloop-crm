@@ -12,6 +12,7 @@ import StatusBadge from "@/components/StatusBadge";
 import Timeline from "@/components/Timeline";
 import FollowUp from "@/components/FollowUp";
 import LeadContacts from "@/components/LeadContacts";
+import DeleteLead from "@/components/DeleteLead";
 import { requireMember } from "@/lib/auth";
 import { getLead, listAssignees, listGuests, listMembers, openLeadCounts } from "@/lib/leads";
 import { canSeeAllLeads, salesTeam, canAssign, canBookDiscovery, canBookProposal, canEnterCommercials, canOnboard, canSeeLeads, isSalesHead, isStrategist, statusOptions } from "@/lib/permissions";
@@ -240,6 +241,7 @@ export default async function LeadPage({ params }) {
           <Section title="History" sub="Everything that happened on this lead">
             <Timeline events={lead.events} />
           </Section>
+          {me.role === "admin" && !brand && <DeleteLead leadId={lead.id} label={`${lead.code} · ${lead.brand || fullName(lead)}`} />}
         </div>
       </div>
     </div>

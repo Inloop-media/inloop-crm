@@ -111,6 +111,34 @@ export async function updateLead(id, patch) {
 }
 
 /**
+ * Admin only: delete a lead for good — its notes, history, meetings, proposal and files go with it.
+ * A lead that became a brand can't be deleted here (the brand, its tasks and its calendar hang off it).
+ */
+export async function deleteLead(id) {
+  const me = await requireMember();
+  if (me.role !== "admin") return { ok: false, error: "Only admin can delete leads." };
+  const { data: lead } = await db().from("leads").select("id, code").eq("id", id).maybeSingle();
+  if (!lead) return { ok: false, error: "Lead not found." };
+  const { data: brand } = await db().from("brands").select("id, name").eq("lead_id", id).maybeSingle();
+  if (brand) return { ok: false, error: `${brand.name} is a client now — this lead can't be deleted (it would delete the brand too).` };
+
+  // Upcoming Google Meet invites: cancel them so the client doesn't join a call for a deleted lead
+  const { data: meetings } = await db().from("meetings").select("organizer_id, event_id").eq("lead_id", id).is("cancelled_at", null).gt("starts_at", new Date().toISOString());
+  for (const m of meetings || []) if (m.organizer_id && m.event_id) await cancelEvent(m.organizer_id, m.event_id).catch(() => {});
+  // Its uploaded files (proposal inputs and decks) live in storage
+  const { data: docs } = await db().from("lead_documents").select("storage_path").eq("lead_id", id);
+  const paths = (docs || []).map((d) => d.storage_path).filter(Boolean);
+  if (paths.length) await db().storage.from("lead-docs").remove(paths).catch(() => {});
+
+  const { error } = await db().from("leads").delete().eq("id", id);
+  if (error) return { ok: false, error: error.message };
+  pingLive("leads");
+  revalidatePath("/leads");
+  revalidatePath("/");
+  return { ok: true };
+}
+
+/**
  * Set (or clear, with at = "") a follow-up reminder on a lead. `at` is India time "YYYY-MM-DDTHH:MM".
  * The owner gets a phone notification at that time (lib/reminders.js).
  */

@@ -89,3 +89,5 @@ export const canDeleteCalendar = (me) => isAdmin(me) || isStrategist(me) || canL
 export const canSetPlan = (me) => isAdmin(me);
 // Announcements to the whole team: admin and the CBOs
 export const canAnnounce = (me) => isAdmin(me) || isOpsHead(me);
+/** A private to-do list on the dashboard: admin and the CBOs. */
+export const canKeepNotes = (me) => isAdmin(me) || isOpsHead(me);

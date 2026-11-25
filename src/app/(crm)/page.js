@@ -14,8 +14,10 @@ import { listBrands } from "@/lib/brands";
 import { listMakers, listTasks, reviewFiles } from "@/lib/tasks";
 import QuickAssign from "@/components/QuickAssign";
 import { Block, HomeHeader } from "@/components/Home";
-import { canSeeAllLeads, canSeeLeads, headsTeam, isExecHead, isOpsHead, isSalesHead, isStrategist, myTeam, salesTeam } from "@/lib/permissions";
+import { canKeepNotes, canSeeAllLeads, canSeeLeads, headsTeam, isExecHead, isOpsHead, isSalesHead, isStrategist, myTeam, salesTeam } from "@/lib/permissions";
 import TeamMeetings from "@/components/TeamMeetings";
+import MyNotes from "@/components/MyNotes";
+import { myNotes } from "@/lib/notes";
 import { canCallMeetings, meetingAudience, myTeamMeetings } from "@/lib/teamMeetings";
 import { listGroups } from "@/lib/leads";
 import { headIdsOf, ownHeadIds, runsGroup, sortGroups, teamLeadIdsOf } from "@/lib/groups";
@@ -121,10 +123,17 @@ async function GroupCards({ me }) {
   );
 }
 
+/** The private to-do list (admin and the CBOs only). */
+async function Notes({ me }) {
+  if (!canKeepNotes(me)) return null;
+  return <MyNotes initial={await myNotes(me.id)} />;
+}
+
 /** The admin overview's top row (as it was before the calmer redesign): team meetings, then group cards. */
 function AdminTop({ me }) {
   return (
     <div className="flex flex-col gap-4">
+      <Notes me={me} />
       <Meetings me={me} />
       <BrandMonth />
       <GroupCards me={me} />
@@ -136,6 +145,7 @@ function AdminTop({ me }) {
 function Side({ me }) {
   return (
     <>
+      <Notes me={me} />
       <Meetings me={me} />
       <MyGroups me={me} />
     </>
