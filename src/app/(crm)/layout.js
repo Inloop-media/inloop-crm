@@ -7,6 +7,8 @@ import ThemeToggle from "@/components/ThemeToggle";
 import SwitchAccount from "@/components/SwitchAccount";
 import FeedbackNote from "@/components/FeedbackNote";
 import Celebration from "@/components/Celebration";
+import AnnouncementPopup from "@/components/AnnouncementPopup";
+import { unseenAnnouncements } from "@/lib/announcements";
 import LiveRefresh from "@/components/LiveRefresh";
 import { unreadCounts } from "@/lib/chat";
 import { unseenCelebrations } from "@/lib/brands";
@@ -53,7 +55,7 @@ export default async function CrmLayout({ children }) {
     const unread = await unreadCounts((data || []).map((b) => b.id), me.id).catch(() => ({}));
     return Object.values(unread).reduce((n, c) => n + c, 0);
   };
-  const [tasksCount, feeds, dmCount, reqs, briefCount, brandMsgs, feedbackCount, theme, celebrations] = await Promise.all([
+  const [tasksCount, feeds, dmCount, reqs, briefCount, brandMsgs, feedbackCount, theme, celebrations, announcements] = await Promise.all([
     taskBadge(me).catch(() => 0),
     listFeeds(me).catch(() => []),
     dmUnread(me.id).catch(() => 0),
@@ -63,6 +65,7 @@ export default async function CrmLayout({ children }) {
     me.role === "admin" ? newFeedback().catch(() => 0) : 0,
     getTheme(),
     unseenCelebrations(me).catch(() => []),
+    unseenAnnouncements(me).catch(() => []),
   ]);
   // Sidebar groups: your work, sales, clients, admin
   const main = [{ href: "/", label: "Overview", icon: "home" }];
@@ -72,6 +75,7 @@ export default async function CrmLayout({ children }) {
   if (canSeeLibrary(me)) main.push({ href: "/library", label: "Brand library", icon: "board" });
   main.push({ href: "/dm", label: "Direct messages", icon: "chat", badge: dmCount });
   main.push({ href: "/requirements", label: "Requirements", icon: "list", badge: reqs.inbox });
+  main.push({ href: "/announcements", label: "Announcements", icon: "speaker", badge: announcements.length });
   const sales = [];
   if (canSeeLeads(me)) sales.push({ href: "/leads", label: "Leads", icon: "leads" });
   if (canSeeAssets(me)) sales.push({ href: "/assets", label: "Brand assets", icon: "brief" });
@@ -157,6 +161,7 @@ export default async function CrmLayout({ children }) {
       <PhoneTabs items={items.filter((it) => it.href !== "/leads/new")} bottom={bottom} />
       {me.role !== "admin" && <FeedbackNote />}
       <Celebration initial={celebrations} />
+      <AnnouncementPopup initial={announcements} />
       <LiveRefresh meId={me.id} />
     </div>
   );

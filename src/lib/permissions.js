@@ -84,3 +84,5 @@ export const canLockCalendar = (me) =>
 export const canDeleteCalendar = (me) => isAdmin(me) || isStrategist(me) || canLockCalendar(me);
 /** The monthly deliverables of a brand (how many posts, reels, stories…) are set by admin only. */
 export const canSetPlan = (me) => isAdmin(me);
+// Announcements to the whole team: admin and the CBOs
+export const canAnnounce = (me) => isAdmin(me) || isOpsHead(me);
