@@ -3,6 +3,7 @@
 import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Icon from "@/components/Icon";
+import FileDrop from "@/components/FileDrop";
 import { createClient } from "@/lib/supabase/browser";
 import { addTaskFile, addTaskNote, createTask, holdTask, resumeTask, deleteTask, removeTaskFile, reviewTask, setTaskStatus, startTaskUpload, updateTask } from "@/app/(crm)/tasks/actions";
 import { MAKER_STATUS_OPTIONS, OPEN_TASK, PRIORITIES, TASK_KINDS, TASK_STATUSES } from "@/lib/constants";
@@ -255,7 +256,6 @@ export function TaskFiles({ task, canUpload }) {
   const [showLink, setShowLink] = useState(false);
   const [showNote, setShowNote] = useState(false);
   const [noteText, setNoteText] = useState("");
-  const [drag, setDrag] = useState(false);
   const locked = ["sent_to_client", "done"].includes(task.status);
   const byRev = {};
   // The assigner's reference files show with the brief, not here
@@ -339,21 +339,12 @@ export function TaskFiles({ task, canUpload }) {
         </div>
       ))}
 
+      {/* Drop files anywhere on the task page */}
+      <FileDrop enabled={canUpload && !locked && !progress} onFiles={upload} label={task.revision ? `Drop revision ${task.revision} to upload` : "Drop your work to upload"} hint="Images, videos, PDFs — up to 50 MB each" />
       {canUpload && !locked && (
         // Drop zone: drag files in, or use the buttons
-        <div
-          onDragOver={(e) => {
-            e.preventDefault();
-            setDrag(true);
-          }}
-          onDragLeave={(e) => e.currentTarget === e.target && setDrag(false)}
-          onDrop={(e) => {
-            e.preventDefault();
-            setDrag(false);
-            if (e.dataTransfer?.files?.length) upload([...e.dataTransfer.files]);
-          }}
-          className={`flex flex-col items-center gap-3 rounded-2xl border-2 border-dashed px-6 text-center transition ${revs.length ? "py-5" : "py-10"} ${drag ? "border-brand bg-brand/[0.05]" : "border-line-strong bg-panel-2/40"}`}
-        >
+        // (dropping is handled page-wide by FileDrop above)
+        <div className={`flex flex-col items-center gap-3 rounded-2xl border-2 border-dashed border-line-strong bg-panel-2/40 px-6 text-center transition ${revs.length ? "py-5" : "py-10"}`}>
           <input ref={fileRef} type="file" multiple className="hidden" onChange={(e) => e.target.files?.length && upload([...e.target.files])} />
           {!revs.length && (
             <>

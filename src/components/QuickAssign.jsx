@@ -5,6 +5,7 @@ import { useEffect, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import Icon from "@/components/Icon";
+import FileDrop from "@/components/FileDrop";
 import { PersonSelect } from "@/components/TaskForms";
 import { addTaskFile, createTask, listProductionCrew, requestRaw, startTaskUpload } from "@/app/(crm)/tasks/actions";
 import { createClient } from "@/lib/supabase/browser";
@@ -252,10 +253,11 @@ export default function QuickAssign({ brands, people, defaultBrand = "", label =
                 )}
 
                 <div>
+                  <FileDrop onFiles={(picked) => setFiles((cur) => [...cur, ...picked])} label="Drop to attach to this task" hint="References, copy, raw footage — up to 50 MB each" />
                   <Label>Files (optional)</Label>
                   <label className="flex cursor-pointer items-center gap-2 rounded-xl border border-dashed border-line-strong px-4 py-3 text-[13px] text-muted transition hover:border-brand hover:text-ink">
                     <Icon name="paperclip" size={15} />
-                    {files.length ? `${files.length} file${files.length > 1 ? "s" : ""} attached — add more` : "Attach references, copy, raw footage… (up to 50 MB each)"}
+                    {files.length ? `${files.length} file${files.length > 1 ? "s" : ""} attached — add more` : "Drag files here or click — references, copy, raw footage (up to 50 MB each)"}
                     <input type="file" multiple className="hidden" onChange={(e) => {
                       // Copy the files now: clearing the input empties its list before React runs the update
                       const picked = [...(e.target.files || [])];

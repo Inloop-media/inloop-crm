@@ -5,6 +5,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Icon from "@/components/Icon";
+import FileDrop from "@/components/FileDrop";
 import { fetchSheetCsv, importCalendarItems } from "@/app/(crm)/calendar/actions";
 import { parseCSV, rowsToItems } from "@/lib/sheetImport";
 import { CALENDAR_FIELDS, taskKindLabel } from "@/lib/constants";
@@ -12,6 +13,8 @@ import { CALENDAR_FIELDS, taskKindLabel } from "@/lib/constants";
 const LABEL = { publish_on: "Date", kind: "Type", title: "Content idea", platform: "Platform", refs: "References", ...Object.fromEntries(CALENDAR_FIELDS.map((f) => [f.id, f.label])) };
 const MONTHS = ["january", "february", "march", "april", "may", "june", "july", "august", "september", "october", "november", "december"];
 const dayFmt = new Intl.DateTimeFormat("en-IN", { day: "numeric", month: "short", timeZone: "UTC" });
+
+const SHEET = /\.(xlsx|csv)$/i;
 
 export default function CalendarImport({ brand, month, monthName }) {
   const router = useRouter();
@@ -82,6 +85,17 @@ export default function CalendarImport({ brand, month, monthName }) {
 
   return (
     <>
+      {/* Drop an .xlsx / .csv anywhere on the calendar: the import opens with it */}
+      <FileDrop
+        accept={SHEET}
+        label={`Drop the sheet to import into ${monthName}`}
+        hint=".xlsx or .csv — the month's tab is picked for you"
+        onFiles={([file]) => {
+          setOpen(true);
+          setTab("file");
+          fromFile(file);
+        }}
+      />
       <button onClick={() => (setOpen(true), reset())} className="btn-ghost btn-sm">
         <Icon name="upload" size={13} /> Import sheet
       </button>
@@ -133,7 +147,7 @@ export default function CalendarImport({ brand, month, monthName }) {
                 <div className="flex flex-col gap-2">
                   <label className="well-empty flex cursor-pointer flex-col items-center gap-2 px-4 py-6 text-center text-sm text-muted hover:text-ink">
                     <Icon name="upload" size={18} />
-                    {pending ? "Reading…" : "Choose an .xlsx or .csv file"}
+                    {pending ? "Reading…" : "Drag the .xlsx / .csv here, or click to choose"}
                     <input type="file" accept=".xlsx,.csv" className="hidden" onChange={(e) => fromFile(e.target.files?.[0])} />
                   </label>
                   {sheets && sheets.length > 1 && (
