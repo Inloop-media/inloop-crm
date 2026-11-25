@@ -237,10 +237,18 @@ html.theme-switching * {
     border-color: var(--field-border);
     box-shadow: 0 1px 2px rgb(20 20 22 / 0.04);
   }
-  select.field {
-    @apply cursor-pointer appearance-none pr-10;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%238b89a0' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  /* Every dropdown in the CRM: the same chevron, inset from the right edge and centred (never the browser's own arrow) */
+  select:not([multiple]),
+  select.field:not([multiple]) {
+    @apply cursor-pointer appearance-none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%238b89a0' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
     background-repeat: no-repeat;
+    background-position: right 0.8rem center;
+    background-size: 14px 14px;
+    padding-right: 2.25rem;
+  }
+  select.field:not([multiple]) {
+    @apply pr-10;
     background-position: right 0.9rem center;
   }
   /* A nested surface inside a card: soft fill, no border */

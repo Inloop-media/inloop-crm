@@ -59,8 +59,11 @@ export const canSeeBrands = (me) => isStaff(me) || isExecHead(me);
 export const isSalesOnly = (me) => isSales(me) && !isStaff(me) && !isExecHead(me) && !isStrategist(me) && !isMaker(me);
 export const canSeeLibrary = (me) => !isSalesOnly(me);
 /** Company profiles, decks and past work for pitching: the sales team, sales heads and admin / ops. */
-export const canSeeAssets = (me) => isStaff(me) || isSales(me) || isSalesHead(me);
-export const canManageAssets = (me) => isStaff(me) || isSalesHead(me);
+// Development team managers: whoever runs the development group (its head / team lead, or the CBO above it)
+export const isDevManager = (me) => (me.ledGroups || []).some((g) => g.kind === "development") || (me.leadGroups || []).some((g) => g.kind === "development");
+// Brand assets: sales, the CBOs (Krrish, Udit) and the development team download; admin, the sales head and the dev managers upload
+export const canSeeAssets = (me) => isStaff(me) || isSales(me) || isSalesHead(me) || isOpsHead(me) || inGroupKind(me, "development");
+export const canManageAssets = (me) => isStaff(me) || isSalesHead(me) || isDevManager(me);
 export const canAssignTasks = (me) => isStaff(me) || isExecHead(me) || headsTeam(me);
 /** The employee works on their own tasks; heads / staff see all of them. */
 export const canSeeTask = (me, t) => canAssignTasks(me) || t.assignee_id === me.id;

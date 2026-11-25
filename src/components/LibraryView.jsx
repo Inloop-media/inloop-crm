@@ -80,7 +80,7 @@ function FileCard({ f, canManage, canDelete = false, folders, onDelete, onMove, 
           </a>
           {canManage && onMove && (
             <>
-              <select aria-label="Move to folder" disabled={busy} value="" onChange={(e) => e.target.value && (e.target.value.startsWith("s:") ? onMoveSub(f, e.target.value.slice(2)) : onMove(f, e.target.value))} className="field w-9 shrink-0 cursor-pointer px-1 py-1.5 text-[11px]" title="Move to another folder">
+              <select aria-label="Move to folder" disabled={busy} value="" onChange={(e) => e.target.value && (e.target.value.startsWith("s:") ? onMoveSub(f, e.target.value.slice(2)) : onMove(f, e.target.value))} className="field w-9 shrink-0 cursor-pointer !bg-none px-1 py-1.5 text-center text-[11px]" title="Move to another folder">
                 <option value="">⇄</option>
                 {subNames
                   .filter((n) => n !== (f.subfolder || ""))

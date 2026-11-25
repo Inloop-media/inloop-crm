@@ -5,14 +5,15 @@ import { requireMember } from "@/lib/auth";
 import { db } from "@/lib/supabase/server";
 import { canManageAssets } from "@/lib/permissions";
 
-const KINDS = ["profile", "presentation", "work", "other"];
+const KINDS = ["profile", "presentation", "work", "client", "other"];
 const MAX = 100 * 1024 * 1024;
 const MIGRATION = "Run migration 024 in Supabase first.";
+const MIGRATION_031 = "Run migration 031_client_documents.sql in Supabase first, to turn on Client documents.";
 
 /** A signed upload URL for one file (up to 100 MB). */
 export async function assetUploadUrl(name, size) {
   const me = await requireMember();
-  if (!canManageAssets(me)) return { ok: false, error: "Only admin and the sales head add brand assets." };
+  if (!canManageAssets(me)) return { ok: false, error: "Only admin, the sales head and the development team's managers add brand assets." };
   if (!(size > 0) || size > MAX) return { ok: false, error: "Files must be under 100 MB — add bigger ones as a link." };
   const safe = String(name || "file").replace(/[^\w.\-]+/g, "_").slice(0, 120);
   const { data, error } = await db().storage.from("lead-docs").createSignedUploadUrl(`assets/${Date.now()}-${safe}`);
@@ -23,7 +24,7 @@ export async function assetUploadUrl(name, size) {
 /** Save an uploaded file or a link. input: { title, kind, note, path?, fileName?, size?, url? } */
 export async function addAsset(input) {
   const me = await requireMember();
-  if (!canManageAssets(me)) return { ok: false, error: "Only admin and the sales head add brand assets." };
+  if (!canManageAssets(me)) return { ok: false, error: "Only admin, the sales head and the development team's managers add brand assets." };
   const title = String(input?.title || "").trim().slice(0, 200);
   if (!title) return { ok: false, error: "Give it a name." };
   const path = String(input.path || "");
@@ -42,14 +43,14 @@ export async function addAsset(input) {
       size: Number(input.size) || 0,
       created_by: me.id,
     });
-  if (error) return { ok: false, error: /sales_assets/.test(error.message) ? MIGRATION : error.message };
+  if (error) return { ok: false, error: /kind_check/.test(error.message) ? MIGRATION_031 : /sales_assets/.test(error.message) ? MIGRATION : error.message };
   revalidatePath("/assets");
   return { ok: true };
 }
 
 export async function deleteAsset(id) {
   const me = await requireMember();
-  if (!canManageAssets(me)) return { ok: false, error: "Only admin and the sales head remove brand assets." };
+  if (!canManageAssets(me)) return { ok: false, error: "Only admin, the sales head and the development team's managers remove brand assets." };
   const { data } = await db().from("sales_assets").select("storage_path").eq("id", id).maybeSingle();
   if (!data) return { ok: false, error: "Not found." };
   if (data.storage_path) await db().storage.from("lead-docs").remove([data.storage_path]);

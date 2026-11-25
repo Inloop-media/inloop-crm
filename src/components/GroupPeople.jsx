@@ -25,7 +25,7 @@ function Chip({ name, onRemove, disabled, tone = "" }) {
 function AddSelect({ label, options, onPick, disabled }) {
   if (!options.length) return null;
   return (
-    <select value="" disabled={disabled} onChange={(e) => e.target.value && onPick(e.target.value)} className="rounded-full border border-dashed border-line-strong bg-transparent px-2.5 py-1 text-[12px] text-muted outline-none hover:text-ink">
+    <select value="" disabled={disabled} onChange={(e) => e.target.value && onPick(e.target.value)} className="rounded-full border border-dashed border-line-strong bg-transparent py-1 pl-2.5 pr-7 [background-position:right_0.55rem_center] text-[12px] text-muted outline-none hover:text-ink">
       <option value="">{label}</option>
       {options.map((m) => (
         <option key={m.id} value={m.id}>
@@ -71,7 +71,7 @@ export default function GroupPeople({ group, members, everyone, opsHeads = [], a
           <div className="flex items-center gap-3">
             <span className="text-xs font-medium text-muted">Comes under</span>
             {admin ? (
-              <select value={group.owner_id || ""} disabled={pending} onChange={(e) => change({ owner_id: e.target.value || null })} className="min-w-0 flex-1 bg-transparent text-sm outline-none">
+              <select value={group.owner_id || ""} disabled={pending} onChange={(e) => change({ owner_id: e.target.value || null })} className="min-w-0 flex-1 bg-transparent pr-7 text-sm outline-none [background-position:right_0.2rem_center]">
                 <option value="">Admin</option>
                 {opsHeads.map((m) => (
                   <option key={m.id} value={m.id}>

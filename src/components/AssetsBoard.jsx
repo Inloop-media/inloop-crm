@@ -12,6 +12,7 @@ const KINDS = [
   ["profile", "Company profiles", "brief"],
   ["presentation", "Presentations", "board"],
   ["work", "Past work", "sparkle"],
+  ["client", "Client documents", "list"],
   ["other", "Other", "file"],
 ];
 const kb = (n) => (n > 1048576 ? `${(n / 1048576).toFixed(1)} MB` : n ? `${Math.max(1, Math.round(n / 1024))} KB` : "");
@@ -125,7 +126,7 @@ export default function AssetsBoard({ assets, canManage }) {
       {shown.length ? (
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {shown.map((a) => {
-            const k = KINDS.find(([id]) => id === a.kind) || KINDS[3];
+            const k = KINDS.find(([id]) => id === a.kind) || KINDS[KINDS.length - 1];
             return (
               <div key={a.id} className="card flex flex-col gap-3 p-5">
                 <div className="flex items-start gap-3">

@@ -11,7 +11,7 @@ export default async function AssetsPage() {
   const { assets, migration } = await listAssets();
   return (
     <div className="page">
-      <PageTop title="Brand assets" sub="Inloop's company profiles, presentations and past work — everything you need to pitch." />
+      <PageTop title="Brand assets" sub="Inloop's company profiles, presentations, past work and client documents — download and share." />
       {migration ? <p className="card p-6 text-[13px] text-muted">Run migration 024 in Supabase to turn this on.</p> : <AssetsBoard assets={assets} canManage={canManageAssets(me)} />}
     </div>
   );
