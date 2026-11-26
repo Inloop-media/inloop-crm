@@ -209,5 +209,41 @@ export async function startUpload(folderId, { name, size, type }, origin) {
 
 /** A file's details (to check an upload landed in the right folder). */
 export async function fileInfo(id) {
-  return api(`/files/${encodeURIComponent(id)}`, { query: { fields: "id,name,size,webViewLink,parents" } });
+  return api(`/files/${encodeURIComponent(id)}`, { query: { fields: "id,name,size,mimeType,webViewLink,parents" } });
+}
+
+/* ------------------------------ Brand library ------------------------------ */
+
+/** "<Brand> / Brand Library / Images / Product shots" — made if missing. */
+export async function libraryFolder(brand, sectionLabel, subfolder = "", memberId = null) {
+  return ensurePath(brand, ["Brand Library", sectionLabel, ...String(subfolder || "").split(" / ").filter(Boolean)], memberId);
+}
+
+/** Server-side upload of a file we already have (moving old library files from storage to Drive). */
+export async function uploadBytes(folderId, { name, type }, bytes) {
+  const boundary = `loop${Math.random().toString(36).slice(2)}`;
+  const meta = JSON.stringify({ name: clean(name) || "file", parents: [folderId] });
+  const head = Buffer.from(`--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${meta}\r\n--${boundary}\r\nContent-Type: ${type || "application/octet-stream"}\r\n\r\n`);
+  const tail = Buffer.from(`\r\n--${boundary}--`);
+  const q = new URLSearchParams({ uploadType: "multipart", supportsAllDrives: "true", fields: "id,name,size,webViewLink,parents" });
+  const res = await fetch(`https://www.googleapis.com/upload/drive/v3/files?${q}`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${await token()}`, "Content-Type": `multipart/related; boundary=${boundary}` },
+    body: Buffer.concat([head, Buffer.from(bytes), tail]),
+    cache: "no-store",
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new DriveError(`Google Drive: ${data.error?.message || res.status}`);
+  return data;
+}
+
+/** Move a Drive file into another folder (its only folder). */
+export async function moveFile(fileId, folderId) {
+  const f = await api(`/files/${encodeURIComponent(fileId)}`, { query: { fields: "parents" } });
+  return api(`/files/${encodeURIComponent(fileId)}`, { method: "PATCH", query: { addParents: folderId, removeParents: (f.parents || []).join(","), fields: "id,parents" }, body: {} });
+}
+
+/** Put a Drive file in the bin (it can still be restored from Drive's Bin for 30 days). */
+export async function trashFile(fileId) {
+  return api(`/files/${encodeURIComponent(fileId)}`, { method: "PATCH", query: { fields: "id" }, body: { trashed: true } });
 }

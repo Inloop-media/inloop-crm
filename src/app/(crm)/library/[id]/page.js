@@ -1,3 +1,4 @@
+import { driveConnection } from "@/lib/drive";
 import { notFound } from "next/navigation";
 import LibraryView from "@/components/LibraryView";
 import { requireMember } from "@/lib/auth";
@@ -20,5 +21,5 @@ export default async function BrandLibraryPage({ params, searchParams }) {
   if (!isUuid(id)) notFound();
   const lib = await brandLibrary(id, me);
   if (!lib) notFound();
-  return <LibraryView brand={lib.brand} assets={lib.assets} subfolders={lib.subfolders} foldersReady={lib.foldersReady} completed={lib.completed} missing={lib.missing} folders={LIBRARY_FOLDERS} canManage={canManageLibrary(me)} canDelete={canDeleteLibrary(me)} initialFolder={folder} locked={lib.locked} lockedCount={lib.lockedCount} canOpenLocked={!lib.locked.length} />;
+  return <LibraryView brand={lib.brand} assets={lib.assets} subfolders={lib.subfolders} foldersReady={lib.foldersReady} completed={lib.completed} missing={lib.missing} folders={LIBRARY_FOLDERS} canManage={canManageLibrary(me)} canDelete={canDeleteLibrary(me)} initialFolder={folder} locked={lib.locked} lockedCount={lib.lockedCount} canOpenLocked={!lib.locked.length} drive={Boolean((await driveConnection())?.root_id)} isAdmin={me.role === "admin"} />;
 }

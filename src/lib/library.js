@@ -32,6 +32,11 @@ async function sign(paths) {
   return Object.fromEntries((data || []).filter((x) => x.signedUrl).map((x) => [x.path, x.signedUrl]));
 }
 const withLinks = (f, signed) => {
+  // On Google Drive: open in Drive, download straight from Drive, and Google's preview picture
+  if (f.drive_file_id) {
+    const id = encodeURIComponent(f.drive_file_id);
+    return { ...f, href: f.url, download: `https://drive.google.com/uc?export=download&id=${id}`, thumb: `https://drive.google.com/thumbnail?id=${id}&sz=w800`, drive: true };
+  }
   const href = f.storage_path ? signed[f.storage_path] || "" : f.url;
   const download = f.storage_path && href ? `${href}${href.includes("?") ? "&" : "?"}download=${encodeURIComponent(f.name || "file")}` : f.url;
   return { ...f, href, download };
@@ -41,7 +46,7 @@ const withLinks = (f, signed) => {
 export async function libraryBrands() {
   const [{ data: brands }, { data: assets }, { data: done }] = await Promise.all([
     db().from("brands").select("id, name, stage").order("name"),
-    db().from("brand_assets").select("brand_id, folder, name, storage_path, type, created_at").order("created_at", { ascending: false }),
+    db().from("brand_assets").select("*").order("created_at", { ascending: false }),
     db().from("tasks").select("brand_id").eq("status", "done"),
   ]);
   const work = (done || []).reduce((m, r) => ((m[r.brand_id] = (m[r.brand_id] || 0) + 1), m), {});
@@ -52,7 +57,9 @@ export async function libraryBrands() {
     const b = (by[a.brand_id] ||= { files: 0, folders: {}, updated: a.created_at, covers: [] });
     b.files += 1;
     b.folders[a.folder] = (b.folders[a.folder] || 0) + 1;
-    if (isPic(a) && b.covers.length < 3) {
+    if (b.covers.length < 3 && a.drive_file_id && a.folder !== "documents" && (/^image\//.test(a.type || "") || /\.(jpe?g|png|webp|gif)$/i.test(a.name || ""))) {
+      b.covers.push({ thumb: `https://drive.google.com/thumbnail?id=${encodeURIComponent(a.drive_file_id)}&sz=w600`, logo: a.folder === "identity" });
+    } else if (isPic(a) && b.covers.length < 3) {
       b.covers.push({ path: a.storage_path, logo: a.folder === "identity" });
       coverPaths.push(a.storage_path);
     }
@@ -60,7 +67,7 @@ export async function libraryBrands() {
   const signed = await sign(coverPaths);
   return (brands || []).map((b) => {
     const x = by[b.id] || { files: 0, folders: {}, updated: null, covers: [] };
-    return { ...b, files: x.files, folders: x.folders, updated: x.updated, covers: x.covers.map((c) => ({ src: signed[c.path], logo: c.logo })).filter((c) => c.src), completed: work[b.id] || 0 };
+    return { ...b, files: x.files, folders: x.folders, updated: x.updated, covers: x.covers.map((c) => ({ src: c.thumb || signed[c.path], logo: c.logo })).filter((c) => c.src), completed: work[b.id] || 0 };
   });
 }
 
@@ -83,7 +90,7 @@ export async function brandLibrary(brandId, me) {
   const assets = open ? all : all.filter((a) => !LOCKED_FOLDERS.includes(a.folder));
   const ids = (tasks || []).map((t) => t.id);
   const { data: files } = ids.length
-    ? await db().from("task_files").select("task_id, revision, role, name, storage_path, url, size, created_at").in("task_id", ids).eq("role", "deliverable")
+    ? await db().from("task_files").select("*").in("task_id", ids).eq("role", "deliverable")
     : { data: [] };
   const signed = await sign([...assets.map((a) => a.storage_path), ...(files || []).map((f) => f.storage_path)]);
   const byFolder = Object.fromEntries(LIBRARY_FOLDERS.map((f) => [f.id, []]));

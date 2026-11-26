@@ -1,15 +1,35 @@
 "use client";
 // One brand's library: folders of client material (ops / admin upload; everyone views and downloads)
 // and "Completed work" — the final files of every approved task, filled in automatically.
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Icon from "@/components/Icon";
 import { BrandMark } from "@/components/ui";
 import { createClient } from "@/lib/supabase/browser";
-import { addLibraryItems, createLibraryFolder, deleteLibraryFolder, deleteLibraryItem, libraryUploadUrl, moveLibraryItem, moveLibraryItemToSub } from "@/app/(crm)/library/actions";
+import { addLibraryItems, createLibraryFolder, deleteLibraryFolder, deleteLibraryItem, finishLibraryDriveUpload, libraryFilesToMove, libraryUploadUrl, moveLibraryFileToDrive, moveLibraryItem, moveLibraryItemToSub, startLibraryDriveUpload } from "@/app/(crm)/library/actions";
 
 const MAX = 50 * 1024 * 1024;
+
+/** Sends one file to a Google Drive upload link with progress; resolves with Google's file id. */
+function sendToDrive(url, file, onProgress) {
+  return new Promise((resolve, reject) => {
+    const x = new XMLHttpRequest();
+    x.open("PUT", url);
+    x.setRequestHeader("Content-Type", file.type || "application/octet-stream");
+    x.upload.onprogress = (e) => e.lengthComputable && onProgress(e.loaded / e.total);
+    x.onload = () => {
+      if (x.status >= 200 && x.status < 300) {
+        try {
+          return resolve(JSON.parse(x.responseText).id);
+        } catch {}
+      }
+      reject(new Error(`Google Drive said ${x.status}`));
+    };
+    x.onerror = () => reject(new Error("The upload stopped — check the internet and try again."));
+    x.send(file);
+  });
+}
 const dateFmt = new Intl.DateTimeFormat("en-IN", { timeZone: "Asia/Kolkata", day: "numeric", month: "short", year: "numeric" });
 const isImg = (f) => /^image\//.test(f.type || "") || /\.(jpe?g|png|webp|gif|avif|svg)$/i.test(f.name || "");
 const isVid = (f) => /^video\//.test(f.type || "") || /\.(mp4|mov|webm|m4v)$/i.test(f.name || "");
@@ -39,11 +59,14 @@ const norm = (v) => String(v || "").normalize("NFD").replace(/[\u0300-\u036f]/g,
 const KIND = { post: "Static", carousel: "Carousel", reel: "Reel", story: "Story", video: "Video", design: "Design", website: "Website", other: "Other" };
 
 function FileCard({ f, canManage, canDelete = false, folders, onDelete, onMove, onMoveSub, subNames = [], busy, where, onWhere }) {
-  const link = !f.storage_path;
+  const link = !f.storage_path && !f.drive;
   return (
     <div className="group flex flex-col overflow-hidden rounded-2xl border border-line bg-panel">
       <a href={f.href || undefined} target="_blank" rel="noreferrer" className="relative block aspect-[4/3] overflow-hidden bg-panel-2">
-        {f.href && isImg(f) ? (
+        {f.thumb && (isImg(f) || isVid(f)) ? (
+          // eslint-disable-next-line @next/next/no-img-element -- Google Drive preview picture
+          <img src={f.thumb} alt={f.name} loading="lazy" referrerPolicy="no-referrer" className={`h-full w-full transition group-hover:scale-[1.03] ${f.folder === "identity" || /\.(png|svg|webp)$/i.test(f.name || "") ? "object-contain p-4" : "object-cover"}`} />
+        ) : f.href && isImg(f) ? (
           // eslint-disable-next-line @next/next/no-img-element -- signed storage URL
           <img src={f.href} alt={f.name} loading="lazy" className={`h-full w-full transition group-hover:scale-[1.03] ${f.folder === "identity" || /\.(png|svg|webp)$/i.test(f.name || "") ? "object-contain p-4" : "object-cover"}`} />
         ) : f.href && isVid(f) ? (
@@ -111,7 +134,46 @@ function FileCard({ f, canManage, canDelete = false, folders, onDelete, onMove, 
   );
 }
 
-export default function LibraryView({ brand, assets, subfolders = {}, foldersReady = true, completed, missing, folders, canManage, canDelete = false, initialFolder, locked = [], lockedCount = {}, canOpenLocked = false }) {
+/** Admin: copy the brand's older library files (kept in the CRM) to its Drive folders, one by one. */
+function MoveToDrive({ brandId }) {
+  const router = useRouter();
+  const [state, setState] = useState({ checked: false, left: 0, run: null, error: "" });
+  useEffect(() => {
+    let alive = true;
+    libraryFilesToMove(brandId).then((r) => alive && setState((s) => ({ ...s, checked: true, left: r.ok ? r.files.length : 0, error: r.ok ? "" : r.error })));
+    return () => {
+      alive = false;
+    };
+  }, [brandId]);
+  if (!state.checked || (!state.left && !state.error)) return null;
+  const go = async () => {
+    const r = await libraryFilesToMove(brandId);
+    if (!r.ok) return setState((s) => ({ ...s, error: r.error }));
+    for (const [i, f] of r.files.entries()) {
+      setState((s) => ({ ...s, run: `${i + 1} of ${r.files.length} · ${f.name}` }));
+      const m = await moveLibraryFileToDrive(f.id);
+      if (!m.ok) return setState((s) => ({ ...s, run: null, error: `${f.name}: ${m.error}` }));
+    }
+    setState({ checked: true, left: 0, run: null, error: "" });
+    router.refresh();
+  };
+  return (
+    <div className="card mb-4 flex flex-wrap items-center gap-3 p-4 text-[13px]">
+      <Icon name="board" size={16} className="text-amber-500" />
+      <span className="min-w-0 flex-1">
+        {state.run ? `Moving to Drive… ${state.run}` : `${state.left} older file${state.left === 1 ? " is" : "s are"} still kept in the CRM — copy ${state.left === 1 ? "it" : "them"} to this brand's Drive folders.`}
+        {state.error && <span className="block text-[12px] text-rose-400">{state.error}</span>}
+      </span>
+      {state.left > 0 && (
+        <button type="button" onClick={go} disabled={Boolean(state.run)} className="btn-primary btn-sm">
+          {state.run ? "Moving…" : "Move to Drive"}
+        </button>
+      )}
+    </div>
+  );
+}
+
+export default function LibraryView({ brand, assets, subfolders = {}, foldersReady = true, completed, missing, folders, canManage, canDelete = false, initialFolder, locked = [], lockedCount = {}, canOpenLocked = false, drive = false, isAdmin = false }) {
   const router = useRouter();
   const [folder, setFolder] = useState(folders.some((f) => f.id === initialFolder) || initialFolder === "completed" ? initialFolder : "identity");
   const [busy, setBusy] = useState("");
@@ -159,6 +221,27 @@ export default function LibraryView({ brand, assets, subfolders = {}, foldersRea
       .map((x) => (x instanceof File ? { file: x, section: folder, subfolder: sub } : x))
       .filter((x) => x.file.size > 0 && !JUNK.test(x.file.name));
     if (!files.length || folder === "completed") return;
+    // Sections on Google Drive: each file goes straight from the browser to the brand's Drive folder (any size)
+    const toDrive = files.filter((x) => drive && x.section !== "documents");
+    if (toDrive.length) {
+      try {
+        for (const [i, x] of toDrive.entries()) {
+          const f = x.file;
+          setBusy(`Uploading ${i + 1} of ${toDrive.length} to Drive — ${f.name}…`);
+          const s = await startLibraryDriveUpload(brand.id, x.section, x.subfolder, { name: f.name, size: f.size, type: f.type });
+          if (!s.ok) throw new Error(s.error);
+          const id = await sendToDrive(s.url, f, (p) => setBusy(`Uploading ${i + 1} of ${toDrive.length} to Drive — ${f.name} · ${Math.round(p * 100)}%`));
+          const r = await finishLibraryDriveUpload(brand.id, x.section, x.subfolder, s.dir, id);
+          if (!r.ok) throw new Error(r.error);
+        }
+      } catch (e) {
+        setError(e.message || "Upload failed.");
+      }
+      router.refresh();
+      setBusy("");
+      if (toDrive.length === files.length) return;
+    }
+    files.splice(0, files.length, ...files.filter((x) => !toDrive.includes(x)));
     const big = files.filter((x) => x.file.size > MAX);
     setError(big.length ? `${big.map((x) => x.file.name).join(", ")} ${big.length > 1 ? "are" : "is"} over 50 MB — add ${big.length > 1 ? "them" : "it"} as a Google Drive link instead.` : "");
     const ok = files.filter((x) => x.file.size <= MAX);
@@ -253,6 +336,7 @@ export default function LibraryView({ brand, assets, subfolders = {}, foldersRea
         </div>
       </header>
 
+      {drive && isAdmin && <MoveToDrive brandId={brand.id} />}
       {missing && <p className="card mb-4 p-4 text-sm text-muted">The library isn&apos;t set up yet — run migration 020 in Supabase. Completed work below already works.</p>}
 
       {words.length > 0 ? (
