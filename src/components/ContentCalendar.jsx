@@ -198,6 +198,8 @@ function Drawer({ item, brandId, people, canEdit, canAssign, canDelete = false, 
     cta_objective: item.cta_objective || "",
   });
   const [refs, setRefs] = useState(item.refs?.length ? item.refs : [""]);
+  // Columns from the imported sheet that have no field of their own (Content Pillar, Hook…), under the sheet's names
+  const [extra, setExtra] = useState(Array.isArray(item.extra) ? item.extra : []);
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
   const [who, setWho] = useState("");
   const [raw, setRaw] = useState(null); // needs raw photos / footage from Production first
@@ -239,7 +241,7 @@ function Drawer({ item, brandId, people, canEdit, canAssign, canDelete = false, 
           className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-5 py-5"
           onSubmit={(e) => {
             e.preventDefault();
-            run(() => saveCalendarItem({ ...f, refs, id: item.id, brand_id: brandId }), onClose);
+            run(() => saveCalendarItem({ ...f, refs, extra, id: item.id, brand_id: brandId }), onClose);
           }}
         >
           <fieldset disabled={!canEdit} className="flex flex-col gap-4">
@@ -264,6 +266,12 @@ function Drawer({ item, brandId, people, canEdit, canAssign, canDelete = false, 
               <label className="label">Content idea</label>
               <textarea className="field resize-y" rows={2} value={f.title} onChange={set("title")} placeholder="e.g. Diwali offer — 20% off on all cakes" required autoFocus={isNew} />
             </div>
+            {extra.map((x, i) => (
+              <div key={x.label}>
+                <label className="label">{x.label}</label>
+                <textarea className="field resize-y" rows={x.value.length > 80 ? 3 : 1} value={x.value} onChange={(e) => setExtra(extra.map((y, j) => (j === i ? { ...y, value: e.target.value } : y)))} />
+              </div>
+            ))}
             {CALENDAR_FIELDS.map((c) => (
               <div key={c.id}>
                 <label className="label">{c.label}</label>

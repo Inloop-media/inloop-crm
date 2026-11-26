@@ -107,7 +107,7 @@ export default function CalendarImport({ brand, month, monthName }) {
               <div className="min-w-0 flex-1">
                 <h2 className="text-[15px] font-medium">Import {monthName} from a sheet</h2>
                 <p className="text-xs text-muted">
-                  For <b className="font-medium text-ink">{brand.name}</b>. Columns are matched by name: Date, Type, Notes, Content Idea, Creative Brief, Creative Direction, Caption Direction, Content Copy, CTA Objective, Reference(s).
+                  For <b className="font-medium text-ink">{brand.name}</b>. Every column of the sheet is saved under its own name (Content Pillar, Hook…). It needs at least a Date and a Content Idea column.
                 </p>
               </div>
               <button onClick={() => setOpen(false)} className="grid h-8 w-8 place-items-center rounded-full text-muted hover:bg-panel-2" aria-label="Close">
@@ -178,30 +178,42 @@ export default function CalendarImport({ brand, month, monthName }) {
                   <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-muted">
                     Columns found:
                     {result.columns.map((c) => (
-                      <span key={c} className="rounded-full bg-panel-2 px-2 py-0.5 text-ink/80">
-                        {LABEL[c] || c}
+                      <span key={c.key} className="rounded-full bg-panel-2 px-2 py-0.5 text-ink/80" title={c.key.startsWith("extra:") ? "Saved as it is in the sheet" : `Goes into ${LABEL[c.key] || c.key}`}>
+                        {c.label}
                       </span>
                     ))}
                   </div>
                   <div className="overflow-x-auto rounded-xl border border-line">
+                    {/* The sheet as it will be saved: every column, in the sheet's order, under the sheet's names */}
                     <table className="w-full text-left text-[12.5px]">
                       <thead className="bg-panel-2 text-[11px] uppercase tracking-wide text-muted">
                         <tr>
-                          <th className="px-3 py-2 font-medium">Date</th>
-                          <th className="px-3 py-2 font-medium">Type</th>
-                          <th className="px-3 py-2 font-medium">Content idea</th>
-                          <th className="px-3 py-2 font-medium">Brief</th>
+                          {result.columns.map((c) => (
+                            <th key={c.key} className="whitespace-nowrap px-3 py-2 font-medium">
+                              {c.label}
+                            </th>
+                          ))}
                         </tr>
                       </thead>
                       <tbody>
                         {result.items.map((i, k) => (
                           <tr key={k} className="border-t border-line align-top">
-                            <td className={`whitespace-nowrap px-3 py-2 ${i.publish_on.startsWith(month) ? "" : "text-amber-400"}`}>{dayFmt.format(new Date(`${i.publish_on}T00:00:00Z`))}</td>
-                            <td className="px-3 py-2">{taskKindLabel(i.kind)}</td>
-                            <td className="px-3 py-2 font-medium">{i.title}</td>
-                            <td className="px-3 py-2 text-muted">
-                              {[i.creative_brief && "brief", i.creative_direction && "direction", i.caption_direction && "caption dir.", i.caption && "copy", i.cta_objective && "CTA", i.refs?.length && `${i.refs.length} ref`].filter(Boolean).join(" · ") || "—"}
-                            </td>
+                            {result.columns.map((c) => {
+                              let v;
+                              if (c.key === "publish_on") v = dayFmt.format(new Date(`${i.publish_on}T00:00:00Z`));
+                              else if (c.key === "kind") v = taskKindLabel(i.kind);
+                              else if (c.key === "refs") v = i.refs?.length ? `${i.refs.length} link${i.refs.length > 1 ? "s" : ""}` : "";
+                              else if (c.key.startsWith("extra:")) v = i.extra?.find((x) => `extra:${x.label}` === c.key)?.value;
+                              else v = i[c.key];
+                              return (
+                                <td
+                                  key={c.key}
+                                  className={`px-3 py-2 ${c.key === "publish_on" ? `whitespace-nowrap ${i.publish_on.startsWith(month) ? "" : "text-amber-400"}` : ""} ${c.key === "title" ? "font-medium" : "text-ink/80"}`}
+                                >
+                                  <span className="line-clamp-3 block min-w-[90px] max-w-[260px] whitespace-pre-wrap break-words">{v || <span className="text-faint">—</span>}</span>
+                                </td>
+                              );
+                            })}
                           </tr>
                         ))}
                       </tbody>

@@ -53,13 +53,25 @@ function briefFields(input) {
     caption_direction: str(input.caption_direction, 2000),
     cta_objective: str(input.cta_objective, 500),
     refs,
+    // Sheet columns with no field of their own: [{ label, value }] in the sheet's order
+    extra: (Array.isArray(input.extra) ? input.extra : [])
+      .map((x) => ({ label: str(x?.label, 80), value: str(x?.value, 4000) }))
+      .filter((x) => x.label)
+      .slice(0, 30),
   };
 }
-const BRIEF_KEYS = ["creative_brief", "creative_direction", "caption_direction", "cta_objective", "refs"];
+const BRIEF_KEYS = ["creative_brief", "creative_direction", "caption_direction", "cta_objective", "refs", "extra"];
 const isMissingColumn = (error) => BRIEF_KEYS.some((k) => String(error?.message || "").includes(k));
 /** The row without the migration-016 fields, for databases that don't have them yet. */
 const basic = (row) => Object.fromEntries(Object.entries(row).filter(([k]) => !BRIEF_KEYS.includes(k)));
-const friendly = (error) => (/creative_brief|creative_direction|caption_direction|cta_objective|refs/.test(error.message) ? "The new calendar fields need migration 016 — ask the admin to run it in Supabase." : error.message);
+/** Retry without just the column the database is missing: `extra` (034) or the 016 fields. */
+const strip = (row, error) => (/extra/.test(String(error?.message || "")) ? Object.fromEntries(Object.entries(row).filter(([k]) => k !== "extra")) : basic(row));
+const friendly = (error) =>
+  /extra/.test(error.message)
+    ? "The sheet's extra columns need migration 034 — ask the admin to run it in Supabase."
+    : /creative_brief|creative_direction|caption_direction|cta_objective|refs/.test(error.message)
+      ? "The new calendar fields need migration 016 — ask the admin to run it in Supabase."
+      : error.message;
 
 async function loadItem(id) {
   if (!isUuid(id)) return null;
@@ -90,7 +102,7 @@ export async function saveCalendarItem(input) {
     const locked = await lockedError(item.brand_id);
     if (locked) return { ok: false, error: locked };
     let { error } = await db().from("calendar_items").update(row).eq("id", item.id);
-    if (error && isMissingColumn(error)) ({ error } = await db().from("calendar_items").update(basic(row)).eq("id", item.id));
+    if (error && isMissingColumn(error)) ({ error } = await db().from("calendar_items").update(strip(row, error)).eq("id", item.id));
     if (error) return { ok: false, error: friendly(error) };
     // Keep a linked task's title in step
     if (item.task_id && row.title !== item.title) await db().from("tasks").update({ title: row.title.slice(0, 160) }).eq("id", item.task_id);
@@ -105,7 +117,7 @@ export async function saveCalendarItem(input) {
   if (!brand) return { ok: false, error: "Pick a brand." };
   const insert = (r) => db().from("calendar_items").insert({ ...r, brand_id: brand.id, created_by: me.id }).select("id").single();
   let { data, error } = await insert(row);
-  if (error && isMissingColumn(error)) ({ data, error } = await insert(basic(row)));
+  if (error && isMissingColumn(error)) ({ data, error } = await insert(strip(row, error)));
   if (error) return { ok: false, error: friendly(error) };
   refresh(brand.id);
   return { ok: true, id: data.id };
@@ -169,6 +181,8 @@ export async function assignCalendarItem(id, { assignee_id, due_at, brief, prior
   const text =
     str(brief, 8000) ||
     [
+      // The sheet's own columns (Content Pillar, Hook…) first, as they were in the sheet
+      ...(Array.isArray(item.extra) ? item.extra : []).filter((x) => x?.value).map((x) => `${x.label}: ${x.value}`),
       item.creative_brief && `Creative brief:\n${item.creative_brief}`,
       item.creative_direction && `Creative direction:\n${item.creative_direction}`,
       item.caption_direction && `Caption direction:\n${item.caption_direction}`,
@@ -271,7 +285,7 @@ export async function importCalendarItems(brandId, month, items, { replace = fal
     await db().from("calendar_items").delete().eq("brand_id", brand.id).gte("publish_on", `${month}-01`).lt("publish_on", next).is("task_id", null).eq("status", "planned");
   }
   let { error } = await db().from("calendar_items").insert(rows);
-  if (error && isMissingColumn(error)) ({ error } = await db().from("calendar_items").insert(rows.map(basic)));
+  if (error && isMissingColumn(error)) ({ error } = await db().from("calendar_items").insert(rows.map((r) => strip(r, error))));
   if (error) return { ok: false, error: friendly(error) };
   refresh(brand.id);
   return { ok: true, count: rows.length };

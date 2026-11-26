@@ -1,7 +1,8 @@
 // Turning a content-calendar sheet (Google Sheets / Excel / CSV) into calendar posts.
 // Works on plain rows (arrays of cells), so it runs in the browser before anything is saved.
 // The team's sheet has columns like: Date · Type · Notes · Content Idea · Creative Brief · Creative Direction
-// · Caption Direction · Content Copy · CTA Objective · Reference(s). Column order and exact names don't matter.
+// · Caption Direction · Content Copy · CTA Objective · Reference(s). Order doesn't matter; any other column
+// (Content Pillar, Hook…) is saved too, under its own name.
 
 /** Minimal CSV reader: quotes, commas and line breaks inside quotes. */
 export function parseCSV(text) {
@@ -37,31 +38,33 @@ export function parseCSV(text) {
   return rows;
 }
 
-// Field → the header words that mean it (most specific first)
+// Field → the header names that mean it. A column is matched by its whole name (not a word inside it), so
+// "Content Pillar" is never taken for "Content Idea". Columns that match nothing are kept as they are.
 const ALIASES = [
-  ["caption_direction", ["caption direction", "caption brief"]],
-  ["creative_direction", ["creative direction", "visual direction", "design direction", "direction"]],
-  ["creative_brief", ["creative brief", "brief"]],
-  ["cta_objective", ["cta objective", "cta", "objective", "call to action"]],
-  ["caption", ["content copy", "copy", "caption", "post copy", "text"]],
-  ["title", ["content idea", "idea", "topic", "concept", "content", "title", "theme"]],
-  ["kind", ["type", "format", "content type", "post type", "creative type"]],
-  ["publish_on", ["date", "posting date", "publish date", "post date", "day", "go live"]],
-  ["platform", ["platform", "channel"]],
+  ["title", ["content idea", "content ideas", "idea", "ideas", "post idea", "topic", "concept", "title", "content idea topic"]],
+  ["publish_on", ["date", "posting date", "publish date", "post date", "go live", "go live date", "live date"]],
+  ["kind", ["type", "format", "content type", "post type", "creative type", "content format"]],
+  ["platform", ["platform", "platforms", "channel", "channels"]],
   ["notes", ["notes", "note", "remarks", "comments"]],
-  ["refs", ["reference", "references", "ref", "refs", "inspiration", "links", "link"]],
+  ["creative_brief", ["creative brief", "brief"]],
+  ["creative_direction", ["creative direction", "visual direction", "design direction"]],
+  ["caption_direction", ["caption direction", "caption brief"]],
+  ["caption", ["content copy", "copy", "caption", "captions", "post copy"]],
+  ["cta_objective", ["cta objective", "cta", "objective", "call to action"]],
+  ["refs", ["reference", "references", "reference s", "ref", "refs", "inspiration", "links", "link", "reference links"]],
 ];
 const norm = (v) => String(v ?? "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 
-/** Which field each column is, from a header row. Unknown columns are null. */
+/** Which field each column is, from a header row: a field id, { extra: "Header as written" }, or null (blank). */
 function mapHeader(cells) {
   const used = new Set();
   return cells.map((cell) => {
     const h = norm(cell);
     if (!h) return null;
-    for (const [field, words] of ALIASES) if (words.includes(h) && (field === "refs" || !used.has(field))) return used.add(field), field;
-    for (const [field, words] of ALIASES) if (words.some((w) => h.includes(w)) && (field === "refs" || !used.has(field))) return used.add(field), field;
-    return null;
+    const hit = ALIASES.find(([field, names]) => names.includes(h) && (field === "refs" || !used.has(field)));
+    if (hit) return used.add(hit[0]), hit[0];
+    // Anything else (Content Pillar, Hook, Status…) is kept under its own name
+    return { extra: String(cell).replace(/\s+/g, " ").trim().slice(0, 80) };
   });
 }
 
@@ -69,7 +72,7 @@ function mapHeader(cells) {
 function findHeader(rows) {
   for (let i = 0; i < Math.min(15, rows.length); i++) {
     const map = mapHeader(rows[i]);
-    if (map.includes("publish_on") && (map.includes("title") || map.includes("kind"))) return { index: i, map };
+    if (map.includes("publish_on") && (map.includes("title") || map.includes("kind"))) return { index: i, map, names: rows[i].map((c) => String(c ?? "").replace(/\s+/g, " ").trim()) };
   }
   return null;
 }
@@ -151,12 +154,14 @@ export function rowsToItems(rows, month) {
   all.slice(head.index + 1).forEach((r, i) => {
     const rowNo = head.index + i + 2; // the row number people see in the sheet
     if (blank(r)) return;
-    const item = { refs: [] };
+    const item = { refs: [], extra: [] };
     head.map.forEach((field, c) => {
       if (!field) return;
       const raw = r[c];
-      const text = raw instanceof Date ? raw.toISOString() : String(raw ?? "").trim();
-      if (field === "refs") {
+      const text = raw instanceof Date ? raw.toISOString().slice(0, 10) : String(raw ?? "").trim();
+      if (typeof field === "object") {
+        item.extra.push({ label: field.extra, value: text });
+      } else if (field === "refs") {
         item.refs.push(...text.split(/\n|\s+(?=https?:\/\/)|,\s+(?=https?:\/\/)/).map((x) => x.trim()).filter(Boolean));
       } else if (field === "publish_on") item.publish_on = parseDay(raw, month);
       else if (field === "kind") item.kind = parseType(text);
@@ -170,5 +175,13 @@ export function rowsToItems(rows, month) {
     if (!item.title) return skipped.push({ row: rowNo, reason: "No content idea" });
     items.push({ kind: "post", ...item, title: item.title.slice(0, 200) });
   });
-  return { items, skipped, columns: [...new Set(head.map.filter(Boolean))] };
+  // Every column of the sheet, in its order, with the name written in the sheet:
+  //   { key: field id (or "extra:<name>"), label: header as in the sheet }
+  const columns = [];
+  head.map.forEach((f, c) => {
+    if (!f) return;
+    const key = typeof f === "object" ? `extra:${f.extra}` : f;
+    if (!columns.some((x) => x.key === key)) columns.push({ key, label: head.names[c] || key });
+  });
+  return { items, skipped, columns };
 }

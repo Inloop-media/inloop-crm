@@ -197,7 +197,9 @@ export async function removePushSubscription(endpoint) {
 /** Sends a test notification to all of the signed-in member's devices. */
 export async function sendTestPush() {
   const me = await requireMember();
-  await pushTo([me.id], { title: "Notifications are on", body: `You'll hear from the CRM here, ${me.name.split(" ")[0]}.`, url: "/", tag: "test" });
+  // A new tag each time: with the same tag the Mac quietly replaces the last test instead of showing it again
+  const at = new Date().toLocaleTimeString("en-IN", { timeZone: "Asia/Kolkata", hour: "numeric", minute: "2-digit", second: "2-digit" });
+  await pushTo([me.id], { title: "Notifications are on", body: `You'll hear from loop here, ${me.name.split(" ")[0]} · test at ${at}`, url: "/", tag: `test-${Date.now()}` });
   return { ok: true };
 }
 
