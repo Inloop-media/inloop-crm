@@ -4,6 +4,7 @@ import Link from "next/link";
 import Icon from "@/components/Icon";
 import { Avatar } from "@/components/ui";
 import { HoldPanel, MainAction, ReviewPanel, TaskAdmin, TaskFiles } from "@/components/TaskForms";
+import DriveUploads from "@/components/DriveUploads";
 import RawRequest from "@/components/RawRequest";
 import PostKit from "@/components/PostKit";
 import { KIND_COLOR, OPEN_TASK, TASK_STATUSES, taskKindLabel } from "@/lib/constants";
@@ -308,6 +309,12 @@ export default function TaskView({ task, head, mine, people = [], crew = [] }) {
                   </ul>
                 </div>
               )}
+            </Card>
+          )}
+
+          {(task.folders || []).length > 0 && (
+            <Card title="Google Drive folders" sub={mine ? "Where to upload what" : "Where this work is saved"}>
+              <DriveUploads task={task} canUpload={mine || head} />
             </Card>
           )}
 

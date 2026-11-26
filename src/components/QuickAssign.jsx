@@ -6,6 +6,8 @@ import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import Icon from "@/components/Icon";
 import FileDrop from "@/components/FileDrop";
+import DrivePicker from "@/components/DrivePicker";
+import { setTaskFolders } from "@/app/(crm)/drive/actions";
 import { PersonSelect } from "@/components/TaskForms";
 import { addTaskFile, createTask, listProductionCrew, requestRaw, startTaskUpload } from "@/app/(crm)/tasks/actions";
 import { createClient } from "@/lib/supabase/browser";
@@ -62,6 +64,7 @@ export default function QuickAssign({ brands, people, defaultBrand = "", label =
   const [pickDate, setPickDate] = useState(false);
   const [showBrief, setShowBrief] = useState(false);
   const [files, setFiles] = useState([]);
+  const [folders, setFolders] = useState([]); // Drive folders the work goes into: [{ drive_id, path, note }]
   const [uploading, setUploading] = useState("");
   // Needs raw photos / footage from Production first (a linked "shoot" task for e.g. Aryan)
   const [raw, setRaw] = useState(null); // null = off
@@ -108,6 +111,10 @@ export default function QuickAssign({ brands, people, defaultBrand = "", label =
       setError("");
       const res = await createTask(f.brand, f);
       if (!res.ok) return setError(res.error);
+      if (folders.length) {
+        const fr = await setTaskFolders(res.id, folders);
+        if (!fr.ok) setError(`Task given, but the Drive folders didn't save: ${fr.error} — add them from the task.`);
+      }
       if (raw) {
         setUploading("Asking Production…");
         const r = await requestRaw(res.id, raw);
@@ -133,6 +140,7 @@ export default function QuickAssign({ brands, people, defaultBrand = "", label =
       }
       setUploading("");
       setFiles([]);
+      setFolders([]);
       setRaw(null);
       setDone(`“${f.title}” given to ${who?.name.split(" ")[0] || "them"}.`);
       if (again) setF({ ...empty, brand: f.brand, kind: f.kind, assignee_id: f.assignee_id, due_at: f.due_at, priority: f.priority });
@@ -191,7 +199,7 @@ export default function QuickAssign({ brands, people, defaultBrand = "", label =
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div>
                     <Label htmlFor="qa-brand">Brand</Label>
-                    <select id="qa-brand" className="field" value={f.brand} onChange={set("brand")}>
+                    <select id="qa-brand" className="field" value={f.brand} onChange={(e) => (setFolders([]), set("brand")(e))}>
                       <option value="">Pick a brand…</option>
                       {brands.map((b) => (
                         <option key={b.id} value={b.id}>
@@ -250,6 +258,13 @@ export default function QuickAssign({ brands, people, defaultBrand = "", label =
                   <button type="button" onClick={() => setShowBrief(true)} className="flex items-center gap-1.5 self-start text-[13px] text-muted hover:text-ink">
                     <Icon name="plus" size={13} /> Add a brief (copy, references, links)
                   </button>
+                )}
+
+                {f.brand && (
+                  <div>
+                    <Label>Google Drive folders — where they upload the work</Label>
+                    <DrivePicker key={f.brand} brandId={f.brand} value={folders} onChange={setFolders} />
+                  </div>
                 )}
 
                 <div>

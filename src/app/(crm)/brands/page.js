@@ -5,6 +5,9 @@ import BrandCard from "@/components/BrandCard";
 import BrandSearch from "@/components/BrandSearch";
 import { HatchBar, RoundLink, Tile } from "@/components/Bold";
 import AddBrands from "@/components/AddBrands";
+import DriveSetup from "@/components/DriveSetup";
+import { driveConnection } from "@/lib/drive";
+import { db } from "@/lib/supabase/server";
 import { FilterPills } from "@/components/Desk";
 import { Empty } from "@/components/ui";
 import { requireMember } from "@/lib/auth";
@@ -16,7 +19,7 @@ export const metadata = { title: "Brands" };
 
 export default async function BrandsPage({ searchParams }) {
   const me = await requireMember(canSeeBrands);
-  const { show, q: rawQ = "" } = await searchParams;
+  const { show, q: rawQ = "", drive: driveNotice = "" } = await searchParams;
   const q = String(rawQ).trim().toLowerCase();
   // Onboarding (MOU) lives on the lead page, which only admin / ops open
   const brands = (await listBrands()).filter(
@@ -28,6 +31,15 @@ export default async function BrandsPage({ searchParams }) {
     active.map((b) => b.id),
     me.id,
   );
+  // Admin: the Drive connection (never the token) and which brands already have their folders
+  let drive = null;
+  if (me.role === "admin") {
+    const conn = await driveConnection();
+    const { data: made } = conn ? await db().from("drive_folders").select("brand_id, path") : { data: [] };
+    const counts = {};
+    for (const f of made || []) counts[f.brand_id] = (counts[f.brand_id] || 0) + 1;
+    drive = { conn: conn ? { email: conn.email || "", root_id: conn.root_id || null } : null, ready: Object.keys(counts).filter((id) => counts[id] >= 18) };
+  }
   const sum = (k) => active.reduce((n, b) => n + (b.counts?.[k] || 0), 0);
   // Busiest clients first (late, then to check, then in work), the rest A–Z
   const busy = (b) =>
@@ -94,6 +106,7 @@ export default async function BrandsPage({ searchParams }) {
         </div>
         {me.role === "admin" && <AddBrands />}
       </header>
+      {drive && <DriveSetup conn={drive.conn} brands={active.map((b) => ({ id: b.id, name: b.name }))} ready={drive.ready} notice={String(driveNotice).slice(0, 200)} />}
 
       {brands.length === 0 ? (
         <div className="card rise">

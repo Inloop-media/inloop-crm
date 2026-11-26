@@ -42,7 +42,7 @@ export async function getTask(me, id) {
   const { data: t } = await db().from("tasks").select(TASK_FIELDS).eq("id", id).maybeSingle();
   if (!t || !canSeeTask(me, t)) return null;
   const [{ data: files }, { data: events }] = await Promise.all([
-    db().from("task_files").select("id, revision, role, name, storage_path, url, size, created_at, uploader:members(name)").eq("task_id", id).order("created_at"),
+    db().from("task_files").select("*, uploader:members(name)").eq("task_id", id).order("created_at"),
     db().from("task_events").select("id, type, data, created_at, actor:members(name)").eq("task_id", id).order("created_at", { ascending: false }).limit(100),
   ]);
   const paths = (files || []).filter((f) => f.storage_path).map((f) => f.storage_path);
@@ -51,8 +51,13 @@ export async function getTask(me, id) {
     const { data } = await db().storage.from("lead-docs").createSignedUrls(paths, 3600);
     signed = Object.fromEntries((data || []).filter((x) => x.signedUrl).map((x) => [x.path, x.signedUrl]));
   }
-  const [raws, forTask] = await Promise.all([rawRequests(id), t.for_task_id ? forTaskOf(t.for_task_id) : null]);
-  return { ...t, files: (files || []).map((f) => ({ ...f, href: f.storage_path ? signed[f.storage_path] || "" : f.url })), events: events || [], raws, forTask };
+  const [raws, forTask, { data: folders }] = await Promise.all([
+    rawRequests(id),
+    t.for_task_id ? forTaskOf(t.for_task_id) : null,
+    // The Drive folders its work goes into (empty before migration 035)
+    db().from("task_folders").select("drive_id, path, note").eq("task_id", id).order("sort"),
+  ]);
+  return { ...t, files: (files || []).map((f) => ({ ...f, href: f.storage_path ? signed[f.storage_path] || "" : f.url })), events: events || [], raws, forTask, folders: folders || [] };
 }
 
 /**

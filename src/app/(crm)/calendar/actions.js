@@ -1,6 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
+import { driveConnection, postFolders } from "@/lib/drive";
 import { pingLive } from "@/lib/live";
 import { requireMember } from "@/lib/auth";
 import { db } from "@/lib/supabase/server";
@@ -197,6 +199,18 @@ export async function assignCalendarItem(id, { assignee_id, due_at, brief, prior
   const res = await createTask(item.brand_id, { title: item.title, kind: item.kind, assignee_id, due_at, brief: text, priority });
   if (!res.ok) return res;
   await db().from("calendar_items").update({ task_id: res.id, updated_at: new Date().toISOString() }).eq("id", id);
+  // Its own Drive folder (…/Reels/Reel 3 – Meet Rose, with Raw + Edited), made right after — never holds the task up
+  after(async () => {
+    try {
+      if (!(await driveConnection())?.root_id) return;
+      const brand = await getBrand(item.brand_id);
+      const folders = await postFolders(brand, item, me.id);
+      await db().from("task_folders").insert(folders.map((f, i) => ({ task_id: res.id, drive_id: f.drive_id, path: f.path, note: f.note, sort: i })));
+      pingLive("tasks");
+    } catch (err) {
+      console.error("Drive folders for the post failed:", err.message);
+    }
+  });
   refresh(item.brand_id);
   return { ok: true, taskId: res.id };
 }

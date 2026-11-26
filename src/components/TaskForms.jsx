@@ -4,6 +4,8 @@ import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Icon from "@/components/Icon";
 import FileDrop from "@/components/FileDrop";
+import DrivePicker from "@/components/DrivePicker";
+import { setTaskFolders } from "@/app/(crm)/drive/actions";
 import { createClient } from "@/lib/supabase/browser";
 import { addTaskFile, addTaskNote, createTask, holdTask, resumeTask, deleteTask, removeTaskFile, reviewTask, setTaskStatus, startTaskUpload, updateTask } from "@/app/(crm)/tasks/actions";
 import { MAKER_STATUS_OPTIONS, OPEN_TASK, PRIORITIES, TASK_KINDS, TASK_STATUSES } from "@/lib/constants";
@@ -340,7 +342,7 @@ export function TaskFiles({ task, canUpload }) {
       ))}
 
       {/* Drop files anywhere on the task page */}
-      <FileDrop enabled={canUpload && !locked && !progress} onFiles={upload} label={task.revision ? `Drop revision ${task.revision} to upload` : "Drop your work to upload"} hint="Images, videos, PDFs — up to 50 MB each" />
+      <FileDrop enabled={canUpload && !locked && !progress && !(task.folders || []).length} onFiles={upload} label={task.revision ? `Drop revision ${task.revision} to upload` : "Drop your work to upload"} hint="Images, videos, PDFs — up to 50 MB each" />
       {canUpload && !locked && (
         // Drop zone: drag files in, or use the buttons
         // (dropping is handled page-wide by FileDrop above)
@@ -352,15 +354,18 @@ export function TaskFiles({ task, canUpload }) {
                 <Icon name="upload" size={20} />
               </span>
               <div>
-                <p className="text-[14px] font-medium">{progress || (task.revision ? `Drop revision ${task.revision} here` : "Drop your files here")}</p>
-                <p className="mt-0.5 text-[12px] text-muted">Images, videos, PDFs — up to 50 MB each</p>
+                <p className="text-[14px] font-medium">{progress || ((task.folders || []).length ? "Upload into the Drive folders above" : task.revision ? `Drop revision ${task.revision} here` : "Drop your files here")}</p>
+                <p className="mt-0.5 text-[12px] text-muted">{(task.folders || []).length ? "Or add a link / a note here" : "Images, videos, PDFs — up to 50 MB each"}</p>
               </div>
             </>
           )}
           <div className="flex flex-wrap justify-center gap-2">
+            {/* With Drive folders, files go up from the folders above */}
+            {!(task.folders || []).length && (
             <button onClick={() => fileRef.current?.click()} disabled={Boolean(progress) || pending} className="btn-ghost btn-sm bg-panel">
               <Icon name="upload" size={13} /> {progress ? "Uploading…" : revs.length ? "Upload more" : "Browse files"}
             </button>
+            )}
             <button onClick={() => setShowLink((v) => !v)} className="btn-ghost btn-sm bg-panel">
               <Icon name="link" size={13} /> Add a link
             </button>
@@ -507,6 +512,9 @@ export function TaskAdmin({ task, people }) {
   const [assignee, setAssignee] = useState(task.assignee_id || "");
   const [priority, setPriority] = useState(task.priority || "medium");
   const [saved, setSaved] = useState(false);
+  const startFolders = (task.folders || []).map((f) => ({ drive_id: f.drive_id, path: f.path, note: f.note || "" }));
+  const [folders, setFolders] = useState(startFolders);
+  const foldersChanged = JSON.stringify(folders) !== JSON.stringify(startFolders);
   const patch = {
     ...(title.trim() !== task.title ? { title } : {}),
     ...(kind !== task.kind ? { kind } : {}),
@@ -515,7 +523,7 @@ export function TaskAdmin({ task, people }) {
     ...(priority !== (task.priority || "medium") ? { priority } : {}),
     ...(assignee !== (task.assignee_id || "") ? { assignee_id: assignee } : {}),
   };
-  const changed = Object.keys(patch).length > 0;
+  const changed = Object.keys(patch).length > 0 || foldersChanged;
   // Posting tasks come from the calendar and shoots from a request — their type stays as it is
   const fixedKind = ["posting", "shoot"].includes(task.kind);
   return (
@@ -540,6 +548,10 @@ export function TaskAdmin({ task, people }) {
         <span className="text-xs text-muted">Brief</span>
         <textarea className="field resize-y" rows={4} maxLength={8000} placeholder="Copy, references, sizes, links…" value={brief} onChange={(e) => setBrief(e.target.value)} />
       </label>
+      <div className="flex flex-col gap-1.5">
+        <span className="text-xs text-muted">Google Drive folders</span>
+        <DrivePicker brandId={task.brand_id} value={folders} onChange={setFolders} />
+      </div>
       <label className="flex flex-col gap-1.5">
         <span className="text-xs text-muted">Assigned to</span>
         <PersonSelect people={people} value={assignee} onChange={setAssignee} kind={kind} />
@@ -556,7 +568,16 @@ export function TaskAdmin({ task, people }) {
         <button
           onClick={() => {
             if (!title.trim()) return;
-            run(() => updateTask(task.id, patch), () => (setSaved(true), setTimeout(() => setSaved(false), 4000)));
+            run(
+              async () => {
+                if (foldersChanged) {
+                  const f = await setTaskFolders(task.id, folders);
+                  if (!f.ok) return f;
+                }
+                return Object.keys(patch).length ? updateTask(task.id, patch) : { ok: true };
+              },
+              () => (setSaved(true), setTimeout(() => setSaved(false), 4000)),
+            );
           }}
           disabled={pending || !changed || !title.trim()}
           className="btn-primary btn-sm"

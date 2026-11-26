@@ -118,6 +118,10 @@ export async function requestRaw(forId, input) {
   const { data: shoot, error } = await db().from("tasks").insert(row).select(TASK_FIELDS).single();
   if (error) return { ok: false, error: /for_task_id|kind_check|shoot/.test(error.message) ? "Run migration 027_raw_requests.sql in Supabase first." : error.message };
   await Promise.all([logTask(shoot.id, me.id, "created", { to: assignee.name }), logTask(task.id, me.id, "raw_requested", { to: assignee.name, what: label.toLowerCase() })]);
+  // The task's "Raw" Drive folder (e.g. Reel 3 Raw) is where Production uploads the shoot
+  const { data: rawDirs } = await db().from("task_folders").select("drive_id, path").eq("task_id", task.id);
+  const raws = (rawDirs || []).filter((f) => / raw$/i.test(f.path));
+  if (raws.length) await db().from("task_folders").insert(raws.map((f, i) => ({ task_id: shoot.id, drive_id: f.drive_id, path: f.path, note: "Raw footage / photos from the shoot", sort: i })));
   const maker = task.assignee?.name.split(" ")[0];
   after(async () => {
     if (assignee.id !== me.id) await notifyTask([assignee.id], shoot, "📸 Shoot needed", `${label} for ${maker ? `${maker}'s ` : ""}${taskKindLabel(task.kind).toLowerCase()} · ${task.brand?.name || ""}`);
