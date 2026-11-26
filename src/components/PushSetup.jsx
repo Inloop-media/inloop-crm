@@ -33,9 +33,11 @@ function usePush() {
       if (Notification.permission === "denied") return "blocked";
       return existing ? "on" : "off";
     };
+    const slow = setTimeout(() => setState((s) => (s === "loading" ? "unsupported" : s)), 8000);
     check()
       .then(setState)
-      .catch(() => setState("unsupported"));
+      .catch(() => setState("unsupported"))
+      .finally(() => clearTimeout(slow));
   }, []);
 
   const enable = async () => {
@@ -66,6 +68,11 @@ const COPY = {
   off: { title: "Turn on notifications", text: "Get a ping on this device when a lead, brief or commercials needs you." },
   install: { title: "Get the app on your iPhone", text: "In Safari tap Share → Add to Home Screen, open Inloop from there, then turn notifications on." },
   blocked: { title: "Notifications are blocked", text: "Allow notifications for this site in your browser or phone settings, then reload." },
+  unsupported: {
+    title: "Can't turn on notifications here",
+    text: "This browser can't show them. iPhone: open inloophub.com in Safari → Share → Add to Home Screen, open loop from there and tap the bell. Android: open inloophub.com in Chrome.",
+  },
+  loading: { title: "Checking notifications…", text: "" },
 };
 
 export default function PushSetup({ variant = "card" }) {
@@ -74,7 +81,7 @@ export default function PushSetup({ variant = "card" }) {
   const [open, setOpen] = useState(false);
   const [error, setError] = useState("");
 
-  if (state === "loading" || state === "unsupported") return null;
+  // The bell always shows — when this device can't do notifications it says how to get them
   const copy = COPY[state];
   const run = (fn) =>
     start(async () => {
