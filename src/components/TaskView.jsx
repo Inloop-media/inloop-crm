@@ -1,6 +1,7 @@
 // One task, laid out like a project tool: the title and where it stands (a progress line), the brief,
 // the work and the activity on the left; what to do now and the details on the right.
 import Link from "next/link";
+import Linkify from "@/components/Linkify";
 import Icon from "@/components/Icon";
 import { Avatar } from "@/components/ui";
 import { HoldPanel, MainAction, ReviewPanel, TaskAdmin, TaskFiles } from "@/components/TaskForms";
@@ -101,7 +102,7 @@ function RawFiles({ raws }) {
               {notes.map((n) => (
                 <p key={n.id} className="mt-3 whitespace-pre-wrap rounded-xl bg-panel px-3 py-2.5 text-[13px] text-ink/85">
                   <span className="mb-0.5 block text-[11px] text-muted">{n.actor?.name?.split(" ")[0] || "Production"}&apos;s note</span>
-                  {n.data.text}
+                  <Linkify text={n.data.text} />
                 </p>
               ))}
               {media.length > 0 ? (
@@ -256,7 +257,7 @@ export default function TaskView({ task, head, mine, people = [], crew = [] }) {
               <p className="flex items-center gap-2 text-[14px] font-semibold text-rose-600 dark:text-rose-400">
                 <Icon name="refresh" size={15} /> What to change
               </p>
-              <p className="mt-2 whitespace-pre-wrap text-[14.5px] leading-relaxed">{task.feedback}</p>
+              <p className="mt-2 whitespace-pre-wrap break-words text-[14.5px] leading-relaxed"><Linkify text={task.feedback} /></p>
             </section>
           )}
 
@@ -290,7 +291,7 @@ export default function TaskView({ task, head, mine, people = [], crew = [] }) {
 
           {(task.brief || refs.length > 0) && (
             <Card title="Brief">
-              {task.brief && <p className="whitespace-pre-wrap text-[14.5px] leading-relaxed text-ink/85">{task.brief}</p>}
+              {task.brief && <p className="whitespace-pre-wrap break-words text-[14.5px] leading-relaxed text-ink/85"><Linkify text={task.brief} /></p>}
               {refs.length > 0 && (
                 <div className={task.brief ? "mt-5" : ""}>
                   <p className="mb-2 text-[12px] font-medium text-muted">Files from {task.assigner?.name.split(" ")[0] || "the person who gave it"}</p>
@@ -333,7 +334,7 @@ export default function TaskView({ task, head, mine, people = [], crew = [] }) {
                     <p className="text-[13.5px]">
                       <span className="font-medium">{e.actor?.name || e.data?.by || "CRM"}</span> <span className="text-ink/75">{(EVENT[e.type] || (() => e.type))(e.data || {})}</span>
                     </p>
-                    {(e.data?.feedback || e.data?.reason || (e.type === "note" && e.data?.text)) && <p className="mt-1.5 line-clamp-4 whitespace-pre-wrap rounded-xl bg-panel-2 px-3 py-2 text-[13px] text-ink/80">{e.data.feedback || e.data.reason || e.data.text}</p>}
+                    {(e.data?.feedback || e.data?.reason || (e.type === "note" && e.data?.text)) && <p className="mt-1.5 line-clamp-4 whitespace-pre-wrap rounded-xl bg-panel-2 px-3 py-2 text-[13px] text-ink/80"><Linkify text={e.data.feedback || e.data.reason || e.data.text} /></p>}
                     <p className="mt-0.5 text-[11.5px] text-faint" title={fmtDateTime(e.created_at)}>
                       {ago(e.created_at)}
                     </p>

@@ -4,6 +4,7 @@ import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Icon from "@/components/Icon";
 import FileDrop from "@/components/FileDrop";
+import Linkify from "@/components/Linkify";
 import DrivePicker from "@/components/DrivePicker";
 import { setTaskFolders } from "@/app/(crm)/drive/actions";
 import { createClient } from "@/lib/supabase/browser";
@@ -300,7 +301,7 @@ export function TaskFiles({ task, canUpload }) {
           <div className="mb-2 text-xs font-medium text-muted">{r === 0 ? "First version" : `Revision ${r}`}{r === task.revision ? " · current" : ""}</div>
           {(notesBy[r] || []).map((n) => (
             <div key={n.id} className="mb-2 rounded-2xl bg-panel-2 px-4 py-3">
-              <p className="whitespace-pre-wrap text-sm leading-relaxed">{n.data?.text}</p>
+              <p className="whitespace-pre-wrap break-words text-sm leading-relaxed"><Linkify text={n.data?.text} /></p>
               <p className="mt-1 text-[11px] text-faint">
                 Note · {n.actor?.name || "—"} · {new Date(n.created_at).toLocaleString("en-IN", { timeZone: "Asia/Kolkata", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" })}
               </p>
@@ -480,7 +481,7 @@ export function ReviewPanel({ task, people }) {
       <div className="flex flex-col gap-3">
         <div className="tint-pink rounded-2xl p-4">
           <div className="text-xs font-medium text-ink/60">Client feedback</div>
-          <p className="mt-1 whitespace-pre-wrap text-sm">{task.feedback}</p>
+          <p className="mt-1 whitespace-pre-wrap break-words text-sm"><Linkify text={task.feedback} /></p>
         </div>
         <div className="grid gap-2 sm:grid-cols-2">
           <PersonSelect people={people} value={assignee} onChange={setAssignee} kind={task.kind} />

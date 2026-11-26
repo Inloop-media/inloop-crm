@@ -1,3 +1,4 @@
+import Linkify from "@/components/Linkify";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import Icon from "@/components/Icon";
@@ -166,7 +167,7 @@ export default async function LeadPage({ params }) {
           <div className="relative px-6 pb-6 sm:px-8 sm:pb-8">
             <div className="tint-lavender rounded-2xl p-5">
               <div className="text-xs font-medium text-ink/60">Project details</div>
-              <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed">{lead.details}</p>
+              <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-relaxed"><Linkify text={lead.details} /></p>
             </div>
           </div>
         )}

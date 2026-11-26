@@ -1,6 +1,7 @@
 "use client";
 // The list of requirements (click one to see its story and act on it) + the "New requirement" form.
 // The receiver can upload files / assets and submit: they go back to the person who asked.
+import Linkify from "@/components/Linkify";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Icon from "@/components/Icon";
@@ -278,7 +279,7 @@ function Detail({ r, meId, staff, recipients, names }) {
   };
   return (
     <div className="mt-3 flex flex-col gap-3 border-t border-line pt-3">
-      {r.details && <p className="whitespace-pre-wrap text-[13px] text-ink/85">{r.details}</p>}
+      {r.details && <p className="whitespace-pre-wrap break-words text-[13px] text-ink/85"><Linkify text={r.details} /></p>}
       <ol className="flex flex-col gap-1.5">
         {(r.history || []).map((h, i) => (
           <li key={i} className="flex gap-2 text-[12px]">

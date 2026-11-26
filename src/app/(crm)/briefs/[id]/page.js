@@ -1,3 +1,4 @@
+import Linkify from "@/components/Linkify";
 import { notFound, redirect } from "next/navigation";
 import ProposalWorkspace from "@/components/ProposalWorkspace";
 import { PageHeader, Panel, StagePill, StepTrack } from "@/components/ui";
@@ -64,7 +65,7 @@ export default async function BriefPage({ params }) {
             {lead.details && (
               <div className="mt-4">
                 <div className="text-xs font-medium text-muted">Project details</div>
-                <p className="mt-1.5 whitespace-pre-wrap text-sm leading-relaxed text-ink/75">{lead.details}</p>
+                <p className="mt-1.5 whitespace-pre-wrap break-words text-sm leading-relaxed text-ink/75"><Linkify text={lead.details} /></p>
               </div>
             )}
           </Panel>
