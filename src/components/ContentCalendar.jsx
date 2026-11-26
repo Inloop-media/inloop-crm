@@ -2,6 +2,7 @@
 // One brand's content calendar for a month: the plan on top, then a month grid (or an agenda list on
 // phones). Click a day to add a post, click a post to edit it, drag it to move it. Heads turn a post
 // into a task for someone straight from here.
+import DrivePicker from "@/components/DrivePicker";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
@@ -19,6 +20,9 @@ import { Avatar } from "@/components/ui";
 import { bucketOf, countBuckets } from "@/lib/workStatus";
 import { CALENDAR_FIELDS, CALENDAR_TYPES, PLAN_KINDS, PLATFORMS, TASK_KINDS, TASK_STATUSES, kindPlural, platformLabel, platformList, taskKindLabel } from "@/lib/constants";
 
+// Where a post's own Drive folder goes (matches lib/drive.js)
+const DRIVE_DIR = { reel: "Reels", video: "Videos", carousel: "Carousel", story: "Stories", post: "Static Posts", design: "Static Posts" };
+const DRIVE_NAME = { reel: "Reel", video: "Video", carousel: "Carousel", story: "Story", post: "Static Post", design: "Static Post" };
 export const KIND_COLOR = { post: "#60a5fa", carousel: "#a78bfa", story: "#f472b6", reel: "#fbbf24", video: "#22d3ee", design: "#4ade80", website: "#94a3b8", other: "#94a3b8" };
 const CONTENT_KINDS = TASK_KINDS.filter((k) => k.id !== "website");
 const dayFmt = new Intl.DateTimeFormat("en-IN", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" });
@@ -216,6 +220,7 @@ function Drawer({ item, brandId, people, canEdit, canAssign, canDelete = false, 
   })();
   const [due, setDue] = useState(twoDaysBefore);
   const [priority, setPriority] = useState("medium");
+  const [folders, setFolders] = useState([]); // extra Drive folders for the task (its own post folder is automatic)
   const st = itemState(item);
 
   useEffect(() => {
@@ -376,12 +381,22 @@ function Drawer({ item, brandId, people, canEdit, canAssign, canDelete = false, 
                     <PrioritySelect value={priority} onChange={setPriority} />
                   </div>
                   <RawToggle value={raw} onChange={setRaw} kind={f.kind} who={people.find((p) => p.id === who)?.name.split(" ")[0]} />
+                  <div className="flex flex-col gap-2 rounded-xl border border-line bg-panel p-3">
+                    <span className="flex items-center gap-1.5 text-[12px] font-medium">
+                      <Icon name="board" size={13} className="text-amber-500" /> Google Drive
+                    </span>
+                    <p className="text-[11.5px] leading-relaxed text-muted">
+                      This post gets its own folder automatically — <span className="text-ink/80">{DRIVE_DIR[f.kind] || "Static Posts"} / {DRIVE_NAME[f.kind] || "Static Post"} N – {String(f.title || "").slice(0, 40) || "idea"}</span>
+                      {["reel", "video"].includes(f.kind) ? ", with Raw and Edited inside." : "."} Add more folders if the work goes elsewhere too.
+                    </p>
+                    <DrivePicker brandId={brandId} value={folders} onChange={setFolders} />
+                  </div>
                   <button
                     type="button"
                     disabled={!who || pending || (raw && (!raw.assignee_id || !raw.brief.trim()))}
                     onClick={() =>
                       run(async () => {
-                        const r = await assignCalendarItem(item.id, { assignee_id: who, due_at: due, priority });
+                        const r = await assignCalendarItem(item.id, { assignee_id: who, due_at: due, priority, folders });
                         if (!r.ok || !raw) return r;
                         const q = await requestRaw(r.taskId, raw);
                         return q.ok ? r : { ok: false, error: `Task given, but the Production request didn't go: ${q.error} — ask from the task page.` };
