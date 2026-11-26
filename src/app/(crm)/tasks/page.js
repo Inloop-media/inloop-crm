@@ -10,6 +10,7 @@ import QuickAssign from "@/components/QuickAssign";
 import { listBrands } from "@/lib/brands";
 import MyWork from "@/components/MyWork";
 import TeamToCheck from "@/components/TeamToCheck";
+import TeamTasks from "@/components/TeamTasks";
 import { requireMember } from "@/lib/auth";
 import { listMakers, listTasks } from "@/lib/tasks";
 import { canAssignTasks, headsTeam, myTeam } from "@/lib/permissions";
@@ -82,8 +83,9 @@ export default async function TasksPage({ searchParams }) {
     return (
       <div className="page max-w-5xl">
         <PageTop title="My tasks" sub="Press Start when you begin. When it's ready, open the task, upload the file and submit." />
-        <div className="rise mb-5">
+        <div className="rise mb-5 flex flex-col gap-5">
           <TeamToCheck me={me} />
+          <TeamTasks me={me} />
         </div>
         <div className="rise">
           <MyWork me={me} tasks={mine} />

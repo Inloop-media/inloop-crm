@@ -18,6 +18,7 @@ import { canKeepNotes, canSeeAllLeads, canSeeLeads, headsTeam, isExecHead, isOps
 import TeamMeetings from "@/components/TeamMeetings";
 import MyNotes from "@/components/MyNotes";
 import TeamToCheck from "@/components/TeamToCheck";
+import TeamTasks from "@/components/TeamTasks";
 import { myNotes } from "@/lib/notes";
 import { canCallMeetings, meetingAudience, myTeamMeetings } from "@/lib/teamMeetings";
 import { listGroups } from "@/lib/leads";
@@ -150,6 +151,7 @@ function Side({ me }) {
   return (
     <>
       <TeamToCheck me={me} />
+      <TeamTasks me={me} />
       <Notes me={me} />
       <Meetings me={me} />
       <MyGroups me={me} />

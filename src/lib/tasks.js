@@ -234,6 +234,15 @@ export async function taskBadge(me) {
   return (a.count || 0) + toCheck + (queue || 0);
 }
 
+/** What a team lead's team is working on: their open and in-review tasks (not the finished ones). */
+export async function leadTeamTasks(me) {
+  const team = leadTeam(me).filter(isUuid);
+  if (!team.length) return [];
+  const { data, error } = await db().from("tasks").select(TASK_FIELDS).in("assignee_id", team).not("status", "in", "(done)").order("due_at", { ascending: true, nullsFirst: false }).limit(300);
+  if (error) return [];
+  return withLeadFlags(data || []);
+}
+
 /** A team lead's queue: their team's completed work that's waiting for their check (or just how many). */
 export async function leadQueue(me, { count = false } = {}) {
   const team = leadTeam(me).filter(isUuid);
