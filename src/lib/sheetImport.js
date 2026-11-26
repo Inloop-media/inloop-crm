@@ -50,7 +50,7 @@ const ALIASES = [
   ["creative_direction", ["creative direction", "visual direction", "design direction"]],
   ["caption_direction", ["caption direction", "caption brief"]],
   ["caption", ["content copy", "copy", "caption", "captions", "post copy"]],
-  ["cta_objective", ["cta objective", "cta", "objective", "call to action"]],
+  ["cta_objective", ["cta objective", "cta", "call to action"]],
   ["refs", ["reference", "references", "reference s", "ref", "refs", "inspiration", "links", "link", "reference links"]],
 ];
 const norm = (v) => String(v ?? "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
@@ -63,6 +63,8 @@ function mapHeader(cells) {
     if (!h) return null;
     const hit = ALIASES.find(([field, names]) => names.includes(h) && (field === "refs" || !used.has(field)));
     if (hit) return used.add(hit[0]), hit[0];
+    // "Reference 1", "Reference 2", "Ref 3", "Link 2"… all go into the post's references (empty ones are skipped)
+    if (/^(reference|references|ref|refs|link|links|inspiration)\s*\d+$/.test(h)) return "refs";
     // Anything else (Content Pillar, Hook, Status…) is kept under its own name
     return { extra: String(cell).replace(/\s+/g, " ").trim().slice(0, 80) };
   });

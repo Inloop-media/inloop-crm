@@ -197,9 +197,14 @@ function Drawer({ item, brandId, people, canEdit, canAssign, canDelete = false, 
     caption_direction: item.caption_direction || "",
     cta_objective: item.cta_objective || "",
   });
-  const [refs, setRefs] = useState(item.refs?.length ? item.refs : [""]);
+  // Sheets with "Reference 1 / 2 / 3" columns (imported before they were read as references): those join
+  // the references, and only the filled ones show
+  const REF_COL = /^(reference|references|ref|refs|link|links|inspiration)\s*\d+$/i;
+  const oldExtra = Array.isArray(item.extra) ? item.extra : [];
+  const startRefs = [...(item.refs || []), ...oldExtra.filter((x) => REF_COL.test(String(x.label).trim()) && String(x.value || "").trim()).map((x) => String(x.value).trim())];
+  const [refs, setRefs] = useState(startRefs.length ? startRefs : [""]);
   // Columns from the imported sheet that have no field of their own (Content Pillar, Hook…), under the sheet's names
-  const [extra, setExtra] = useState(Array.isArray(item.extra) ? item.extra : []);
+  const [extra, setExtra] = useState(oldExtra.filter((x) => !REF_COL.test(String(x.label).trim())));
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
   const [who, setWho] = useState("");
   const [raw, setRaw] = useState(null); // needs raw photos / footage from Production first
@@ -269,7 +274,14 @@ function Drawer({ item, brandId, people, canEdit, canAssign, canDelete = false, 
             {extra.map((x, i) => (
               <div key={x.label}>
                 <label className="label">{x.label}</label>
-                <textarea className="field resize-y" rows={x.value.length > 80 ? 3 : 1} value={x.value} onChange={(e) => setExtra(extra.map((y, j) => (j === i ? { ...y, value: e.target.value } : y)))} />
+                <div className="flex items-start gap-2">
+                  <textarea className="field resize-y" rows={x.value.length > 80 ? 3 : 1} value={x.value} onChange={(e) => setExtra(extra.map((y, j) => (j === i ? { ...y, value: e.target.value } : y)))} />
+                  {/^https?:\/\/\S+$/.test(x.value.trim()) && (
+                    <a href={x.value.trim()} target="_blank" rel="noreferrer" className="btn-ghost btn-sm mt-1 shrink-0">
+                      Visit <Icon name="external" size={12} />
+                    </a>
+                  )}
+                </div>
               </div>
             ))}
             {CALENDAR_FIELDS.map((c) => (
@@ -293,9 +305,9 @@ function Drawer({ item, brandId, people, canEdit, canAssign, canDelete = false, 
                       onChange={(e) => setRefs(refs.map((x, j) => (j === i ? e.target.value : x)))}
                       placeholder="Paste a link (Instagram, Pinterest, Drive…) or a note"
                     />
-                    {/^https?:\/\//.test(r) && (
-                      <a href={r} target="_blank" rel="noreferrer" className="grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-line text-muted hover:text-brand" aria-label="Open reference">
-                        <Icon name="external" size={13} />
+                    {/^https?:\/\//.test(r.trim()) && (
+                      <a href={r.trim()} target="_blank" rel="noreferrer" className="btn-ghost btn-sm shrink-0" aria-label="Visit reference">
+                        Visit <Icon name="external" size={12} />
                       </a>
                     )}
                     {canEdit && refs.length > 1 && (
