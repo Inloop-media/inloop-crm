@@ -19,5 +19,7 @@ export default async function TaskPage({ params }) {
   const head = canAssignTasks(me);
   const mine = task.assignee_id === me.id;
   const [people, crew] = await Promise.all([head ? listMakers(me) : [], (head || mine) && !["shoot", "posting"].includes(task.kind) ? productionPeople() : []]);
-  return <TaskView task={task} head={head} mine={mine} people={people} crew={crew} />;
+  // Ananya-style team lead: their check comes first
+  const leadCheck = Boolean(task.with_lead && (task.lead_ids || []).includes(me.id));
+  return <TaskView task={task} head={head} mine={mine} leadCheck={leadCheck} people={people} crew={crew} />;
 }

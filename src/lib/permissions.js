@@ -66,7 +66,9 @@ export const canSeeAssets = (me) => isStaff(me) || isSales(me) || isSalesHead(me
 export const canManageAssets = (me) => isStaff(me) || isSalesHead(me) || isDevManager(me);
 export const canAssignTasks = (me) => isStaff(me) || isExecHead(me) || headsTeam(me);
 /** The employee works on their own tasks; heads / staff see all of them. */
-export const canSeeTask = (me, t) => canAssignTasks(me) || t.assignee_id === me.id;
+export const canSeeTask = (me, t) => canAssignTasks(me) || t.assignee_id === me.id || leadTeam(me).includes(t.assignee_id);
+/** People in the teams this member is the team lead of (Ananya → the designers and video editors). */
+export const leadTeam = (me) => [...new Set((me.leadGroups || []).filter((g) => g.kind !== "execution").flatMap((g) => g.memberIds || []))].filter((id) => id !== me.id);
 export const canReviewTask = (me, t) => isStaff(me) || t.assigned_by === me.id || isExecHead(me);
 
 // Content calendar: the strategists build it, heads / staff can too; the monthly plan is the heads' call

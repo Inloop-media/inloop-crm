@@ -6,7 +6,7 @@ import { requireMember } from "@/lib/auth";
 import { db } from "@/lib/supabase/server";
 import { getBrand } from "@/lib/brands";
 import { pingLive } from "@/lib/live";
-import { canAssignTo, logTask, notifyTask, productionPeople, sharerIds, TASK_FIELDS } from "@/lib/tasks";
+import { canAssignTo, logTask, notifyTask, productionPeople, sharerIds, TASK_FIELDS, withLeadFlags } from "@/lib/tasks";
 import { MAKER_STATUS_OPTIONS, OPEN_TASK, PRIORITIES, RAW_WHAT, TASK_KINDS, TASK_STATUSES, taskKindLabel } from "@/lib/constants";
 import { canAssignTasks, canPostContent, canReviewTask, canSeeCalendar, isOpsHead } from "@/lib/permissions";
 import { postingKit, queuePosting } from "@/lib/posting";
@@ -336,9 +336,16 @@ export async function setTaskStatus(id, status) {
     .update({ status: next, updated_at: now, ...(next === "completed" ? { completed_at: now } : {}) })
     .eq("id", id);
   if (error) return { ok: false, error: error.message };
+  // Each new submission is checked by the team lead again
+  if (next === "completed") await db().from("tasks").update({ lead_ok_at: null, lead_ok_by: null }).eq("id", id).then(() => {}, () => {});
+  const [flagged] = next === "completed" ? await withLeadFlags([{ ...task, status: "completed", lead_ok_at: null }]) : [null];
   await logTask(id, me.id, "status", { from: task.status, to: next });
   const main = next === "completed" && task.for_task_id ? await loadTask(task.for_task_id) : null;
-  if (next === "completed" && task.assigned_by && task.assigned_by !== me.id && task.assigned_by !== main?.assignee_id) {
+  if (flagged?.with_lead) {
+    // Their team lead checks it first; the manager hears once it's approved
+    const leads = flagged.lead_ids.filter((x) => x !== me.id);
+    if (leads.length) after(() => notifyTask(leads, task, `${me.name} completed — check it`, task.revision ? `Revision ${task.revision} · approve it to send it on.` : "Check it and approve to send it to the manager."));
+  } else if (next === "completed" && task.assigned_by && task.assigned_by !== me.id && task.assigned_by !== main?.assignee_id) {
     after(() => notifyTask([task.assigned_by], task, `${me.name} completed`, task.revision ? `Revision ${task.revision} is ready for review.` : "Ready for your review."));
   }
   // A shoot for another task: tell that task's designer / editor the raw files are up
@@ -347,6 +354,38 @@ export async function setTaskStatus(id, status) {
     if (main.assignee_id && main.assignee_id !== me.id) after(() => notifyTask([main.assignee_id], main, "📸 Raw files are ready", `${me.name.split(" ")[0]} uploaded them — open the task and start.`));
     refresh(main);
   }
+  refresh(task);
+  return { ok: true };
+}
+
+/**
+ * The team lead's check (e.g. Ananya for the designers): approve → it goes to the manager's "To check";
+ * send back → a revision with her feedback.
+ */
+export async function leadReview(id, action, feedback = "") {
+  const me = await requireMember();
+  const task = await loadTask(id);
+  if (!task) return { ok: false, error: "Task not found." };
+  const [t] = await withLeadFlags([task]);
+  if (!t.with_lead || !t.lead_ids.includes(me.id)) return { ok: false, error: "This isn't waiting for your check." };
+  const now = new Date().toISOString();
+  const first = me.name.split(" ")[0];
+  if (action === "approve") {
+    const { error } = await db().from("tasks").update({ lead_ok_at: now, lead_ok_by: me.id, updated_at: now }).eq("id", id);
+    if (error) return { ok: false, error: /lead_ok/.test(error.message) ? "Run migration 036_lead_review.sql in Supabase first." : error.message };
+    await logTask(id, me.id, "lead_ok", { revision: task.revision });
+    after(async () => {
+      if (task.assigned_by && task.assigned_by !== me.id) await notifyTask([task.assigned_by], task, `✅ ${first} checked it`, `${task.assignee?.name?.split(" ")[0] || "The work"} is ready for your review.`);
+      if (task.assignee_id && task.assignee_id !== me.id) await notifyTask([task.assignee_id], task, `${first} approved it`, "It's gone to your manager for the final check.");
+    });
+  } else if (action === "send_back") {
+    const note = str(feedback, 4000);
+    if (!note) return { ok: false, error: "Tell them what to change." };
+    const { error } = await db().from("tasks").update({ status: "revision", revision: task.revision + 1, feedback: note, lead_ok_at: null, lead_ok_by: null, updated_at: now, due_soon_notified_at: null, overdue_notified_at: null }).eq("id", id);
+    if (error) return { ok: false, error: error.message };
+    await logTask(id, me.id, "send_back", { feedback: note, revision: task.revision + 1 });
+    if (task.assignee_id && task.assignee_id !== me.id) after(() => notifyTask([task.assignee_id], task, `Revision needed — ${first}`, note.slice(0, 140)));
+  } else return { ok: false, error: "Unknown action." };
   refresh(task);
   return { ok: true };
 }

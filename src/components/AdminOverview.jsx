@@ -94,7 +94,7 @@ export default function AdminOverview({ me, data, brands = [], tasks = [], actio
   const inWork = tasks.filter((t) => OPEN_TASK.includes(t.status));
   const late = inWork.filter((t) => t.due_at && new Date(t.due_at).getTime() < now);
   const dueToday = inWork.filter((t) => t.due_at && dayKey(t.due_at) === today && !late.includes(t));
-  const toCheck = tasks.filter((t) => ["completed", "client_rejected"].includes(t.status));
+  const toCheck = tasks.filter((t) => ["completed", "client_rejected"].includes(t.status) && !t.with_lead);
 
   // Needs you — most urgent first
   const todo = [];

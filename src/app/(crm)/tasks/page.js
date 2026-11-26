@@ -9,6 +9,7 @@ import TaskBoard from "@/components/TaskBoard";
 import QuickAssign from "@/components/QuickAssign";
 import { listBrands } from "@/lib/brands";
 import MyWork from "@/components/MyWork";
+import TeamToCheck from "@/components/TeamToCheck";
 import { requireMember } from "@/lib/auth";
 import { listMakers, listTasks } from "@/lib/tasks";
 import { canAssignTasks, headsTeam, myTeam } from "@/lib/permissions";
@@ -81,6 +82,9 @@ export default async function TasksPage({ searchParams }) {
     return (
       <div className="page max-w-5xl">
         <PageTop title="My tasks" sub="Press Start when you begin. When it's ready, open the task, upload the file and submit." />
+        <div className="rise mb-5">
+          <TeamToCheck me={me} />
+        </div>
         <div className="rise">
           <MyWork me={me} tasks={mine} />
         </div>
@@ -120,7 +124,9 @@ export default async function TasksPage({ searchParams }) {
 
   const now = nowMs();
   const isLate = (t) => OPEN_TASK.includes(t.status) && t.due_at && new Date(t.due_at).getTime() < now;
-  const toCheck = shown.filter((t) => ["completed", "client_rejected"].includes(t.status)).sort(byPriority);
+  const toCheck = shown.filter((t) => ["completed", "client_rejected"].includes(t.status) && !t.with_lead).sort(byPriority);
+  // Finished, but the team lead (e.g. Ananya) checks it first
+  const withLead = shown.filter((t) => t.with_lead);
   const late = shown.filter(isLate).sort(byPriority);
   const working = shown.filter((t) => OPEN_TASK.includes(t.status) && !isLate(t)).sort(byPriority);
   const withClient = shown.filter((t) => t.status === "sent_to_client");
@@ -192,6 +198,7 @@ export default async function TasksPage({ searchParams }) {
                 ["To check", toCheck],
                 ["Late", late],
                 ["In progress", working],
+                ["With team lead", withLead],
                 ["Ready to share with client", shown.filter((t) => t.status === "ready")],
                 ["On hold", shown.filter((t) => t.status === "on_hold")],
                 ["Shared with client", withClient],

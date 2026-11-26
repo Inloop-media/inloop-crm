@@ -17,6 +17,7 @@ import { Block, HomeHeader } from "@/components/Home";
 import { canKeepNotes, canSeeAllLeads, canSeeLeads, headsTeam, isExecHead, isOpsHead, isSalesHead, isStrategist, myTeam, salesTeam } from "@/lib/permissions";
 import TeamMeetings from "@/components/TeamMeetings";
 import MyNotes from "@/components/MyNotes";
+import TeamToCheck from "@/components/TeamToCheck";
 import { myNotes } from "@/lib/notes";
 import { canCallMeetings, meetingAudience, myTeamMeetings } from "@/lib/teamMeetings";
 import { listGroups } from "@/lib/leads";
@@ -148,6 +149,7 @@ function AdminTop({ me }) {
 function Side({ me }) {
   return (
     <>
+      <TeamToCheck me={me} />
       <Notes me={me} />
       <Meetings me={me} />
       <MyGroups me={me} />

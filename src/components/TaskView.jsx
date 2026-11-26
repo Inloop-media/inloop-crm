@@ -4,7 +4,7 @@ import Link from "next/link";
 import Linkify from "@/components/Linkify";
 import Icon from "@/components/Icon";
 import { Avatar } from "@/components/ui";
-import { HoldPanel, MainAction, ReviewPanel, TaskAdmin, TaskFiles } from "@/components/TaskForms";
+import { HoldPanel, LeadReviewPanel, MainAction, ReviewPanel, TaskAdmin, TaskFiles } from "@/components/TaskForms";
 import DriveUploads from "@/components/DriveUploads";
 import RawRequest from "@/components/RawRequest";
 import PostKit from "@/components/PostKit";
@@ -26,6 +26,7 @@ export const EVENT = {
   resume: () => "picked it back up",
   reference: (d) => `added ${d.name}`,
   send_back: () => "sent it back for changes",
+  lead_ok: () => "checked it — sent to the manager",
   share_client: () => "shared it with the client",
   ready: () => "approved it — ready for the client",
   approve: () => "approved it",
@@ -205,7 +206,7 @@ function Card({ title, sub, children, className = "" }) {
  *   mine    the viewer is doing this task
  *   people  who it can be given to (for heads)
  */
-export default function TaskView({ task, head, mine, people = [], crew = [] }) {
+export default function TaskView({ task, head, mine, leadCheck = false, people = [], crew = [] }) {
   const refs = task.files.filter((f) => f.role === "reference");
   const showFeedback = task.feedback && ["revision", "assigned", "in_progress"].includes(task.status);
   const st = TASK_STATUSES[task.status] || { label: task.status, color: "#94a3b8" };
@@ -351,7 +352,9 @@ export default function TaskView({ task, head, mine, people = [], crew = [] }) {
             <div className="flex flex-col gap-3">
               {mine && task.kind !== "posting" && <MainAction task={task} />}
               {mine && task.kind === "posting" && task.status !== "done" && <p className="text-center text-[12.5px] text-muted">Post it, then press “Mark as posted” in the post kit.</p>}
-              {head && !mine && task.status !== "on_hold" && <ReviewPanel task={task} people={people} />}
+              {leadCheck && <LeadReviewPanel task={task} />}
+              {head && !mine && !leadCheck && task.with_lead && <p className="rounded-xl bg-panel-2 px-3 py-2.5 text-center text-[12.5px] text-muted">With the team lead for a check first — it comes to your To check once they approve.</p>}
+              {head && !mine && !leadCheck && !task.with_lead && task.status !== "on_hold" && <ReviewPanel task={task} people={people} />}
               {head && mine && ["completed", "ready", "client_rejected", "sent_to_client"].includes(task.status) && <ReviewPanel task={task} people={people} />}
               {head && !mine && OPEN_TASK.includes(task.status) && <p className="text-center text-[12px] text-muted">{task.assignee?.name.split(" ")[0] || "They"} is on it — you&apos;ll be notified when it&apos;s submitted.</p>}
               {mine && waitingRaw.length > 0 && (

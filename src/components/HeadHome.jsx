@@ -63,7 +63,7 @@ function Brands({ tasks, brands, boardHref }) {
  */
 export default function HeadHome({ tasks, brands = [], files = {}, boardHref = "/tasks", side = null }) {
   const today = dayKey(now());
-  const review = tasks.filter((t) => ["completed", "client_rejected"].includes(t.status)).sort((a, b) => (a.updated_at || "").localeCompare(b.updated_at || ""));
+  const review = tasks.filter((t) => ["completed", "client_rejected"].includes(t.status) && !t.with_lead).sort((a, b) => (a.updated_at || "").localeCompare(b.updated_at || ""));
   const overdue = tasks.filter(late).sort((a, b) => a.due_at.localeCompare(b.due_at));
   const inWork = tasks.filter((t) => OPEN_TASK.includes(t.status) && !late(t)).sort((a, b) => (a.due_at || "9").localeCompare(b.due_at || "9"));
   const dueToday = inWork.filter((t) => t.due_at && dayKey(t.due_at) === today);

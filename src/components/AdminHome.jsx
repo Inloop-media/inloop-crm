@@ -72,7 +72,7 @@ export default function AdminHome({ me, data, brands = [], tasks = [], actions, 
   const mouDraft = brands.filter((b) => b.stage === "mou_draft");
   const inWork = tasks.filter((t) => OPEN_TASK.includes(t.status));
   const late = inWork.filter((t) => t.due_at && new Date(t.due_at).getTime() < now).sort((a, b) => a.due_at.localeCompare(b.due_at));
-  const toCheck = tasks.filter((t) => ["completed", "client_rejected"].includes(t.status));
+  const toCheck = tasks.filter((t) => ["completed", "client_rejected"].includes(t.status) && !t.with_lead);
 
   // Needs you — one list, most urgent first (tasks have their own cards below)
   const todo = [];

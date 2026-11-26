@@ -100,7 +100,8 @@ export default function TaskBoard({ tasks: initial, showBrand = true }) {
       )}
       <div className="-mx-4 flex snap-x gap-3 overflow-x-auto px-4 pb-2 md:mx-0 md:px-0">
         {COLS.map((c) => {
-          const list = tasks.filter((t) => c.statuses.includes(t.status)).sort(c.id === "done" ? () => 0 : byPriority);
+          // Work still with the team lead stays in "In progress" until they approve it
+          const list = tasks.filter((t) => (t.with_lead ? c.id === "doing" : c.statuses.includes(t.status))).sort(c.id === "done" ? () => 0 : byPriority);
           const shown = c.id === "done" ? list.slice(0, 20) : list;
           const valid = drag && typeof move(tasks.find((x) => x.id === drag)?.status, c.id) !== "string";
           return (

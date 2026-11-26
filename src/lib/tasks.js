@@ -2,7 +2,7 @@ import "server-only";
 import { db } from "@/lib/supabase/server";
 import { pushTo } from "@/lib/push";
 import { MAKER_KINDS, OPEN_TASK, taskKindLabel } from "@/lib/constants";
-import { canAssignTasks, canSeeTask, headsTeam, myTeam } from "@/lib/permissions";
+import { canAssignTasks, canSeeTask, headsTeam, leadTeam, myTeam } from "@/lib/permissions";
 import { operationsHeadIds, runnersOf, teamLeadIdsOf } from "@/lib/groups";
 import { listGroups } from "@/lib/leads";
 
@@ -14,6 +14,34 @@ export const TASK_FIELDS =
   "calendar:calendar_items!calendar_items_task_id_fkey(id, publish_on, platform)";
 
 const isUuid = (v) => /^[0-9a-f-]{36}$/i.test(String(v || ""));
+
+/**
+ * Team leads who check a person's work before their manager: the team leads of the (non-CBO) groups
+ * they're in, not counting themselves. { memberId: [leadId…] }
+ */
+export async function leadsByMember() {
+  const map = {};
+  for (const g of await listGroups()) {
+    if (g.kind === "execution") continue;
+    const leads = teamLeadIdsOf(g);
+    if (!leads.length) continue;
+    for (const m of g.members || []) map[m.id] = [...new Set([...(map[m.id] || []), ...leads.filter((l) => l !== m.id)])];
+  }
+  return map;
+}
+
+/**
+ * Marks tasks still with the team lead: completed, the doer has a team lead, the lead hasn't approved it
+ * yet, and the lead didn't give the task themselves. Adds `lead_ids` and `with_lead` to each task.
+ */
+export async function withLeadFlags(tasks) {
+  if (!tasks?.length) return tasks || [];
+  const leads = await leadsByMember();
+  return tasks.map((t) => {
+    const ids = leads[t.assignee_id] || [];
+    return { ...t, lead_ids: ids, with_lead: t.status === "completed" && ids.length > 0 && !t.lead_ok_at && !ids.includes(t.assigned_by) };
+  });
+}
 
 /**
  * Tasks for a view:
@@ -33,7 +61,7 @@ export async function listTasks(me, { view = "mine", brandId, status } = {}) {
   if (status) q = q.eq("status", status);
   const { data, error } = await q;
   if (error) return [];
-  return data || [];
+  return withLeadFlags(data || []);
 }
 
 /** One task with its files (signed links) and history, or null if this member can't see it. */
@@ -41,6 +69,8 @@ export async function getTask(me, id) {
   if (!isUuid(id)) return null;
   const { data: t } = await db().from("tasks").select(TASK_FIELDS).eq("id", id).maybeSingle();
   if (!t || !canSeeTask(me, t)) return null;
+  const [flagged] = await withLeadFlags([t]);
+  Object.assign(t, flagged);
   const [{ data: files }, { data: events }] = await Promise.all([
     db().from("task_files").select("*, uploader:members(name)").eq("task_id", id).order("created_at"),
     db().from("task_events").select("id, type, data, created_at, actor:members(name)").eq("task_id", id).order("created_at", { ascending: false }).limit(100),
@@ -193,15 +223,25 @@ export function notifyTask(memberIds, task, title, body = "") {
   return pushTo(memberIds, { title: `${title}: ${task.title}`, body: body || what, url: `/tasks/${task.id}`, tag: `task-${task.id}` });
 }
 
-/** Counts for the nav badge: my open tasks (+ the review queue for heads). */
+/** Counts for the nav badge: my open tasks, the review queue for heads (minus what's still with a team
+ * lead), and for a team lead their team's finished work waiting for their check. */
 export async function taskBadge(me) {
   const mine = db().from("tasks").select("id", { count: "exact", head: true }).eq("assignee_id", me.id).in("status", OPEN_TASK);
-  const review = canAssignTasks(me)
-    ? db().from("tasks").select("id", { count: "exact", head: true }).in("status", ["completed", "client_rejected"])
-    : null;
-  const [a, b] = await Promise.all([mine, review]);
+  const review = canAssignTasks(me) ? db().from("tasks").select("id, status, assignee_id, assigned_by, lead_ok_at").in("status", ["completed", "client_rejected"]).limit(500) : null;
+  const [a, b, queue] = await Promise.all([mine, review, leadTeam(me).length ? leadQueue(me, { count: true }) : 0]);
   if (a.error) return 0; // before migration 009
-  return (a.count || 0) + (b?.count || 0);
+  const toCheck = b?.data ? (await withLeadFlags(b.data)).filter((t) => !t.with_lead).length : 0;
+  return (a.count || 0) + toCheck + (queue || 0);
+}
+
+/** A team lead's queue: their team's completed work that's waiting for their check (or just how many). */
+export async function leadQueue(me, { count = false } = {}) {
+  const team = leadTeam(me).filter(isUuid);
+  if (!team.length) return count ? 0 : [];
+  const { data, error } = await db().from("tasks").select(count ? "id, status, assignee_id, assigned_by, lead_ok_at" : TASK_FIELDS).eq("status", "completed").in("assignee_id", team).limit(300);
+  if (error) return count ? 0 : [];
+  const mineToCheck = (await withLeadFlags(data || [])).filter((t) => t.with_lead && t.lead_ids.includes(me.id));
+  return count ? mineToCheck.length : mineToCheck;
 }
 
 /** The current version's deliverable files (signed links) for tasks waiting on review: { taskId: [{ name, href }] }. */

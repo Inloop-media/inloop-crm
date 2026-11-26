@@ -67,7 +67,7 @@ async function ledGroupsOf(memberId) {
     .filter((g) => runsGroup(g, memberId))
     .map((g) => ({ id: g.id, name: g.name, kind: g.kind, owned: g.owner_id === memberId, memberIds: (g.group_members || []).map((m) => m.member_id) }));
   // groups where this person is a team lead
-  const lead = all.filter((g) => teamLeadIdsOf(g).includes(memberId)).map((g) => ({ id: g.id, name: g.name, kind: g.kind }));
+  const lead = all.filter((g) => teamLeadIdsOf(g).includes(memberId)).map((g) => ({ id: g.id, name: g.name, kind: g.kind, memberIds: (g.group_members || []).map((m) => m.member_id) }));
   return { led, lead, opsHead: operationsHeadIds(all).includes(memberId) };
 }
 

@@ -21,7 +21,7 @@ function Next({ t }) {
       </Link>
     );
   const s = TASK_STATUSES[t.status];
-  const label = { completed: "With your manager", ready: "Approved — going to the client", sent_to_client: "With the client", client_rejected: "Client asked for changes", done: "Approved" }[t.status] || s?.label;
+  const label = t.with_lead ? "With your team lead" : { completed: t.lead_ok_at ? "Team lead approved — with your manager" : "With your manager", ready: "Approved — going to the client", sent_to_client: "With the client", client_rejected: "Client asked for changes", done: "Approved" }[t.status] || s?.label;
   return (
     <span className="flex items-center gap-1.5 text-xs text-muted">
       <span className="h-1.5 w-1.5 rounded-full" style={{ background: s?.color }} />

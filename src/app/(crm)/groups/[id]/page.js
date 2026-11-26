@@ -132,7 +132,7 @@ export default async function GroupPage({ params }) {
   const open = tasks.filter((t) => OPEN_TASK.includes(t.status));
   const late = open.filter(isLate).sort(byPriority);
   const working = open.filter((t) => !isLate(t)).sort(byPriority);
-  const toCheck = tasks.filter((t) => ["completed", "client_rejected"].includes(t.status)).sort(byPriority);
+  const toCheck = tasks.filter((t) => ["completed", "client_rejected"].includes(t.status) && !t.with_lead).sort(byPriority);
   const approvedWeek = tasks.filter((t) => t.status === "done" && t.done_at && now - new Date(t.done_at).getTime() < 7 * DAY);
   const active = brands.filter((b) => b.stage === "active").map((b) => ({ id: b.id, name: b.name }));
 

@@ -8,7 +8,7 @@ import Linkify from "@/components/Linkify";
 import DrivePicker from "@/components/DrivePicker";
 import { setTaskFolders } from "@/app/(crm)/drive/actions";
 import { createClient } from "@/lib/supabase/browser";
-import { addTaskFile, addTaskNote, createTask, holdTask, resumeTask, deleteTask, removeTaskFile, reviewTask, setTaskStatus, startTaskUpload, updateTask } from "@/app/(crm)/tasks/actions";
+import { addTaskFile, addTaskNote, createTask, holdTask, leadReview, resumeTask, deleteTask, removeTaskFile, reviewTask, setTaskStatus, startTaskUpload, updateTask } from "@/app/(crm)/tasks/actions";
 import { MAKER_STATUS_OPTIONS, OPEN_TASK, PRIORITIES, TASK_KINDS, TASK_STATUSES } from "@/lib/constants";
 
 const KIND_GROUP = { head: "Managers / CBOs", design: "Designers", development: "Developers", video: "Video editors", production: "Production", performance: "Performance", social: "Social media", strategy: "Creative strategists", sales: "Sales", execution: "CBO" };
@@ -423,6 +423,34 @@ export function TaskFiles({ task, canUpload }) {
 }
 
 /* ------------------------------ Head ------------------------------ */
+
+/** The team lead's check (Ananya): approve → the manager's "To check"; or send it back with what to change. */
+export function LeadReviewPanel({ task }) {
+  const { pending, error, run } = useRun();
+  const [note, setNote] = useState("");
+  const [back, setBack] = useState(false);
+  return (
+    <div className="flex flex-col gap-2.5">
+      <p className="rounded-xl bg-amber-500/10 px-3 py-2.5 text-[12.5px] text-amber-700 dark:text-amber-300">Your check first — once you approve, it goes to the manager.</p>
+      <button onClick={() => run(() => leadReview(task.id, "approve"))} disabled={pending} className="btn-primary justify-center">
+        <Icon name="check" size={14} /> Approve — send to manager
+      </button>
+      {back ? (
+        <>
+          <textarea className="field resize-y" rows={3} autoFocus value={note} onChange={(e) => setNote(e.target.value)} placeholder="What should they change?" />
+          <button onClick={() => run(() => leadReview(task.id, "send_back", note))} disabled={pending || !note.trim()} className="btn-ghost justify-center">
+            <Icon name="refresh" size={14} /> Send back for changes
+          </button>
+        </>
+      ) : (
+        <button onClick={() => setBack(true)} className="btn-ghost justify-center">
+          <Icon name="refresh" size={14} /> Needs changes
+        </button>
+      )}
+      {error && <p className="text-xs text-rose-400">{error}</p>}
+    </div>
+  );
+}
 
 /** Review / client / reassign controls for the execution head. */
 export function ReviewPanel({ task, people }) {
