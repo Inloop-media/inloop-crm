@@ -25,6 +25,9 @@ function usePush() {
     // Only look here — the worker is registered when they tap "Turn on". (Registering on page load could
     // hang on iPhone and left the bell saying "can't turn on".)
     const check = async () => {
+      // Notifications only from the live CRM: a local copy (localhost) shares the database, so a
+      // subscription made there would get real notifications labelled "localhost"
+      if (!/(^|\.)inloophub\.com$/.test(location.hostname) && !/\.vercel\.app$/.test(location.hostname)) return "local";
       const ios = /iPad|iPhone|iPod/.test(navigator.userAgent);
       const installed = window.matchMedia("(display-mode: standalone)").matches || navigator.standalone;
       if (!("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window) || !KEY) {
@@ -101,6 +104,7 @@ const COPY = {
     text: "This browser can't show them. iPhone: open inloophub.com in Safari → Share → Add to Home Screen, open loop from there and tap the bell. Android: open inloophub.com in Chrome.",
   },
   loading: { title: "Checking notifications…", text: "" },
+  local: { title: "Notifications only on inloophub.com", text: "This is a local copy of loop — turn notifications on at inloophub.com instead." },
 };
 
 export default function PushSetup({ variant = "card" }) {

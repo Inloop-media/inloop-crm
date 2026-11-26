@@ -179,6 +179,8 @@ export async function savePushSubscription(sub, userAgent = "") {
   const p256dh = str(sub?.keys?.p256dh, 400);
   const auth = str(sub?.keys?.auth, 400);
   if (!endpoint.startsWith("https://") || !p256dh || !auth) return { ok: false, error: "This browser sent an invalid subscription." };
+  // A local copy shares the live database — don't save its subscriptions (they'd show as "localhost")
+  if (process.env.NODE_ENV !== "production") return { ok: false, error: "Notifications only work on inloophub.com." };
   const { error } = await db()
     .from("push_subscriptions")
     .upsert({ member_id: me.id, endpoint, p256dh, auth, user_agent: str(userAgent, 300) }, { onConflict: "endpoint" });
