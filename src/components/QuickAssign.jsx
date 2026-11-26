@@ -358,6 +358,13 @@ export default function QuickAssign({ brands, people, defaultBrand = "", label =
                           placeholder={raw.what === "footage" ? "e.g. 3 product clips in motion, 10–15 sec each, vertical 9:16…" : "e.g. Front + side shots of the new pack on white, 4–5 lifestyle shots…"}
                         />
                       </div>
+                      {f.brand && (
+                        <div>
+                          <Label>Google Drive for the raw files</Label>
+                          <p className="mb-2 text-[11.5px] text-muted">A “Raw” folder is made inside the task&apos;s first Drive folder automatically. Add folders if the raw files go elsewhere too.</p>
+                          <DrivePicker key={`raw-${f.brand}`} brandId={f.brand} value={raw.folders || []} onChange={(v) => setRaw((r) => ({ ...r, folders: v }))} />
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>

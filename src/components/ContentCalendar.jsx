@@ -380,7 +380,7 @@ function Drawer({ item, brandId, people, canEdit, canAssign, canDelete = false, 
                     <input type="date" className="field" value={due} onChange={(e) => setDue(e.target.value)} />
                     <PrioritySelect value={priority} onChange={setPriority} />
                   </div>
-                  <RawToggle value={raw} onChange={setRaw} kind={f.kind} who={people.find((p) => p.id === who)?.name.split(" ")[0]} />
+                  <RawToggle value={raw} onChange={setRaw} kind={f.kind} who={people.find((p) => p.id === who)?.name.split(" ")[0]} brandId={brandId} />
                   <div className="flex flex-col gap-2 rounded-xl border border-line bg-panel p-3">
                     <span className="flex items-center gap-1.5 text-[12px] font-medium">
                       <Icon name="board" size={13} className="text-amber-500" /> Google Drive

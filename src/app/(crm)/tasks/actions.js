@@ -1,5 +1,6 @@
 "use server";
 
+import { brandFolders, driveConnection, ensurePath } from "@/lib/drive";
 import { revalidatePath } from "next/cache";
 import { after } from "next/server";
 import { requireMember } from "@/lib/auth";
@@ -118,10 +119,29 @@ export async function requestRaw(forId, input) {
   const { data: shoot, error } = await db().from("tasks").insert(row).select(TASK_FIELDS).single();
   if (error) return { ok: false, error: /for_task_id|kind_check|shoot/.test(error.message) ? "Run migration 027_raw_requests.sql in Supabase first." : error.message };
   await Promise.all([logTask(shoot.id, me.id, "created", { to: assignee.name }), logTask(task.id, me.id, "raw_requested", { to: assignee.name, what: label.toLowerCase() })]);
-  // The task's "Raw" Drive folder (e.g. Reel 3 Raw) is where Production uploads the shoot
-  const { data: rawDirs } = await db().from("task_folders").select("drive_id, path").eq("task_id", task.id);
-  const raws = (rawDirs || []).filter((f) => / raw$/i.test(f.path));
-  if (raws.length) await db().from("task_folders").insert(raws.map((f, i) => ({ task_id: shoot.id, drive_id: f.drive_id, path: f.path, note: "Raw footage / photos from the shoot", sort: i })));
+  // Where Production uploads the shoot on Drive: the task's "Raw" folder (e.g. Reel 3 Raw) — made next to
+  // its post folder when there isn't one (e.g. "Static Post 4 Raw") — plus any folders the manager picked
+  try {
+    const { data: dirs } = await db().from("task_folders").select("drive_id, path").eq("task_id", task.id).order("sort");
+    let raws = (dirs || []).filter((f) => / raw$/i.test(f.path));
+    if (!raws.length && dirs?.length && (await driveConnection())?.root_id) {
+      const base = dirs[0].path.split(" / ");
+      const name = (base[base.length - 1] || "Shoot").split(" – ")[0];
+      const raw = await ensurePath(task.brand, [...base, `${name} Raw`], me.id);
+      raws = [raw];
+      // The designer / editor sees it on their task too
+      await db().from("task_folders").insert({ task_id: task.id, drive_id: raw.drive_id, path: raw.path, note: "Raw from Production", sort: (dirs?.length || 0) + 1 }).then(() => {}, () => {});
+    }
+    const known = new Map((await brandFolders(task.brand_id)).map((f) => [f.drive_id, f.path]));
+    const picked = (Array.isArray(input.folders) ? input.folders : []).filter((f) => known.has(f?.drive_id) && !raws.some((r) => r.drive_id === f.drive_id)).slice(0, 20);
+    const rows = [
+      ...raws.map((f) => ({ drive_id: f.drive_id, path: f.path, note: "Raw footage / photos from the shoot" })),
+      ...picked.map((f) => ({ drive_id: f.drive_id, path: known.get(f.drive_id), note: str(f.note, 300) })),
+    ];
+    if (rows.length) await db().from("task_folders").insert(rows.map((f, i) => ({ task_id: shoot.id, ...f, sort: i })));
+  } catch (err) {
+    console.error("Drive folders for the shoot failed:", err.message);
+  }
   const maker = task.assignee?.name.split(" ")[0];
   after(async () => {
     if (assignee.id !== me.id) await notifyTask([assignee.id], shoot, "📸 Shoot needed", `${label} for ${maker ? `${maker}'s ` : ""}${taskKindLabel(task.kind).toLowerCase()} · ${task.brand?.name || ""}`);

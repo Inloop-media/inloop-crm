@@ -5,6 +5,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Icon from "@/components/Icon";
+import DrivePicker from "@/components/DrivePicker";
 import { addTaskFile, listProductionCrew, requestRaw, startTaskUpload } from "@/app/(crm)/tasks/actions";
 import { createClient } from "@/lib/supabase/browser";
 import { RAW_WHAT } from "@/lib/constants";
@@ -187,7 +188,7 @@ export default function RawRequest({ task, crew = [], mine = false }) {
  * calendar's post panel). `value` is null when off, else { what, assignee_id, brief, due_at }; the caller
  * sends it with requestRaw(taskId, value) right after the task is made.
  */
-export function RawToggle({ value, onChange, kind, who = "" }) {
+export function RawToggle({ value, onChange, kind, who = "", brandId = "" }) {
   const [crew, setCrew] = useState(null);
   const video = ["reel", "video"].includes(kind);
   const toggle = () => {
@@ -253,6 +254,15 @@ export function RawToggle({ value, onChange, kind, who = "" }) {
             onChange={(e) => set("brief", e.target.value)}
             placeholder={value.what === "footage" ? "What to shoot — e.g. 3 product clips in motion, vertical 9:16…" : "What to shoot — e.g. front + side of the pack on white, 4–5 lifestyle shots…"}
           />
+          {brandId && (
+            <div className="flex flex-col gap-2 rounded-xl border border-line bg-panel p-3">
+              <span className="flex items-center gap-1.5 text-[12px] font-medium">
+                <Icon name="board" size={13} className="text-amber-500" /> Google Drive for the raw files
+              </span>
+              <p className="text-[11.5px] leading-relaxed text-muted">They get the post&apos;s <span className="text-ink/80">Raw</span> folder automatically (e.g. Reel 3 Raw). Add folders if the raw files go elsewhere too.</p>
+              <DrivePicker brandId={brandId} value={value.folders || []} onChange={(v) => set("folders", v)} />
+            </div>
+          )}
         </div>
       )}
     </div>
