@@ -17,10 +17,17 @@ function FileTile({ f, n }) {
     <li className="overflow-hidden rounded-xl border border-line bg-panel">
       <div className="relative bg-panel-2">
         {n && <span className="absolute left-2 top-2 z-[1] grid h-6 min-w-6 place-items-center rounded-full bg-black/65 px-1.5 text-[11px] font-semibold text-white">{n}</span>}
-        {isImg(f.name) && f.href ? (
+        {f.drive && (isImg(f.name) || isVid(f.name)) ? (
+          // Google Drive file: Google's own preview picture (opens to play / view in Drive)
+          <a href={f.href} target="_blank" rel="noreferrer" className="relative block">
+            {/* eslint-disable-next-line @next/next/no-img-element -- Drive thumbnail */}
+            <img src={f.thumb} alt={f.name} className="aspect-[4/5] w-full object-cover" loading="lazy" referrerPolicy="no-referrer" />
+            {isVid(f.name) && <span className="absolute inset-0 grid place-items-center text-[28px] text-white drop-shadow">▶</span>}
+          </a>
+        ) : !f.drive && !f.link && isImg(f.name) && f.href ? (
           // eslint-disable-next-line @next/next/no-img-element -- signed storage URL
           <img src={f.href} alt={f.name} className="aspect-[4/5] w-full object-cover" loading="lazy" />
-        ) : isVid(f.name) && f.href ? (
+        ) : !f.drive && !f.link && isVid(f.name) && f.href ? (
           <video src={f.href} controls playsInline preload="metadata" className="aspect-[9/16] max-h-[420px] w-full bg-black object-contain" />
         ) : (
           <span className="grid aspect-[4/3] place-items-center text-muted">
@@ -191,6 +198,15 @@ export default function PostKit({ itemId, compact = false }) {
             </button>
           )}
         </div>
+        {kit.folders?.length > 0 && (
+          <div className="mb-2 flex flex-wrap gap-2">
+            {kit.folders.map((d) => (
+              <a key={d.href} href={d.href} target="_blank" rel="noreferrer" className="btn-ghost btn-sm">
+                <Icon name="board" size={12} /> {d.name} · Open in Drive <Icon name="external" size={11} />
+              </a>
+            ))}
+          </div>
+        )}
         {files.length ? (
           <ul className={`grid gap-2 ${files.some((f) => isVid(f.name)) ? "grid-cols-1 sm:grid-cols-2" : "grid-cols-2 sm:grid-cols-3"}`}>
             {files.map((f, i) => (

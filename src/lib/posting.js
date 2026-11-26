@@ -80,7 +80,7 @@ export async function postingKit(itemId) {
   if (work) {
     const { data } = await db()
       .from("task_files")
-      .select("id, name, storage_path, url, size, revision")
+      .select("*")
       .eq("task_id", work.id)
       .eq("role", "deliverable")
       .eq("revision", work.revision);
@@ -93,9 +93,17 @@ export async function postingKit(itemId) {
     }
     files = files.map((f) => {
       const href = f.storage_path ? signed[f.storage_path] || "" : f.url;
+      // A file uploaded to Google Drive: its name, a thumbnail Google makes, and a direct download link
+      if (f.drive_file_id) {
+        const id = encodeURIComponent(f.drive_file_id);
+        return { id: f.id, name: f.name, link: false, drive: true, href: f.url, thumb: `https://drive.google.com/thumbnail?id=${id}&sz=w800`, download: `https://drive.google.com/uc?export=download&id=${id}` };
+      }
       return { id: f.id, name: f.name, link: !f.storage_path, href, download: f.storage_path && href ? `${href}${href.includes("?") ? "&" : "?"}download=${encodeURIComponent(f.name || "file")}` : href };
     });
   }
+  // The work's Drive folders (not the raw footage) — the posting team opens the final files there
+  const { data: dirs } = work ? await db().from("task_folders").select("drive_id, path").eq("task_id", work.id).order("sort") : { data: [] };
+  const folders = (dirs || []).filter((d) => !/ raw$/i.test(d.path)).map((d) => ({ name: d.path.split(" / ").pop() || "Drive folder", href: `https://drive.google.com/drive/folders/${d.drive_id}` }));
   const [{ data: posting }, poster] = await Promise.all([
     db().from("tasks").select("id, status, assignee:members!tasks_assignee_id_fkey(id, name)").eq("post_item_id", item.id).limit(1),
     item.posted_by ? db().from("members").select("name").eq("id", item.posted_by).maybeSingle() : { data: null },
@@ -123,6 +131,7 @@ export async function postingKit(itemId) {
       posted_by: poster?.data?.name || "",
     },
     approved,
+    folders,
     maker: work?.assignee?.name || "",
     files,
     posting: posting?.[0] || null,
