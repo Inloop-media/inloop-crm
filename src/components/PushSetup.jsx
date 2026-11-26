@@ -19,25 +19,35 @@ function keyBytes(base64) {
 function usePush() {
   const [state, setState] = useState("loading");
   const [sub, setSub] = useState(null);
+  const [detail, setDetail] = useState(""); // why it's unsupported — shown small, helps fixing it
 
   useEffect(() => {
+    // Only look here — the worker is registered when they tap "Turn on". (Registering on page load could
+    // hang on iPhone and left the bell saying "can't turn on".)
     const check = async () => {
       const ios = /iPad|iPhone|iPod/.test(navigator.userAgent);
       const installed = window.matchMedia("(display-mode: standalone)").matches || navigator.standalone;
-      if (!("serviceWorker" in navigator) || !("PushManager" in window) || !KEY) return ios && !installed ? "install" : "unsupported";
-      const reg = await navigator.serviceWorker.register("/sw.js", { scope: "/", updateViaCache: "none" });
-      const existing = await reg.pushManager.getSubscription();
-      setSub(existing);
-      // Keep the server copy fresh (e.g. after the CRM's database was reset)
-      if (existing) savePushSubscription(existing.toJSON(), navigator.userAgent);
+      if (!("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window) || !KEY) {
+        const v = navigator.userAgent.match(/OS (\d+)_(\d+)/);
+        const missing = ["serviceWorker" in navigator ? "" : "worker", "PushManager" in window ? "" : "push", "Notification" in window ? "" : "notification", KEY ? "" : "key"].filter(Boolean).join(", ");
+        setDetail(`${v ? `iOS ${v[1]}.${v[2]} · ` : ""}${installed ? "app" : "browser"} · missing ${missing}${v && (+v[1] < 16 || (+v[1] === 16 && +v[2] < 4)) ? " — update the iPhone to iOS 16.4 or later" : ""}`);
+        return ios && !installed ? "install" : "unsupported";
+      }
       if (Notification.permission === "denied") return "blocked";
-      return existing ? "on" : "off";
+      const reg = await navigator.serviceWorker.getRegistration("/").catch(() => null);
+      const existing = reg ? await Promise.race([reg.pushManager.getSubscription().catch(() => null), new Promise((ok) => setTimeout(() => ok(null), 4000))]) : null;
+      if (existing) {
+        setSub(existing);
+        // Keep the server copy fresh (e.g. after the CRM's database was reset)
+        savePushSubscription(existing.toJSON(), navigator.userAgent);
+        // Keep the worker up to date
+        navigator.serviceWorker.register("/sw.js", { scope: "/", updateViaCache: "none" }).catch(() => {});
+      }
+      return existing && Notification.permission === "granted" ? "on" : "off";
     };
-    const slow = setTimeout(() => setState((s) => (s === "loading" ? "unsupported" : s)), 8000);
     check()
       .then(setState)
-      .catch(() => setState("unsupported"))
-      .finally(() => clearTimeout(slow));
+      .catch(() => setState("off"));
   }, []);
 
   // Each step says what went wrong instead of silently doing nothing (iPhone is strict about this flow)
@@ -79,7 +89,7 @@ function usePush() {
     setState("off");
   };
 
-  return { state, enable, disable };
+  return { state, enable, disable, detail };
 }
 
 const COPY = {
@@ -94,7 +104,7 @@ const COPY = {
 };
 
 export default function PushSetup({ variant = "card" }) {
-  const { state, enable, disable } = usePush();
+  const { state, enable, disable, detail } = usePush();
   const [open, setOpen] = useState(false);
   const [error, setError] = useState("");
 
@@ -135,6 +145,7 @@ export default function PushSetup({ variant = "card" }) {
             {copy.title}
           </div>
           <p className="mt-1 text-[11px] leading-relaxed text-muted">{copy.text}</p>
+          {detail && state !== "off" && <p className="mt-1.5 text-[10px] text-faint">({detail})</p>}
           {state === "off" && (
             <button onClick={() => run(enable)} disabled={busy} className="mt-2 text-xs font-medium text-brand hover:underline">
               {busy ? "Turning on…" : "Turn on →"}
@@ -170,6 +181,7 @@ export default function PushSetup({ variant = "card" }) {
           )}
         </div>
         {state !== "on" && state !== "off" && <p className="mt-2 text-xs leading-relaxed text-muted">{copy.text}</p>}
+        {detail && state !== "on" && state !== "off" && <p className="mt-1 text-[10px] text-faint">({detail})</p>}
         {error && <p className="mt-2 text-xs text-rose-400">{error}</p>}
       </div>
     );
