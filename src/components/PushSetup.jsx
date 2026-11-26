@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useState } from "react";
 import Icon from "@/components/Icon";
 import { removePushSubscription, savePushSubscription, sendTestPush } from "@/app/(crm)/actions";
 
@@ -40,16 +40,34 @@ function usePush() {
       .finally(() => clearTimeout(slow));
   }, []);
 
+  // Each step says what went wrong instead of silently doing nothing (iPhone is strict about this flow)
   const enable = async () => {
+    if (!("Notification" in window) || !("serviceWorker" in navigator)) throw new Error("This browser can't show notifications — open loop from the Home Screen icon (iPhone) or Chrome (Android).");
+    // Asked straight from the tap — iPhone ignores the request otherwise
     const permission = await Notification.requestPermission();
-    if (permission !== "granted") return setState(permission === "denied" ? "blocked" : "off");
-    const reg = await navigator.serviceWorker.ready;
-    const created = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: keyBytes(KEY) });
-    const res = await savePushSubscription(created.toJSON(), navigator.userAgent);
-    if (!res.ok) throw new Error(res.error);
+    if (permission !== "granted") {
+      setState(permission === "denied" ? "blocked" : "off");
+      if (permission === "denied") return;
+      throw new Error("Tap Allow when the phone asks.");
+    }
+    const timeout = (ms, msg) => new Promise((_, no) => setTimeout(() => no(new Error(msg)), ms));
+    const reg = await Promise.race([
+      navigator.serviceWorker.register("/sw.js", { scope: "/", updateViaCache: "none" }).then(() => navigator.serviceWorker.ready),
+      timeout(15000, "The app didn't finish setting up — close it fully, open it again and retry."),
+    ]);
+    let created = await reg.pushManager.getSubscription();
+    if (!created) {
+      try {
+        created = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: keyBytes(KEY) });
+      } catch (err) {
+        throw new Error(`The phone refused: ${err.message || err.name}. Close the app, open it again from the Home Screen and retry.`);
+      }
+    }
+    const res = await savePushSubscription(created.toJSON(), navigator.userAgent).catch(() => ({ ok: false, error: "Couldn't reach loop — check you're signed in inside the app, then retry." }));
+    if (!res?.ok) throw new Error(res?.error || "Couldn't save — sign in inside the app and retry.");
     setSub(created);
     setState("on");
-    await sendTestPush();
+    await sendTestPush().catch(() => {});
   };
 
   const disable = async () => {
@@ -67,7 +85,7 @@ function usePush() {
 const COPY = {
   off: { title: "Turn on notifications", text: "Get a ping on this device when a lead, brief or commercials needs you." },
   install: { title: "Get the app on your iPhone", text: "In Safari tap Share → Add to Home Screen, open Inloop from there, then turn notifications on." },
-  blocked: { title: "Notifications are blocked", text: "Allow notifications for this site in your browser or phone settings, then reload." },
+  blocked: { title: "Notifications are blocked", text: "iPhone: Settings → Notifications → loop → Allow Notifications, then reopen the app. Android / laptop: tap the lock next to the address → Notifications → Allow, then reload." },
   unsupported: {
     title: "Can't turn on notifications here",
     text: "This browser can't show them. iPhone: open inloophub.com in Safari → Share → Add to Home Screen, open loop from there and tap the bell. Android: open inloophub.com in Chrome.",
@@ -77,21 +95,24 @@ const COPY = {
 
 export default function PushSetup({ variant = "card" }) {
   const { state, enable, disable } = usePush();
-  const [pending, start] = useTransition();
   const [open, setOpen] = useState(false);
   const [error, setError] = useState("");
 
   // The bell always shows — when this device can't do notifications it says how to get them
   const copy = COPY[state];
-  const run = (fn) =>
-    start(async () => {
-      setError("");
-      try {
-        await fn();
-      } catch (err) {
-        setError(err.message || "Couldn't turn notifications on.");
-      }
-    });
+  // Called straight from the tap (no transition in between), so the phone shows its Allow prompt
+  const [busy, setBusy] = useState(false);
+  const run = async (fn) => {
+    setError("");
+    setBusy(true);
+    try {
+      await fn();
+    } catch (err) {
+      setError(err.message || "Couldn't turn notifications on.");
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const body = (
     <>
@@ -99,11 +120,11 @@ export default function PushSetup({ variant = "card" }) {
         <div className="flex items-center gap-2 text-xs text-muted">
           <Icon name="bell" size={14} className="text-emerald-400" />
           <span className="flex-1">Notifications on</span>
-          <button onClick={() => run(sendTestPush)} disabled={pending} className="hover:text-ink">
+          <button onClick={() => run(sendTestPush)} disabled={busy} className="hover:text-ink">
             Test
           </button>
           <span className="text-faint">·</span>
-          <button onClick={() => run(disable)} disabled={pending} className="hover:text-rose-300">
+          <button onClick={() => run(disable)} disabled={busy} className="hover:text-rose-300">
             Off
           </button>
         </div>
@@ -115,8 +136,8 @@ export default function PushSetup({ variant = "card" }) {
           </div>
           <p className="mt-1 text-[11px] leading-relaxed text-muted">{copy.text}</p>
           {state === "off" && (
-            <button onClick={() => run(enable)} disabled={pending} className="mt-2 text-xs font-medium text-brand hover:underline">
-              {pending ? "Turning on…" : "Turn on →"}
+            <button onClick={() => run(enable)} disabled={busy} className="mt-2 text-xs font-medium text-brand hover:underline">
+              {busy ? "Turning on…" : "Turn on →"}
             </button>
           )}
         </>
@@ -133,17 +154,17 @@ export default function PushSetup({ variant = "card" }) {
           <span className="flex-1 text-sm">{state === "on" ? "Notifications on" : copy.title}</span>
           {state === "on" ? (
             <span className="flex gap-3 text-sm">
-              <button onClick={() => run(sendTestPush)} disabled={pending} className="text-muted">
+              <button onClick={() => run(sendTestPush)} disabled={busy} className="text-muted">
                 Test
               </button>
-              <button onClick={() => run(disable)} disabled={pending} className="text-rose-300">
+              <button onClick={() => run(disable)} disabled={busy} className="text-rose-300">
                 Turn off
               </button>
             </span>
           ) : (
             state === "off" && (
-              <button onClick={() => run(enable)} disabled={pending} className="text-sm font-medium text-brand">
-                {pending ? "Turning on…" : "Turn on"}
+              <button onClick={() => run(enable)} disabled={busy} className="text-sm font-medium text-brand">
+                {busy ? "Turning on…" : "Turn on"}
               </button>
             )
           )}
