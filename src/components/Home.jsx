@@ -35,24 +35,43 @@ export function HomeHeader({ name, sub, actions }) {
  * One row of (up to) three numbers. items: [{ label, value, href, tone: "red" | "amber" | undefined }]
  * A number only turns red / amber when it's above zero.
  */
+/**
+ * The numbers at the top of a page (option B): the first is the coral highlight card, red ones (late) are a
+ * soft red, the rest plain. With an href the whole card opens that list ("Open list →").
+ */
 export function Counts({ items }) {
   return (
     <div className="rise mb-5 grid grid-cols-3 gap-3">
-      {items.map((it) => {
-        const color = it.value > 0 ? (it.tone === "red" ? "text-rose-500" : it.tone === "amber" ? "text-amber-500" : "text-ink") : "text-faint";
+      {items.map((it, i) => {
+        const has = it.value > 0;
+        const look =
+          i === 0 && has
+            ? "card-coral"
+            : it.tone === "red" && has
+              ? "card text-rose-700 dark:text-rose-300"
+              : "card";
+        const sub = i === 0 && has ? "text-white/85" : it.tone === "red" && has ? "text-rose-700/80 dark:text-rose-300/80" : "text-muted";
+        const num = !has ? "text-faint" : i === 0 ? "text-white" : it.tone === "red" ? "text-rose-600 dark:text-rose-300" : "text-ink";
         const body = (
           <>
-            <span className="text-[12px] text-muted">{it.label}</span>
-            <span className={`text-[28px] font-medium leading-none tracking-[-0.02em] tabular-nums ${color}`}>{it.value}</span>
+            <span className={`text-[12.5px] ${sub}`}>{it.label}</span>
+            <span className={`text-[30px] font-medium leading-none tracking-[-0.02em] tabular-nums ${num}`}>{it.value}</span>
+            {it.href && has && (
+              <span className={`mt-auto flex items-center gap-1 text-[12px] font-medium ${sub}`}>
+                Open list <Icon name="arrow" size={12} />
+              </span>
+            )}
           </>
         );
-        const cls = "card flex flex-col gap-2 px-4 py-3.5 transition hover:-translate-y-0.5";
+        // Late: a soft red card (the card's own background is a sheen, so it's set here)
+        const style = it.tone === "red" && has && i > 0 ? { background: "linear-gradient(rgb(244 63 94 / 0.1), rgb(244 63 94 / 0.1)), var(--card-sheen)", borderColor: "color-mix(in srgb, #f43f5e 22%, transparent)" } : undefined;
+        const cls = `${look} flex min-h-[112px] flex-col gap-2.5 px-4 py-3.5 transition hover:-translate-y-0.5`;
         return it.href ? (
-          <Link key={it.label} href={it.href} className={cls}>
+          <Link key={it.label} href={it.href} className={cls} style={style}>
             {body}
           </Link>
         ) : (
-          <div key={it.label} className={cls}>
+          <div key={it.label} className={cls} style={style}>
             {body}
           </div>
         );

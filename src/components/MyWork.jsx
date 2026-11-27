@@ -67,9 +67,9 @@ export default function MyWork({ me, tasks, embedded = false }) {
       {!embedded && (
         <Counts
           items={[
-            { label: "Do today", value: now_.length, tone: "red" },
-            { label: "Late", value: overdue.length, tone: "red" },
-            { label: "Waiting on others", value: waiting.length },
+            { label: "Do today", value: now_.length, tone: "red", href: "#my-work" },
+            { label: "Late", value: overdue.length, tone: "red", href: "#my-work" },
+            { label: "Waiting on others", value: waiting.length, href: "#my-waiting" },
           ]}
         />
       )}
@@ -79,11 +79,13 @@ export default function MyWork({ me, tasks, embedded = false }) {
           <Empty icon="tasks">No tasks yet. When someone assigns you work, it shows up here and on your phone.</Empty>
         </div>
       )}
-      <div className={`grid items-start gap-4 ${embedded ? "" : "lg:grid-cols-2"}`}>
+      <div id="my-work" className={`grid scroll-mt-4 items-start gap-4 ${embedded ? "" : "lg:grid-cols-2"}`}>
         <List title="Content calendar" sub="Posts and reels from the brands' calendars" tasks={ordered.filter(fromCalendar)} empty={open.length ? "No calendar work right now." : ""} />
         <List title="Other tasks" sub="Everything else you were given" tasks={ordered.filter((t) => !fromCalendar(t))} empty={open.length ? "No other tasks right now." : ""} />
         <List title="On hold" sub="Paused for now" tasks={tasks.filter((t) => t.status === "on_hold")} />
-        <List title="Waiting on others" sub="Your manager or the client has it" tasks={waiting} tone="#8b5cf6" />
+        <div id="my-waiting" className="scroll-mt-4">
+          <List title="Waiting on others" sub="Your manager or the client has it" tasks={waiting} tone="#8b5cf6" />
+        </div>
         <List title="Completed" sub="Your finished, approved work" tasks={done.slice(0, 50)} count={done.length} tone="#10b981" empty={embedded ? "" : "Nothing approved yet — finished work shows up here."} />
       </div>
     </div>

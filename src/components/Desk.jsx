@@ -46,9 +46,9 @@ export function FilterPills({ items, className = "" }) {
   );
 }
 
-export function Section({ title, count, action, children, empty, className = "" }) {
+export function Section({ title, count, action, children, empty, className = "", id }) {
   return (
-    <section className={`card min-w-0 p-5 ${className}`}>
+    <section id={id} className={`card min-w-0 scroll-mt-4 p-5 ${className}`}>
       <header className="mb-1 flex items-center gap-2">
         <h2 className="text-[15px] font-medium">{title}</h2>
         {count > 0 && <span className="text-[13px] tabular-nums text-muted">{count}</span>}

@@ -212,9 +212,9 @@ export default async function TasksPage({ searchParams }) {
       {showFilters && (
         <Counts
           items={[
-            { label: "To check", value: toCheck.length, tone: "red" },
-            { label: "Late", value: late.length, tone: "red" },
-            { label: "In progress", value: working.length },
+            { label: "To check", value: toCheck.length, tone: "red", href: "#list-to-check" },
+            { label: "Late", value: late.length, tone: "red", href: "#list-late" },
+            { label: "In progress", value: working.length, href: "#list-in-progress" },
           ]}
         />
       )}
@@ -235,7 +235,7 @@ export default async function TasksPage({ searchParams }) {
               ]
                 .filter(([, list]) => list.length)
                 .map(([title, list]) => (
-                  <Section key={title} title={title} count={title === "Completed" ? approved.length : list.length}>
+                  <Section key={title} id={`list-${title.toLowerCase().replace(/\W+/g, "-")}`} title={title} count={title === "Completed" ? approved.length : list.length}>
                     <ShowMore limit={q ? 100 : 5}>
                       {list.map((t) => (
                         <TaskLine key={t.id} t={t} showBrand={!brand} showAssignee={!person} />
