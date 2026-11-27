@@ -42,7 +42,14 @@ export async function listRequirements(me, box) {
   else q = q.eq("to_id", me.id);
   const { data, error } = await q;
   if (error) return { items: [], missing: /requirements/.test(error.message) };
-  return { items: (await signFiles(data || [])).map((r) => ({ ...r, unread: isUnread(r, me.id) })) };
+  let rows = data || [];
+  // My inbox also keeps what I passed on, so I can follow it and check the work when it comes back
+  if (box !== "sent" && !(box === "all" && isStaff(me))) {
+    const { data: passed } = await db().from("requirements").select(FIELDS).contains("history", JSON.stringify([{ type: "forward", by: me.id }])).order("created_at", { ascending: false }).limit(200);
+    const have = new Set(rows.map((r) => r.id));
+    rows = [...rows, ...(passed || []).filter((r) => !have.has(r.id) && r.from_id !== me.id)].sort((a, b) => b.created_at.localeCompare(a.created_at));
+  }
+  return { items: (await signFiles(rows)).map((r) => ({ ...r, unread: isUnread(r, me.id), passed_on: r.to_id !== me.id && forwardersOf(r).includes(me.id) })) };
 }
 
 /** Files delivered on a requirement are private: sign them for an hour (view + download links). */
@@ -152,6 +159,22 @@ export async function createRequirement(me, input) {
   return { ok: true, id: data.id };
 }
 
+/**
+ * Passed down a chain (Udit → Krish → Ananya): the person who passed it to `memberId` checks their work before
+ * it goes back to the requester. null when it came straight from the requester.
+ */
+export function passedBy(r, memberId) {
+  const f = [...(r.history || [])].reverse().find((h) => h.type === "forward" && h.to === memberId);
+  return f && f.by !== r.from_id && f.by !== memberId ? f.by : null;
+}
+/** Everyone who passed it on (they keep seeing it and hear what happens). */
+export const forwardersOf = (r) => [...new Set((r.history || []).filter((h) => h.type === "forward").map((h) => h.by))].filter((x) => x !== r.from_id);
+/** The work came back up for a check: the last step is a submission waiting on the current receiver. */
+export function checkPending(r) {
+  const last = [...(r.history || [])].reverse().find((h) => ["delivered", "approved", "sent_back", "forward", "status"].includes(h.type));
+  return Boolean(last?.type === "delivered" && last.review && last.for === r.to_id && ["open", "in_progress"].includes(r.status)) ? last : null;
+}
+
 const STATUS_PUSH = { in_progress: "⏳ Working on it", done: "✅ Done", rejected: "✖️ Can't do", open: "↩️ Reopened" };
 
 /**
@@ -163,7 +186,13 @@ export async function updateRequirement(me, id, change) {
   if (!r) return { ok: false, error: "Requirement not found." };
   const receiver = r.to_id === me.id || isStaff(me);
   const requester = r.from_id === me.id;
-  if (!receiver && !requester) return { ok: false, error: "This isn't yours." };
+  const forwarders = forwardersOf(r);
+  const forwarder = forwarders.includes(me.id);
+  if (!receiver && !requester && !forwarder) return { ok: false, error: "This isn't yours." };
+  // Whoever passed it to the person doing it checks the work before it goes back (only for the person doing it)
+  const checker = r.to_id === me.id ? passedBy(r, me.id) : null;
+  const pending = checkPending(r);
+  const everyone = (...extra) => [r.from_id, r.to_id, ...forwarders, ...extra];
   const now = new Date().toISOString();
   const patch = { updated_at: now };
   const event = { at: now, by: me.id };
@@ -171,18 +200,52 @@ export async function updateRequirement(me, id, change) {
   let push = null;
   const note = clean(change.note, 2000);
 
-  if (change.status) {
+  if (change.approve) {
+    // The middle person checked it: done, back to the requester with the files that were submitted
+    if (r.to_id !== me.id || !pending) return { ok: false, error: "Nothing is waiting for your check." };
+    patch.status = "done";
+    patch.closed_at = now;
+    Object.assign(event, { type: "approved", of: pending.by, ...(note ? { note } : {}) });
+    notify = [r.from_id, pending.by];
+    const n = (pending.files || []).length + (pending.links || []).length;
+    push = { title: n ? `📦 ${me.name} sent you ${n} file${n > 1 ? "s" : ""}` : `✅ Done: ${r.title}`, body: n ? r.title : `${me.name} checked it — it's done.` };
+  } else if (change.sendBack) {
+    if (r.to_id !== me.id || !pending) return { ok: false, error: "Nothing is waiting for your check." };
+    if (!note) return { ok: false, error: "Write what to change." };
+    patch.to_id = pending.by;
+    patch.status = "in_progress";
+    Object.assign(event, { type: "sent_back", to: pending.by, note });
+    notify = [pending.by];
+    push = { title: `↩️ ${me.name} sent it back`, body: note };
+  } else if (checker && receiver && (change.deliver || change.status === "done")) {
+    // Done by the person it was passed to → it goes up to the one who passed it, for a check
+    const prefix = `req/${r.id}/`;
+    const files = (Array.isArray(change.deliver?.files) ? change.deliver.files : [])
+      .filter((f) => typeof f?.path === "string" && f.path.startsWith(prefix) && !f.path.includes(".."))
+      .slice(0, 20)
+      .map((f) => ({ path: f.path, name: clean(f.name || "file", 200), size: Number(f.size) || 0, type: clean(f.type, 100) }));
+    const links = (Array.isArray(change.deliver?.links) ? change.deliver.links : []).map((l) => clean(l, 1000)).filter((l) => /^https?:\/\//i.test(l)).slice(0, 10);
+    if (change.deliver && !files.length && !links.length) return { ok: false, error: "Upload a file or add a link first." };
+    patch.to_id = checker;
+    patch.status = "in_progress";
+    Object.assign(event, { type: "delivered", review: true, for: checker, files, links, ...(note ? { note } : {}) });
+    notify = [checker];
+    push = { title: `🔍 ${me.name} finished — check it`, body: `${r.title} · approve it to send it back.` };
+  } else if (change.status) {
+    if (!receiver && !requester) return { ok: false, error: "Only the person it was sent to can change this." };
     if (!REQ_STATUSES.some((s) => s.id === change.status)) return { ok: false, error: "Unknown status." };
     // The requester can withdraw (rejected) or reopen; everything else is the receiver's call
     if (!receiver && !(change.status === "rejected" || change.status === "open")) return { ok: false, error: "Only the person it was sent to can change this." };
     patch.status = change.status;
     patch.closed_at = OPEN_REQ.includes(change.status) ? null : now;
     Object.assign(event, { type: "status", status: change.status, ...(note ? { note } : {}) });
-    notify = [requester && !receiver ? r.to_id : r.from_id];
+    notify = [requester && !receiver ? r.to_id : r.from_id, ...forwarders];
     push = { title: `${STATUS_PUSH[change.status]}: ${r.title}`, body: note || `${me.name} updated your requirement` };
   } else if (change.deliver) {
+    if (pending) return { ok: false, error: "Approve it or send it back first." };
     // Upload & submit: the files / links go back to the requester and the requirement is done
     if (!receiver) return { ok: false, error: "Only the person it was sent to can submit." };
+    notify = forwarders;
     const prefix = `req/${r.id}/`;
     const files = (Array.isArray(change.deliver.files) ? change.deliver.files : [])
       .filter((f) => typeof f?.path === "string" && f.path.startsWith(prefix) && !f.path.includes(".."))
@@ -196,21 +259,21 @@ export async function updateRequirement(me, id, change) {
     patch.status = "done";
     patch.closed_at = now;
     Object.assign(event, { type: "delivered", files, links, ...(note ? { note } : {}) });
-    notify = [r.from_id];
+    notify = [r.from_id, ...notify];
     const what = files.length ? `${files.length} file${files.length > 1 ? "s" : ""}` : "a link";
     push = { title: `📦 ${me.name} sent you ${what}`, body: r.title };
   } else if (change.forward) {
-    if (!receiver) return { ok: false, error: "Only the person it was sent to can pass it on." };
+    if (r.to_id !== me.id && !isStaff(me)) return { ok: false, error: "Only the person it was sent to can pass it on." };
     const up = await recipients(me);
     const target = up.find((x) => x.id === change.forward);
     if (!target || target.id === r.from_id) return { ok: false, error: "You can pass it to your manager or another manager." };
     patch.to_id = target.id;
     Object.assign(event, { type: "forward", to: target.id, ...(note ? { note } : {}) });
-    notify = [target.id, r.from_id];
+    notify = [target.id, r.from_id, ...forwarders];
     push = { title: `📌 ${me.name} passed you a requirement`, body: r.title };
   } else if (note) {
     Object.assign(event, { type: "note", note });
-    notify = [r.from_id === me.id ? r.to_id : r.from_id];
+    notify = everyone();
     push = { title: `💬 ${me.name} on "${r.title}"`, body: note };
   } else return { ok: false, error: "Nothing to change." };
 

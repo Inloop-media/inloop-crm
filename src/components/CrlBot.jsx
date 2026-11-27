@@ -149,7 +149,7 @@ export default function CrlBot({ runs }) {
       return next;
     });
     if (!name) {
-      const guess = pdfs[0].name.replace(/\.pdf$/i, "").split(/[_\-]+(brand|content|identity|reference)/i)[0].replace(/[_\-]+/g, " ").trim();
+      const guess = pdfs[0].name.replace(/\.pdf$/i, "").split(/[\s_\-]+(brand|content|identity|reference)/i)[0].replace(/[_\-]+/g, " ").trim();
       if (guess) setName(guess);
     }
   };

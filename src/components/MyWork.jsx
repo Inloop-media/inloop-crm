@@ -30,10 +30,10 @@ function Next({ t }) {
   );
 }
 
-function List({ title, sub, tasks, tone, empty }) {
+function List({ title, sub, tasks, tone, empty, count }) {
   if (!tasks.length && !empty) return null;
   return (
-    <Section title={title} count={tasks.length} tone={tone} empty={empty} action={sub && <span className="hidden text-xs text-muted sm:block">{sub}</span>}>
+    <Section title={title} count={count ?? tasks.length} tone={tone} empty={empty} action={sub && <span className="hidden text-xs text-muted sm:block">{sub}</span>}>
       {tasks.map((t) => (
         <TaskLine key={t.id} t={t} showAssignee={false} calendarTag={false} note={t.status === "revision" ? t.feedback : ""} action={OPEN_TASK.includes(t.status) ? <Next t={t} /> : undefined} />
       ))}
@@ -54,10 +54,8 @@ export default function MyWork({ me, tasks, embedded = false }) {
   const week = rest.filter((t) => t.due_at && dayKey(t.due_at) > today && dayKey(t.due_at) <= weekEnd);
   const later = rest.filter((t) => !t.due_at || dayKey(t.due_at) > weekEnd);
   const waiting = tasks.filter((t) => ["completed", "ready", "sent_to_client", "client_rejected"].includes(t.status));
-  const done = tasks
-    .filter((t) => t.status === "done")
-    .sort((a, b) => (b.done_at || "").localeCompare(a.done_at || ""))
-    .slice(0, 8);
+  // Everything this person has finished and got approved, newest first (their own record of work)
+  const done = tasks.filter((t) => t.status === "done").sort((a, b) => (b.done_at || "").localeCompare(a.done_at || ""));
   // High priority first, whenever it was assigned
   const now_ = [...fix, ...overdue, ...dueToday].sort(byPriority);
   const coming = [...week, ...later].sort(byPriority);
@@ -86,7 +84,7 @@ export default function MyWork({ me, tasks, embedded = false }) {
         <List title="Other tasks" sub="Everything else you were given" tasks={ordered.filter((t) => !fromCalendar(t))} empty={open.length ? "No other tasks right now." : ""} />
         <List title="On hold" sub="Paused for now" tasks={tasks.filter((t) => t.status === "on_hold")} />
         <List title="Waiting on others" sub="Your manager or the client has it" tasks={waiting} tone="#8b5cf6" />
-        <List title="Done" tasks={done} tone="#10b981" />
+        <List title="Completed" sub="Your finished, approved work" tasks={done.slice(0, 50)} count={done.length} tone="#10b981" empty={embedded ? "" : "Nothing approved yet — finished work shows up here."} />
       </div>
     </div>
   );

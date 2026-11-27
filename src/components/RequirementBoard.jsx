@@ -259,6 +259,13 @@ function Detail({ r, meId, staff, recipients, names }) {
   const receiver = r.to_id === meId || staff;
   const requester = r.from_id === meId;
   const open = ["open", "in_progress"].includes(r.status);
+  const hist = r.history || [];
+  // Passed down a chain: whoever passed it to me checks my work before it goes back to the requester
+  const passIn = [...hist].reverse().find((h) => h.type === "forward" && h.to === meId);
+  const checker = r.to_id === meId && passIn && passIn.by !== r.from_id && passIn.by !== meId ? passIn.by : null;
+  // …and when it comes back up to me, I approve it or send it back
+  const lastStep = [...hist].reverse().find((h) => ["delivered", "approved", "sent_back", "forward", "status"].includes(h.type));
+  const toCheck = open && r.to_id === meId && lastStep?.type === "delivered" && lastStep.review && lastStep.for === meId ? lastStep : null;
   const act = (change) =>
     start(async () => {
       const res = await changeRequirement(r.id, { ...change, ...(note.trim() ? { note } : {}) });
@@ -274,7 +281,11 @@ function Detail({ r, meId, staff, recipients, names }) {
     if (h.type === "created") return `${who} asked`;
     if (h.type === "status") return `${who} → ${STATUS[h.status]?.label}`;
     if (h.type === "forward") return `${who} passed it to ${first(names[h.to])}`;
-    if (h.type === "delivered") return `${who} submitted ${(h.files || []).length ? `${h.files.length} file${h.files.length > 1 ? "s" : ""}` : "a link"} — done`;
+    const what = (h.files || []).length ? `${h.files.length} file${h.files.length > 1 ? "s" : ""}` : (h.links || []).length ? "a link" : "";
+    if (h.type === "delivered" && h.review) return `${who} finished${what ? ` and submitted ${what}` : ""} — for ${h.for === meId ? "you" : first(names[h.for])} to check`;
+    if (h.type === "delivered") return `${who} submitted ${what || "it"} — done`;
+    if (h.type === "approved") return `${who} checked it — sent to ${r.from_id === meId ? "you" : first(names[r.from_id])} · done`;
+    if (h.type === "sent_back") return `${who} sent it back to ${h.to === meId ? "you" : first(names[h.to])}`;
     return `${who} wrote`;
   };
   return (
@@ -293,7 +304,23 @@ function Detail({ r, meId, staff, recipients, names }) {
           </li>
         ))}
       </ol>
-      {receiver && open && (
+      {toCheck && (
+        <div className="flex flex-wrap items-center gap-2 rounded-xl border border-brand/40 bg-brand/5 p-3">
+          <span className="min-w-0 flex-1 text-[12.5px]">
+            <b>{first(names[toCheck.by])}</b> finished it — check the work above, then send it to {first(names[r.from_id])}.
+          </span>
+          <button disabled={pending} onClick={() => act({ approve: true })} className="btn-primary btn-sm">
+            <Icon name="check" size={13} /> Approve &amp; send to {first(names[r.from_id])}
+          </button>
+          <button disabled={pending || !note.trim()} title={note.trim() ? "" : "Write what to change in the note box"} onClick={() => act({ sendBack: true })} className="btn-ghost btn-sm">
+            Send back
+          </button>
+        </div>
+      )}
+      {checker && open && !toCheck && (
+        <p className="text-[12px] text-muted">When you submit, it goes to {first(names[checker])} to check before it reaches {first(names[r.from_id])}.</p>
+      )}
+      {receiver && open && !toCheck && (
         <Submit
           r={r}
           note={note}
@@ -303,7 +330,7 @@ function Detail({ r, meId, staff, recipients, names }) {
           }}
         />
       )}
-      <textarea className="field min-h-[56px] text-[13px]" placeholder={receiver ? "Add a note (optional) — e.g. ordered, arriving Friday" : "Add a note"} value={note} onChange={(e) => setNote(e.target.value)} />
+      <textarea className="field min-h-[56px] text-[13px]" placeholder={toCheck ? "Note — what to change if you send it back" : receiver ? "Add a note (optional) — e.g. ordered, arriving Friday" : "Add a note"} value={note} onChange={(e) => setNote(e.target.value)} />
       {error && <p className="text-xs text-rose-400">{error}</p>}
       <div className="flex flex-wrap items-center gap-2">
         {receiver && open && r.status === "open" && (
@@ -311,9 +338,9 @@ function Detail({ r, meId, staff, recipients, names }) {
             <Icon name="clock" size={13} /> Working on it
           </button>
         )}
-        {receiver && open && (
+        {receiver && open && !toCheck && (
           <button disabled={pending} onClick={() => act({ status: "done" })} className="btn-primary btn-sm">
-            <Icon name="check" size={13} /> Mark done
+            <Icon name="check" size={13} /> {checker ? `Done — send to ${first(names[checker])}` : "Mark done"}
           </button>
         )}
         {receiver && open && !requester && (
@@ -334,7 +361,7 @@ function Detail({ r, meId, staff, recipients, names }) {
         <button disabled={pending || !note.trim()} onClick={() => act({})} className="btn-ghost btn-sm">
           <Icon name="chat" size={13} /> Send note
         </button>
-        {receiver && open && passTo.length > 0 && (
+        {receiver && open && !toCheck && passTo.length > 0 && (
           <span className="ml-auto flex items-center gap-1.5">
             <select className="field w-auto py-1.5 text-[12px]" value={forward} onChange={(e) => setForward(e.target.value)}>
               <option value="">Pass it to…</option>
@@ -402,7 +429,7 @@ export default function RequirementBoard({ items, meId, staff, recipients, names
                   {r.unread && !read.includes(r.id) && !(openId === r.id) && <span className="shrink-0 rounded-full bg-brand px-2 py-0.5 text-[10px] font-semibold text-white">New</span>}
                 </span>
                 <span className="mt-0.5 block truncate text-[12px] text-muted">
-                  {box === "all" ? `${first(r.from?.name)} → ${first(r.to?.name)}` : box === "sent" ? `To ${r.to?.name}` : `From ${r.from?.name}`} · {CAT[r.category] || "Other"} · {ago(r.created_at)}
+                  {box === "all" ? `${first(r.from?.name)} → ${first(r.to?.name)}` : box === "sent" ? `To ${r.to?.name}` : r.passed_on ? `From ${r.from?.name} · you passed it to ${first(r.to?.name)}` : `From ${r.from?.name}`} · {CAT[r.category] || "Other"} · {ago(r.created_at)}
                   {r.needed_by && <span className={late ? "font-medium text-rose-400" : ""}> · needed by {dateFmt.format(new Date(`${r.needed_by}T00:00:00+05:30`))}</span>}
                 </span>
               </span>

@@ -14,7 +14,7 @@ import { ago, fmtDateTime } from "@/lib/format";
 export const EVENT = {
   created: (d) => `gave it to ${d.to || "—"}`,
   edited: (d) => {
-    if (d.to) return `reassigned it to ${d.to}`;
+    if (d.to) return d.forwarded ? `passed it on to ${d.to}` : `reassigned it to ${d.to}`;
     const L = { title: "title", brief: "brief", kind: "type", priority: "priority", due_at: "due date" };
     const what = (d.fields || []).map((f) => L[f]).filter(Boolean);
     return what.length ? `changed the ${what.join(", ").replace(/, ([^,]*)$/, " and $1")}` : "changed the details";

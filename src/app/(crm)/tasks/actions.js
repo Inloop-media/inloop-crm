@@ -32,6 +32,26 @@ async function activeMember(id) {
   return data?.active ? data : null;
 }
 
+/**
+ * A task handed down a chain — Udit gives it to Krish, Krish passes it to Kumkum: Krish is the "forwarder".
+ * He gets it for review (after the team lead); Udit hears when it's finally approved.
+ */
+async function forwarderOf(taskId) {
+  const { data } = await db()
+    .from("task_events")
+    .select("actor_id")
+    .eq("task_id", taskId)
+    .eq("type", "edited")
+    .eq("data->>forwarded", "true")
+    .order("created_at", { ascending: false })
+    .limit(1);
+  return data?.[0]?.actor_id || null;
+}
+/** Who checks the finished work: the forwarder if it was passed on, else whoever assigned it. */
+async function reviewerOf(task) {
+  return (await forwarderOf(task.id)) || task.assigned_by;
+}
+
 async function loadTask(id) {
   if (!isUuid(id)) return null;
   const { data } = await db().from("tasks").select(TASK_FIELDS).eq("id", id).maybeSingle();
@@ -189,13 +209,17 @@ export async function updateTask(id, patch) {
   const { error } = await db().from("tasks").update(changes).eq("id", id);
   if (error) return { ok: false, error: /priority/.test(error.message) ? "Priority needs migration 017 — ask the admin to run it." : error.message };
   const fields = Object.keys(changes).filter((k) => !k.endsWith("_at") || k === "due_at");
-  await logTask(id, me.id, "edited", { fields, to: newAssignee?.name });
+  // Someone other than the original assigner giving it to their team = passing it on (they'll check it)
+  const forwarded = Boolean(newAssignee && task.assigned_by && task.assigned_by !== me.id && newAssignee.id !== me.id);
+  await logTask(id, me.id, "edited", { fields, to: newAssignee?.name, ...(forwarded ? { forwarded: true } : {}) });
   const after_ = { ...task, ...changes };
   const first = me.name.split(" ")[0];
   if (newAssignee) {
     if (newAssignee.id !== me.id) after(() => notifyTask([newAssignee.id], after_, "Task assigned to you"));
     // The person it was taken from should know too
     if (task.assignee_id && task.assignee_id !== me.id) after(() => notifyTask([task.assignee_id], after_, "Task moved", `${first} gave it to ${newAssignee.name.split(" ")[0]}`));
+    // The person who gave it in the first place knows who is doing it now
+    if (forwarded && task.assigned_by !== newAssignee.id) after(() => notifyTask([task.assigned_by], after_, "Task passed on", `${first} gave it to ${newAssignee.name.split(" ")[0]} — ${first} checks it before it comes back to you.`));
   } else if (task.assignee_id && task.assignee_id !== me.id) {
     const LABEL = { title: "title", brief: "brief", kind: "type", priority: "priority", due_at: "due date" };
     const what = fields.map((f) => LABEL[f]).filter(Boolean);
@@ -311,6 +335,21 @@ export async function reviewTask(id, action, { feedback = "", assignee_id, due_a
   await logTask(id, me.id, action, { feedback: note || undefined, to: changes.assignee_id && changes.assignee_id !== task.assignee_id ? "new" : undefined, revision: changes.revision });
   if (notify?.to?.length) after(() => notifyTask(notify.to, task, notify.title, notify.body));
   if (alsoNotify?.to?.length) after(() => notifyTask(alsoNotify.to, task, alsoNotify.title, alsoNotify.body));
+  // Passed down a chain (Udit → Krish → Kumkum): once approved, it comes back to whoever gave it first
+  const assigner = task.assigned_by;
+  if (assigner && assigner !== me.id && assigner !== task.assignee_id && ["done", "ready", "sent_to_client"].includes(changes.status || "")) {
+    const fwd = await forwarderOf(task.id);
+    if (fwd && fwd !== assigner) {
+      const first = me.name.split(" ")[0];
+      const who = task.assignee?.name?.split(" ")[0] || "the work";
+      const msg = {
+        done: ["✅ Task completed", `${first} approved ${who}'s work — it's done.`],
+        ready: ["✅ Task completed", `${first} approved ${who}'s work — ready to share with the client.`],
+        sent_to_client: ["Shared with the client", `${first} shared ${who}'s work with the client.`],
+      }[changes.status];
+      after(() => notifyTask([assigner], task, msg[0], msg[1]));
+    }
+  }
   // A content-calendar post approved for good goes to the Social Media team to post
   if (changes.status === "done") {
     const posting = await queuePosting(task, me);
@@ -365,8 +404,9 @@ export async function setTaskStatus(id, status) {
     // Their team lead checks it first; the manager hears once it's approved
     const leads = flagged.lead_ids.filter((x) => x !== me.id);
     if (leads.length) after(() => notifyTask(leads, task, `${me.name} completed — check it`, task.revision ? `Revision ${task.revision} · approve it to send it on.` : "Check it and approve to send it to the manager."));
-  } else if (next === "completed" && task.assigned_by && task.assigned_by !== me.id && task.assigned_by !== main?.assignee_id) {
-    after(() => notifyTask([task.assigned_by], task, `${me.name} completed`, task.revision ? `Revision ${task.revision} is ready for review.` : "Ready for your review."));
+  } else if (next === "completed") {
+    const reviewer = await reviewerOf(task);
+    if (reviewer && reviewer !== me.id && reviewer !== main?.assignee_id) after(() => notifyTask([reviewer], task, `${me.name} completed`, task.revision ? `Revision ${task.revision} is ready for review.` : "Ready for your review."));
   }
   // A shoot for another task: tell that task's designer / editor the raw files are up
   if (main) {
@@ -394,8 +434,9 @@ export async function leadReview(id, action, feedback = "") {
     const { error } = await db().from("tasks").update({ lead_ok_at: now, lead_ok_by: me.id, updated_at: now }).eq("id", id);
     if (error) return { ok: false, error: /lead_ok/.test(error.message) ? "Run migration 036_lead_review.sql in Supabase first." : error.message };
     await logTask(id, me.id, "lead_ok", { revision: task.revision });
+    const reviewer = await reviewerOf(task);
     after(async () => {
-      if (task.assigned_by && task.assigned_by !== me.id) await notifyTask([task.assigned_by], task, `✅ ${first} checked it`, `${task.assignee?.name?.split(" ")[0] || "The work"} is ready for your review.`);
+      if (reviewer && reviewer !== me.id) await notifyTask([reviewer], task, `✅ ${first} checked it`, `${task.assignee?.name?.split(" ")[0] || "The work"} is ready for your review.`);
       if (task.assignee_id && task.assignee_id !== me.id) await notifyTask([task.assignee_id], task, `${first} approved it`, "It's gone to your manager for the final check.");
     });
   } else if (action === "send_back") {

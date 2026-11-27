@@ -204,11 +204,11 @@ export default async function TasksPage({ searchParams }) {
                 ["Ready to share with client", shown.filter((t) => t.status === "ready")],
                 ["On hold", shown.filter((t) => t.status === "on_hold")],
                 ["Shared with client", withClient],
-                ["Approved", approved.slice(0, 12)],
+                ["Completed", approved.slice(0, 50)],
               ]
                 .filter(([, list]) => list.length)
                 .map(([title, list]) => (
-                  <Section key={title} title={title} count={title === "Approved" ? approved.length : list.length}>
+                  <Section key={title} title={title} count={title === "Completed" ? approved.length : list.length}>
                     {list.map((t) => (
                       <TaskLine key={t.id} t={t} showBrand={!brand} />
                     ))}

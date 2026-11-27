@@ -19,7 +19,7 @@ export default async function RequirementsPage({ searchParams }) {
   const { items, missing } = await listRequirements(me, box);
   const openCount = items.filter((r) => OPEN_REQ.includes(r.status)).length;
   const shown = items.filter((r) => (show === "open" ? OPEN_REQ.includes(r.status) : !OPEN_REQ.includes(r.status)));
-  const names = await memberNames(items.flatMap((r) => (r.history || []).flatMap((h) => [h.by, h.to])));
+  const names = await memberNames(items.flatMap((r) => [r.from_id, ...(r.history || []).flatMap((h) => [h.by, h.to, h.for])]));
   const href = (p) => `/requirements?${new URLSearchParams({ box, show, ...p })}`;
 
   return (
