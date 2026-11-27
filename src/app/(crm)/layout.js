@@ -19,7 +19,7 @@ import { requirementCounts } from "@/lib/requirements";
 import { requireMember } from "@/lib/auth";
 import { db } from "@/lib/supabase/server";
 import { listFeeds } from "@/lib/leads";
-import { canAssign, canAssignTasks, canCreateLead, canSeeAssets, canSeeLibrary, canManageTeam, canSeeBrands, canSeeBriefs, canSeeCalendar, canSeeLeads, isMaker, isStrategist } from "@/lib/permissions";
+import { canAssign, canAssignTasks, canCreateLead, canSeeAssets, canSeeLibrary, canManageTeam, canSeeBrands, canSeeBriefs, canSeeCalendar, canSeeLeads, canUseBots, isMaker, isStrategist } from "@/lib/permissions";
 import { ROLES } from "@/lib/constants";
 
 /** Work waiting on this member: open briefs for strategists, commercials for admin / ops. */
@@ -95,6 +95,8 @@ export default async function CrmLayout({ children }) {
     clients.push({ href: "/brands", label: "Brands", icon: "brand" });
     clients.push({ href: "/messages", label: "Messages", icon: "chat", badge: brandMsgs });
   }
+  // Bots run on their own, apart from the lead flow
+  const bots = canUseBots(me) ? [{ href: "/bots", label: "CRL bot", icon: "sparkle" }] : [];
   const admin = [];
   if (feeds.length) admin.push({ href: "/updates", label: "Updates", icon: "slack", badge: feeds.reduce((n, g) => n + g.unread, 0) });
   if (canManageTeam(me)) admin.push({ href: "/team", label: "Team", icon: "team" });
@@ -112,6 +114,7 @@ export default async function CrmLayout({ children }) {
     { title: "Groups", items: myGroups },
     { title: "Sales", items: sales },
     { title: "Clients", items: clients },
+    { title: "Bots", items: bots },
     { title: "Admin", items: admin },
   ].filter((g) => g.items.length);
   const items = [...main, ...sales.filter((i) => i.href !== "/leads/new"), ...clients];

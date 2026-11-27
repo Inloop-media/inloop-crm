@@ -63,6 +63,8 @@ export const canSeeLibrary = (me) => !isSalesOnly(me);
 export const isDevManager = (me) => (me.ledGroups || []).some((g) => g.kind === "development") || (me.leadGroups || []).some((g) => g.kind === "development");
 // Brand assets: sales, the CBOs (Krrish, Udit) and the development team download; admin, the sales head and the dev managers upload
 export const canSeeAssets = (me) => isStaff(me) || isSales(me) || isSalesHead(me) || isOpsHead(me) || inGroupKind(me, "development");
+/** Bots tab (CRL bot on its own, outside leads): admin and the development heads. */
+export const canUseBots = (me) => isAdmin(me) || isDevManager(me);
 export const canManageAssets = (me) => isStaff(me) || isSalesHead(me) || isDevManager(me);
 export const canAssignTasks = (me) => isStaff(me) || isExecHead(me) || headsTeam(me);
 /** The employee works on their own tasks; heads / staff see all of them. */
