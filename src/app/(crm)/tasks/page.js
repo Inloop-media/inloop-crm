@@ -133,9 +133,9 @@ export default async function TasksPage({ searchParams }) {
   const hay = (t) => [t.title, t.brand?.name, t.assignee?.name, t.kind].join(" ").toLowerCase();
   const shown = words.length ? bySrc.filter((t) => words.every((w) => hay(t).includes(w))) : bySrc;
   const href = (o) => {
-    const q = new URLSearchParams({ ...(current !== "list" && { view: current }), ...(brand && { brand }), ...(kind && { kind }), ...(src && { src }), ...(person && { person }), ...(given && { by: "me" }), ...(q && { q: sp.q }), ...(sp.who === "all" && { who: "all" }), ...o });
-    for (const [k, v] of [...q]) if (!v) q.delete(k);
-    const str = q.toString();
+    const qs = new URLSearchParams({ ...(current !== "list" && { view: current }), ...(brand && { brand }), ...(kind && { kind }), ...(src && { src }), ...(person && { person }), ...(given && { by: "me" }), ...(q && { q: sp.q }), ...(sp.who === "all" && { who: "all" }), ...o });
+    for (const [k, v] of [...qs]) if (!v) qs.delete(k);
+    const str = qs.toString();
     return str ? `/tasks?${str}` : "/tasks";
   };
 
