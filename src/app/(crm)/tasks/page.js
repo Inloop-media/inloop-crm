@@ -7,6 +7,7 @@ import { Counts } from "@/components/Home";
 import LinkSelect from "@/components/LinkSelect";
 import TaskBoard from "@/components/TaskBoard";
 import ShowMore from "@/components/ShowMore";
+import TaskSearch from "@/components/TaskSearch";
 import QuickAssign from "@/components/QuickAssign";
 import { listBrands } from "@/lib/brands";
 import MyWork from "@/components/MyWork";
@@ -125,9 +126,14 @@ export default async function TasksPage({ searchParams }) {
   const byPerson = person ? byGiver.filter((t) => t.assignee_id === person) : byGiver;
   // Content-calendar work vs everything else
   const src = ["calendar", "other"].includes(sp.src) ? sp.src : "";
-  const shown = src ? byPerson.filter((t) => (src === "calendar") === fromCalendar(t)) : byPerson;
+  const bySrc = src ? byPerson.filter((t) => (src === "calendar") === fromCalendar(t)) : byPerson;
+  // Search: every word must match the task name, brand, person or type
+  const q = String(sp.q || "").trim().toLowerCase().slice(0, 80);
+  const words = q.split(/\s+/).filter(Boolean);
+  const hay = (t) => [t.title, t.brand?.name, t.assignee?.name, t.kind].join(" ").toLowerCase();
+  const shown = words.length ? bySrc.filter((t) => words.every((w) => hay(t).includes(w))) : bySrc;
   const href = (o) => {
-    const q = new URLSearchParams({ ...(current !== "list" && { view: current }), ...(brand && { brand }), ...(kind && { kind }), ...(src && { src }), ...(person && { person }), ...(given && { by: "me" }), ...(sp.who === "all" && { who: "all" }), ...o });
+    const q = new URLSearchParams({ ...(current !== "list" && { view: current }), ...(brand && { brand }), ...(kind && { kind }), ...(src && { src }), ...(person && { person }), ...(given && { by: "me" }), ...(q && { q: sp.q }), ...(sp.who === "all" && { who: "all" }), ...o });
     for (const [k, v] of [...q]) if (!v) q.delete(k);
     const str = q.toString();
     return str ? `/tasks?${str}` : "/tasks";
@@ -142,7 +148,7 @@ export default async function TasksPage({ searchParams }) {
   const working = shown.filter((t) => OPEN_TASK.includes(t.status) && !isLate(t)).sort(byPriority);
   const withClient = shown.filter((t) => t.status === "sent_to_client");
   const approved = shown.filter((t) => t.status === "done").sort((a, b) => (b.done_at || "").localeCompare(a.done_at || ""));
-  const filtered = Boolean(brand || kind || src || person || given);
+  const filtered = Boolean(brand || kind || src || person || given || q);
   const showFilters = current === "list" || current === "board";
 
   return (
@@ -160,6 +166,7 @@ export default async function TasksPage({ searchParams }) {
 
       {(showFilters || (current === "team" && teamView)) && (
         <div className="rise mb-5 flex flex-wrap items-center gap-2">
+          {showFilters && <TaskSearch />}
           {showFilters && (
             <FilterPills
               items={[
@@ -195,7 +202,7 @@ export default async function TasksPage({ searchParams }) {
             <LinkSelect label="Type" value={kind} options={[{ value: "", label: "All types", href: href({ kind: "" }) }, ...kinds.map((k) => ({ value: k, label: kindPlural(k), href: href({ kind: k }) }))]} />
           )}
           {showFilters && filtered && (
-            <Link href={href({ brand: "", kind: "", src: "", person: "", by: "" })} className="px-2 text-[12.5px] text-muted hover:text-ink">
+            <Link href={href({ brand: "", kind: "", src: "", person: "", by: "", q: "" })} className="px-2 text-[12.5px] text-muted hover:text-ink">
               Clear
             </Link>
           )}
@@ -229,7 +236,7 @@ export default async function TasksPage({ searchParams }) {
                 .filter(([, list]) => list.length)
                 .map(([title, list]) => (
                   <Section key={title} title={title} count={title === "Completed" ? approved.length : list.length}>
-                    <ShowMore limit={5}>
+                    <ShowMore limit={q ? 100 : 5}>
                       {list.map((t) => (
                         <TaskLine key={t.id} t={t} showBrand={!brand} showAssignee={!person} />
                       ))}
@@ -238,7 +245,7 @@ export default async function TasksPage({ searchParams }) {
                 ))}
             </div>
           ) : (
-            <p className="card p-6 text-[13px] text-muted">{filtered ? "No tasks match these filters." : "No tasks yet. Press New task to give someone work."}</p>
+            <p className="card p-6 text-[13px] text-muted">{q ? `No task matches "${sp.q}".` : filtered ? "No tasks match these filters." : "No tasks yet. Press New task to give someone work."}</p>
           ))}
         {current === "board" && <TaskBoard tasks={shown} showBrand={!brand} />}
         {current === "team" &&
