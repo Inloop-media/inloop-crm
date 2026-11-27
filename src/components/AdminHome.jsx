@@ -112,13 +112,13 @@ export default function AdminHome({ me, data, brands = [], tasks = [], actions, 
 
   const counts = salesOnly
     ? [
-        { label: "Needs you", value: todo.length, tone: "red", href: "#needs" },
+        { label: "Needs you", value: todo.length, tone: "red" },
         { label: "Open leads", value: open.length, href: "/leads" },
         { label: "New this week", value: newWeek.length, href: "/leads?view=list" },
       ]
     : [
-        { label: "Needs you", value: todo.length + toCheck.length, tone: "red", href: "#needs" },
-        { label: "Late tasks", value: late.length, tone: "red", href: "#late" },
+        { label: "Needs you", value: todo.length + toCheck.length, tone: "red" },
+        { label: "Late tasks", value: late.length, tone: "red", href: "/tasks?show=late" },
         { label: "New leads this week", value: newWeek.length, href: "/leads?view=list" },
       ];
 

@@ -84,9 +84,9 @@ export default function HeadHome({ tasks, brands = [], files = {}, boardHref = "
     <>
       <Counts
         items={[
-          { label: "To check", value: review.length, tone: "red", href: "#review" },
-          { label: "Late", value: overdue.length, tone: "red", href: "#late" },
-          { label: "Due today", value: dueToday.length, tone: "amber", href: "#work" },
+          { label: "To check", value: review.length, tone: "red", href: "/tasks?show=check" },
+          { label: "Late", value: overdue.length, tone: "red", href: "/tasks?show=late" },
+          { label: "Due today", value: dueToday.length, tone: "amber", href: "/tasks?show=progress" },
         ]}
       />
       <TwoCol

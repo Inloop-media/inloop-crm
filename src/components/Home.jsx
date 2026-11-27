@@ -39,24 +39,29 @@ export function HomeHeader({ name, sub, actions }) {
  * The numbers at the top of a page (option B): the first is the coral highlight card, red ones (late) are a
  * soft red, the rest plain. With an href the whole card opens that list ("Open list →").
  */
+const COLS = { 3: "grid-cols-3", 4: "grid-cols-2 sm:grid-cols-4", 5: "grid-cols-2 sm:grid-cols-3 lg:grid-cols-5", 6: "grid-cols-2 sm:grid-cols-3 lg:grid-cols-6", 7: "grid-cols-2 sm:grid-cols-4 lg:grid-cols-7", 8: "grid-cols-2 sm:grid-cols-4 lg:grid-cols-8" };
+
 export function Counts({ items }) {
+  // Tabs mode (Tasks page): the chosen card is the coral one; otherwise the first card is the highlight
+  const tabs = items.some((it) => it.active !== undefined);
   return (
-    <div className="rise mb-5 grid grid-cols-3 gap-3">
+    <div className={`rise mb-5 grid gap-3 ${COLS[items.length] || "grid-cols-3"}`}>
       {items.map((it, i) => {
         const has = it.value > 0;
+        const coral = tabs ? it.active : i === 0 && has;
         const look =
-          i === 0 && has
+          coral
             ? "card-coral"
             : it.tone === "red" && has
               ? "card text-rose-700 dark:text-rose-300"
               : "card";
-        const sub = i === 0 && has ? "text-white/85" : it.tone === "red" && has ? "text-rose-700/80 dark:text-rose-300/80" : "text-muted";
-        const num = !has ? "text-faint" : i === 0 ? "text-white" : it.tone === "red" ? "text-rose-600 dark:text-rose-300" : "text-ink";
+        const sub = coral ? "text-white/85" : it.tone === "red" && has ? "text-rose-700/80 dark:text-rose-300/80" : "text-muted";
+        const num = coral ? "text-white" : !has ? "text-faint" : it.tone === "red" ? "text-rose-600 dark:text-rose-300" : "text-ink";
         const body = (
           <>
             <span className={`text-[12.5px] ${sub}`}>{it.label}</span>
             <span className={`text-[30px] font-medium leading-none tracking-[-0.02em] tabular-nums ${num}`}>{it.value}</span>
-            {it.href && has && (
+            {it.href && has && !tabs && (
               <span className={`mt-auto flex items-center gap-1 text-[12px] font-medium ${sub}`}>
                 Open list <Icon name="arrow" size={12} />
               </span>
@@ -64,10 +69,10 @@ export function Counts({ items }) {
           </>
         );
         // Late: a soft red card (the card's own background is a sheen, so it's set here)
-        const style = it.tone === "red" && has && i > 0 ? { background: "linear-gradient(rgb(244 63 94 / 0.1), rgb(244 63 94 / 0.1)), var(--card-sheen)", borderColor: "color-mix(in srgb, #f43f5e 22%, transparent)" } : undefined;
-        const cls = `${look} flex min-h-[112px] flex-col gap-2.5 px-4 py-3.5 transition hover:-translate-y-0.5`;
+        const style = it.tone === "red" && has && !coral ? { background: "linear-gradient(rgb(244 63 94 / 0.1), rgb(244 63 94 / 0.1)), var(--card-sheen)", borderColor: "color-mix(in srgb, #f43f5e 22%, transparent)" } : undefined;
+        const cls = `${look} flex ${tabs ? "min-h-[84px]" : "min-h-[112px]"} flex-col gap-2.5 px-4 py-3.5 transition hover:-translate-y-0.5`;
         return it.href ? (
-          <Link key={it.label} href={it.href} className={cls} style={style}>
+          <Link key={it.label} href={it.href} scroll={false} aria-current={it.active ? "page" : undefined} className={cls} style={style}>
             {body}
           </Link>
         ) : (

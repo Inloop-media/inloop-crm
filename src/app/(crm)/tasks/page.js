@@ -133,7 +133,7 @@ export default async function TasksPage({ searchParams }) {
   const hay = (t) => [t.title, t.brand?.name, t.assignee?.name, t.kind].join(" ").toLowerCase();
   const shown = words.length ? bySrc.filter((t) => words.every((w) => hay(t).includes(w))) : bySrc;
   const href = (o) => {
-    const qs = new URLSearchParams({ ...(current !== "list" && { view: current }), ...(brand && { brand }), ...(kind && { kind }), ...(src && { src }), ...(person && { person }), ...(given && { by: "me" }), ...(q && { q: sp.q }), ...(sp.who === "all" && { who: "all" }), ...o });
+    const qs = new URLSearchParams({ ...(current !== "list" && { view: current }), ...(brand && { brand }), ...(kind && { kind }), ...(src && { src }), ...(person && { person }), ...(given && { by: "me" }), ...(q && { q: sp.q }), ...(sp.show && { show: sp.show }), ...(sp.who === "all" && { who: "all" }), ...o });
     for (const [k, v] of [...qs]) if (!v) qs.delete(k);
     const str = qs.toString();
     return str ? `/tasks?${str}` : "/tasks";
@@ -148,6 +148,19 @@ export default async function TasksPage({ searchParams }) {
   const working = shown.filter((t) => OPEN_TASK.includes(t.status) && !isLate(t)).sort(byPriority);
   const withClient = shown.filter((t) => t.status === "sent_to_client");
   const approved = shown.filter((t) => t.status === "done").sort((a, b) => (b.done_at || "").localeCompare(a.done_at || ""));
+  const lists = [
+    { key: "check", title: "To check", list: toCheck, empty: "Nothing waiting for your check." },
+    { key: "late", title: "Late", list: late, empty: "Nothing late." },
+    { key: "progress", title: "In progress", list: working, empty: "Nothing in progress." },
+    { key: "lead", title: "With team lead", list: withLead, empty: "Nothing with the team leads." },
+    { key: "ready", title: "Ready for client", list: shown.filter((t) => t.status === "ready"), optional: true },
+    { key: "hold", title: "On hold", list: shown.filter((t) => t.status === "on_hold"), optional: true },
+    { key: "client", title: "With client", list: withClient, optional: true },
+    { key: "done", title: "Completed", list: approved, empty: "Nothing completed yet." },
+  ].filter((l) => !l.optional || l.list.length);
+  // Opens on the first list that has something (To check → Late → In progress …) unless one was picked
+  const firstKey = (lists.find((l) => l.list.length) || lists[0]).key;
+  const pick = lists.find((l) => l.key === sp.show) || lists.find((l) => l.key === firstKey);
   const filtered = Boolean(brand || kind || src || person || given || q);
   const showFilters = current === "list" || current === "board";
 
@@ -211,39 +224,27 @@ export default async function TasksPage({ searchParams }) {
 
       {showFilters && (
         <Counts
-          items={[
-            { label: "To check", value: toCheck.length, tone: "red", href: "#list-to-check" },
-            { label: "Late", value: late.length, tone: "red", href: "#list-late" },
-            { label: "In progress", value: working.length, href: "#list-in-progress" },
-          ]}
+          items={(current === "list" ? lists : lists.slice(0, 3)).map((l) => ({
+            label: l.title,
+            value: l.list.length,
+            tone: ["check", "late"].includes(l.key) ? "red" : "",
+            // Each card is a tab: it shows that one list below (on the board view it opens the list)
+            href: href({ view: "", show: l.key === firstKey ? "" : l.key }),
+            active: current === "list" ? l.key === pick.key : undefined,
+          }))}
         />
       )}
 
       <div className="rise">
         {current === "list" &&
           (shown.length ? (
-            <div className="grid items-start gap-5 lg:grid-cols-2">
-              {[
-                ["To check", toCheck],
-                ["Late", late],
-                ["In progress", working],
-                ["With team lead", withLead],
-                ["Ready to share with client", shown.filter((t) => t.status === "ready")],
-                ["On hold", shown.filter((t) => t.status === "on_hold")],
-                ["Shared with client", withClient],
-                ["Completed", approved],
-              ]
-                .filter(([, list]) => list.length)
-                .map(([title, list]) => (
-                  <Section key={title} id={`list-${title.toLowerCase().replace(/\W+/g, "-")}`} title={title} count={title === "Completed" ? approved.length : list.length}>
-                    <ShowMore limit={q ? 100 : 5}>
-                      {list.map((t) => (
-                        <TaskLine key={t.id} t={t} showBrand={!brand} showAssignee={!person} />
-                      ))}
-                    </ShowMore>
-                  </Section>
+            <Section title={pick.title} count={pick.list.length} empty={pick.empty}>
+              <ShowMore limit={q ? 200 : 25}>
+                {pick.list.map((t) => (
+                  <TaskLine key={t.id} t={t} showBrand={!brand} showAssignee={!person} />
                 ))}
-            </div>
+              </ShowMore>
+            </Section>
           ) : (
             <p className="card p-6 text-[13px] text-muted">{q ? `No task matches "${sp.q}".` : filtered ? "No tasks match these filters." : "No tasks yet. Press New task to give someone work."}</p>
           ))}

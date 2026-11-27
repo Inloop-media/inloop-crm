@@ -67,9 +67,9 @@ export default function MyWork({ me, tasks, embedded = false }) {
       {!embedded && (
         <Counts
           items={[
-            { label: "Do today", value: now_.length, tone: "red", href: "#my-work" },
-            { label: "Late", value: overdue.length, tone: "red", href: "#my-work" },
-            { label: "Waiting on others", value: waiting.length, href: "#my-waiting" },
+            { label: "Do today", value: now_.length, tone: "red" },
+            { label: "Late", value: overdue.length, tone: "red" },
+            { label: "Waiting on others", value: waiting.length },
           ]}
         />
       )}
