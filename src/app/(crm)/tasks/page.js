@@ -14,8 +14,8 @@ import MyWork from "@/components/MyWork";
 import TeamToCheck from "@/components/TeamToCheck";
 import TeamTasks from "@/components/TeamTasks";
 import { requireMember } from "@/lib/auth";
-import { listMakers, listTasks } from "@/lib/tasks";
-import { canAssignTasks, headsTeam, myTeam } from "@/lib/permissions";
+import { leadAllTasks, listMakers, listTasks } from "@/lib/tasks";
+import { canAssignTasks, headsTeam, leadTeam, myTeam } from "@/lib/permissions";
 import { OPEN_TASK, kindPlural, byPriority, fromCalendar } from "@/lib/constants";
 
 export const metadata = { title: "Tasks" };
@@ -73,17 +73,20 @@ function Workload({ people, tasks, link }) {
 export default async function TasksPage({ searchParams }) {
   const me = await requireMember();
   const head = canAssignTasks(me);
+  // Team leads (e.g. Ananya) get the same page, over their team's work and their own
+  const lead = !head && leadTeam(me).length > 0;
   const sp = await searchParams;
   const { view } = sp;
   // Everything this page needs, asked for at the same time
-  const [mine, everything, everyone, brands] = await Promise.all([
+  const [mine, everything, makers, brands] = await Promise.all([
     listTasks(me, { view: "mine" }),
-    head ? listTasks(me, { view: "all" }) : [],
-    head ? listMakers(me) : [],
-    head ? listBrands() : [],
+    head ? listTasks(me, { view: "all" }) : lead ? leadAllTasks(me) : [],
+    head || lead ? listMakers(me) : [],
+    head || lead ? listBrands() : [],
   ]);
+  const everyone = lead ? makers.filter((p) => [...leadTeam(me), me.id].includes(p.id)) : makers;
 
-  if (!head) {
+  if (!head && !lead) {
     return (
       <div className="page max-w-5xl">
         <PageTop title="My tasks" sub="Press Start when you begin. When it's ready, open the task, upload the file and submit." />
@@ -100,7 +103,7 @@ export default async function TasksPage({ searchParams }) {
 
   // Heads of departments start on their own team's work; "Everyone" shows the whole agency
   const team = myTeam(me);
-  const teamView = me.role !== "admin" && headsTeam(me) && team.length > 0;
+  const teamView = !lead && me.role !== "admin" && headsTeam(me) && team.length > 0;
   const whole = sp.who === "all" || !teamView;
   const all = whole ? everything : everything.filter((t) => team.includes(t.assignee_id) || t.assigned_by === me.id);
   const people = whole ? everyone : everyone.filter((p) => team.includes(p.id) || p.id === me.id);
@@ -118,9 +121,21 @@ export default async function TasksPage({ searchParams }) {
   const kinds = [...new Set(byBrand.map((t) => t.kind))];
   const kind = kinds.includes(sp.kind) ? sp.kind : "";
   const byKind = kind ? byBrand.filter((t) => t.kind === kind) : byBrand;
+  // When it was given: today / yesterday / this week / this month (India time)
+  const DAY = 864e5;
+  const istDay = (ms) => new Date(ms).toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
+  const todayKey = istDay(nowMs());
+  const WHEN = {
+    today: (k) => k === todayKey,
+    yesterday: (k) => k === istDay(nowMs() - DAY),
+    week: (k) => k >= istDay(nowMs() - 6 * DAY),
+    month: (k) => k >= istDay(nowMs() - 29 * DAY),
+  };
+  const when = WHEN[sp.when] ? sp.when : "";
+  const byWhen = when ? byKind.filter((t) => t.created_at && WHEN[when](istDay(new Date(t.created_at).getTime()))) : byKind;
   // One person's work, or only what I gave out — so it's easy to remember who has what
   const given = sp.by === "me";
-  const byGiver = given ? byKind.filter((t) => t.assigned_by === me.id) : byKind;
+  const byGiver = given ? byWhen.filter((t) => t.assigned_by === me.id) : byWhen;
   const doers = [...new Map(byGiver.filter((t) => t.assignee).map((t) => [t.assignee_id, t.assignee.name])).entries()].sort((a, b) => a[1].localeCompare(b[1]));
   const person = doers.some(([id]) => id === sp.person) ? sp.person : "";
   const byPerson = person ? byGiver.filter((t) => t.assignee_id === person) : byGiver;
@@ -133,7 +148,7 @@ export default async function TasksPage({ searchParams }) {
   const hay = (t) => [t.title, t.brand?.name, t.assignee?.name, t.kind].join(" ").toLowerCase();
   const shown = words.length ? bySrc.filter((t) => words.every((w) => hay(t).includes(w))) : bySrc;
   const href = (o) => {
-    const qs = new URLSearchParams({ ...(current !== "list" && { view: current }), ...(brand && { brand }), ...(kind && { kind }), ...(src && { src }), ...(person && { person }), ...(given && { by: "me" }), ...(q && { q: sp.q }), ...(sp.show && { show: sp.show }), ...(sp.who === "all" && { who: "all" }), ...o });
+    const qs = new URLSearchParams({ ...(current !== "list" && { view: current }), ...(brand && { brand }), ...(kind && { kind }), ...(src && { src }), ...(person && { person }), ...(given && { by: "me" }), ...(q && { q: sp.q }), ...(when && { when }), ...(sp.show && { show: sp.show }), ...(sp.who === "all" && { who: "all" }), ...o });
     for (const [k, v] of [...qs]) if (!v) qs.delete(k);
     const str = qs.toString();
     return str ? `/tasks?${str}` : "/tasks";
@@ -141,9 +156,10 @@ export default async function TasksPage({ searchParams }) {
 
   const now = nowMs();
   const isLate = (t) => OPEN_TASK.includes(t.status) && t.due_at && new Date(t.due_at).getTime() < now;
-  const toCheck = shown.filter((t) => ["completed", "client_rejected"].includes(t.status) && !t.with_lead).sort(byPriority);
+  const toCheck = (lead ? shown.filter((t) => t.with_lead && (t.lead_ids || []).includes(me.id)) : shown.filter((t) => ["completed", "client_rejected"].includes(t.status) && !t.with_lead)).sort(byPriority);
   // Finished, but the team lead (e.g. Ananya) checks it first
-  const withLead = shown.filter((t) => t.with_lead);
+  // Heads: still with the team lead. Team leads: checked by them, now with the manager.
+  const withLead = lead ? shown.filter((t) => ["completed", "client_rejected"].includes(t.status) && !t.with_lead) : shown.filter((t) => t.with_lead);
   const late = shown.filter(isLate).sort(byPriority);
   const working = shown.filter((t) => OPEN_TASK.includes(t.status) && !isLate(t)).sort(byPriority);
   const withClient = shown.filter((t) => t.status === "sent_to_client");
@@ -152,7 +168,7 @@ export default async function TasksPage({ searchParams }) {
     { key: "check", title: "To check", list: toCheck, empty: "Nothing waiting for your check." },
     { key: "late", title: "Late", list: late, empty: "Nothing late." },
     { key: "progress", title: "In progress", list: working, empty: "Nothing in progress." },
-    { key: "lead", title: "With team lead", list: withLead, empty: "Nothing with the team leads." },
+    { key: "lead", title: lead ? "With manager" : "With team lead", list: withLead, empty: lead ? "Nothing waiting on the manager." : "Nothing with the team leads." },
     { key: "ready", title: "Ready for client", list: shown.filter((t) => t.status === "ready"), optional: true },
     { key: "hold", title: "On hold", list: shown.filter((t) => t.status === "on_hold"), optional: true },
     { key: "client", title: "With client", list: withClient, optional: true },
@@ -161,18 +177,18 @@ export default async function TasksPage({ searchParams }) {
   // Opens on the first list that has something (To check → Late → In progress …) unless one was picked
   const firstKey = (lists.find((l) => l.list.length) || lists[0]).key;
   const pick = lists.find((l) => l.key === sp.show) || lists.find((l) => l.key === firstKey);
-  const filtered = Boolean(brand || kind || src || person || given || q);
+  const filtered = Boolean(brand || kind || src || person || given || q || when);
   const showFilters = current === "list" || current === "board";
 
   return (
     <div className="page">
       <PageTop
         title="Tasks"
-        sub={teamView && !whole ? (me.ledGroups || []).map((g) => g.name).join(", ") : "Everyone's work"}
+        sub={lead ? "Your team's work and yours" : teamView && !whole ? (me.ledGroups || []).map((g) => g.name).join(", ") : "Everyone's work"}
         right={
           <>
             <FilterPills items={views.map((v) => ({ label: v.label, count: v.count, href: href({ view: v.id === "list" ? "" : v.id }), on: current === v.id }))} />
-            <QuickAssign brands={active} people={everyone} defaultBrand={brand} label="New task" />
+            {head && <QuickAssign brands={active} people={everyone} defaultBrand={brand} label="New task" />}
           </>
         }
       />
@@ -197,7 +213,7 @@ export default async function TasksPage({ searchParams }) {
               ]}
             />
           )}
-          {showFilters && (
+          {showFilters && head && (
             <FilterPills
               items={[
                 { label: "Everyone's tasks", href: href({ by: "", person: "" }), on: !given },
@@ -214,8 +230,21 @@ export default async function TasksPage({ searchParams }) {
           {showFilters && kinds.length > 1 && (
             <LinkSelect label="Type" value={kind} options={[{ value: "", label: "All types", href: href({ kind: "" }) }, ...kinds.map((k) => ({ value: k, label: kindPlural(k), href: href({ kind: k }) }))]} />
           )}
+          {showFilters && (
+            <LinkSelect
+              label="Assigned"
+              value={when}
+              options={[
+                { value: "", label: "Assigned any time", href: href({ when: "" }) },
+                { value: "today", label: "Assigned today", href: href({ when: "today" }) },
+                { value: "yesterday", label: "Assigned yesterday", href: href({ when: "yesterday" }) },
+                { value: "week", label: "Assigned this week", href: href({ when: "week" }) },
+                { value: "month", label: "Assigned this month", href: href({ when: "month" }) },
+              ]}
+            />
+          )}
           {showFilters && filtered && (
-            <Link href={href({ brand: "", kind: "", src: "", person: "", by: "", q: "" })} className="px-2 text-[12.5px] text-muted hover:text-ink">
+            <Link href={href({ brand: "", kind: "", src: "", person: "", by: "", q: "", when: "" })} className="px-2 text-[12.5px] text-muted hover:text-ink">
               Clear
             </Link>
           )}

@@ -243,6 +243,14 @@ export async function leadTeamTasks(me) {
   return withLeadFlags(data || []);
 }
 
+/** Everything a team lead's people have (every stage, done too) plus their own — for their Tasks page. */
+export async function leadAllTasks(me) {
+  const ids = [...leadTeam(me), me.id].filter(isUuid);
+  const { data, error } = await db().from("tasks").select(TASK_FIELDS).in("assignee_id", ids).order("due_at", { ascending: true, nullsFirst: false }).limit(1500);
+  if (error) return [];
+  return withLeadFlags(data || []);
+}
+
 /** A team lead's queue: their team's completed work that's waiting for their check (or just how many). */
 export async function leadQueue(me, { count = false } = {}) {
   const team = leadTeam(me).filter(isUuid);
