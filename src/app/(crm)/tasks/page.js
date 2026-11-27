@@ -6,6 +6,7 @@ import { FilterPills, PageTop, Section, TaskLine } from "@/components/Desk";
 import { Counts } from "@/components/Home";
 import LinkSelect from "@/components/LinkSelect";
 import TaskBoard from "@/components/TaskBoard";
+import ShowMore from "@/components/ShowMore";
 import QuickAssign from "@/components/QuickAssign";
 import { listBrands } from "@/lib/brands";
 import MyWork from "@/components/MyWork";
@@ -23,7 +24,7 @@ const overdue = (t) => OPEN_TASK.includes(t.status) && t.due_at && new Date(t.du
 const KIND_LABEL = { design: "Designer", development: "Developer", video: "Video editor", performance: "Performance", social: "Social media", production: "Production", execution: "CBO", strategy: "Creative strategist", sales: "Sales", head: "Manager" };
 
 /** Everyone you look after, one row each: what they have open, what's late, what got approved. */
-function Workload({ people, tasks }) {
+function Workload({ people, tasks, link }) {
   const open = tasks.filter((t) => OPEN_TASK.includes(t.status));
   const rows = people
     .map((p) => {
@@ -39,7 +40,9 @@ function Workload({ people, tasks }) {
           <Avatar name={p.name} size={34} />
           <div className="min-w-0 flex-1">
             <div className="flex items-baseline justify-between gap-3">
-              <span className="truncate text-[14px] font-medium">{p.name}</span>
+              <Link href={link(p.id)} className="truncate text-[14px] font-medium hover:underline">
+                {p.name}
+              </Link>
               <span className="shrink-0 text-[12px] tabular-nums text-muted">
                 {p.mine.length} open{p.late ? <span className="text-rose-500"> · {p.late} late</span> : ""} · {p.done} approved
               </span>
@@ -114,11 +117,17 @@ export default async function TasksPage({ searchParams }) {
   const kinds = [...new Set(byBrand.map((t) => t.kind))];
   const kind = kinds.includes(sp.kind) ? sp.kind : "";
   const byKind = kind ? byBrand.filter((t) => t.kind === kind) : byBrand;
+  // One person's work, or only what I gave out — so it's easy to remember who has what
+  const given = sp.by === "me";
+  const byGiver = given ? byKind.filter((t) => t.assigned_by === me.id) : byKind;
+  const doers = [...new Map(byGiver.filter((t) => t.assignee).map((t) => [t.assignee_id, t.assignee.name])).entries()].sort((a, b) => a[1].localeCompare(b[1]));
+  const person = doers.some(([id]) => id === sp.person) ? sp.person : "";
+  const byPerson = person ? byGiver.filter((t) => t.assignee_id === person) : byGiver;
   // Content-calendar work vs everything else
   const src = ["calendar", "other"].includes(sp.src) ? sp.src : "";
-  const shown = src ? byKind.filter((t) => (src === "calendar") === fromCalendar(t)) : byKind;
+  const shown = src ? byPerson.filter((t) => (src === "calendar") === fromCalendar(t)) : byPerson;
   const href = (o) => {
-    const q = new URLSearchParams({ ...(current !== "list" && { view: current }), ...(brand && { brand }), ...(kind && { kind }), ...(src && { src }), ...(sp.who === "all" && { who: "all" }), ...o });
+    const q = new URLSearchParams({ ...(current !== "list" && { view: current }), ...(brand && { brand }), ...(kind && { kind }), ...(src && { src }), ...(person && { person }), ...(given && { by: "me" }), ...(sp.who === "all" && { who: "all" }), ...o });
     for (const [k, v] of [...q]) if (!v) q.delete(k);
     const str = q.toString();
     return str ? `/tasks?${str}` : "/tasks";
@@ -133,7 +142,7 @@ export default async function TasksPage({ searchParams }) {
   const working = shown.filter((t) => OPEN_TASK.includes(t.status) && !isLate(t)).sort(byPriority);
   const withClient = shown.filter((t) => t.status === "sent_to_client");
   const approved = shown.filter((t) => t.status === "done").sort((a, b) => (b.done_at || "").localeCompare(a.done_at || ""));
-  const filtered = Boolean(brand || kind || src);
+  const filtered = Boolean(brand || kind || src || person || given);
   const showFilters = current === "list" || current === "board";
 
   return (
@@ -154,9 +163,9 @@ export default async function TasksPage({ searchParams }) {
           {showFilters && (
             <FilterPills
               items={[
-                { label: "All work", count: byKind.length, href: href({ src: "" }), on: !src },
-                { label: "Content calendar", count: byKind.filter(fromCalendar).length, href: href({ src: "calendar" }), on: src === "calendar" },
-                { label: "Other tasks", count: byKind.filter((t) => !fromCalendar(t)).length, href: href({ src: "other" }), on: src === "other" },
+                { label: "All work", count: byPerson.length, href: href({ src: "" }), on: !src },
+                { label: "Content calendar", count: byPerson.filter(fromCalendar).length, href: href({ src: "calendar" }), on: src === "calendar" },
+                { label: "Other tasks", count: byPerson.filter((t) => !fromCalendar(t)).length, href: href({ src: "other" }), on: src === "other" },
               ]}
             />
           )}
@@ -168,6 +177,17 @@ export default async function TasksPage({ searchParams }) {
               ]}
             />
           )}
+          {showFilters && (
+            <FilterPills
+              items={[
+                { label: "Everyone's tasks", href: href({ by: "", person: "" }), on: !given },
+                { label: "Given by me", count: byKind.filter((t) => t.assigned_by === me.id).length, href: href({ by: "me", person: "" }), on: given },
+              ]}
+            />
+          )}
+          {showFilters && doers.length > 1 && (
+            <LinkSelect label="Person" value={person} options={[{ value: "", label: "All people", href: href({ person: "" }) }, ...doers.map(([id, name]) => ({ value: id, label: `${name} · ${byGiver.filter((t) => t.assignee_id === id && t.status !== "done").length} open`, href: href({ person: id }) }))]} />
+          )}
           {showFilters && active.length > 1 && (
             <LinkSelect label="Brand" value={brand} options={[{ value: "", label: "All brands", href: href({ brand: "", kind: "" }) }, ...active.map((b) => ({ value: b.id, label: b.name, href: href({ brand: b.id, kind: "" }) }))]} />
           )}
@@ -175,7 +195,7 @@ export default async function TasksPage({ searchParams }) {
             <LinkSelect label="Type" value={kind} options={[{ value: "", label: "All types", href: href({ kind: "" }) }, ...kinds.map((k) => ({ value: k, label: kindPlural(k), href: href({ kind: k }) }))]} />
           )}
           {showFilters && filtered && (
-            <Link href={href({ brand: "", kind: "", src: "" })} className="px-2 text-[12.5px] text-muted hover:text-ink">
+            <Link href={href({ brand: "", kind: "", src: "", person: "", by: "" })} className="px-2 text-[12.5px] text-muted hover:text-ink">
               Clear
             </Link>
           )}
@@ -204,14 +224,16 @@ export default async function TasksPage({ searchParams }) {
                 ["Ready to share with client", shown.filter((t) => t.status === "ready")],
                 ["On hold", shown.filter((t) => t.status === "on_hold")],
                 ["Shared with client", withClient],
-                ["Completed", approved.slice(0, 50)],
+                ["Completed", approved],
               ]
                 .filter(([, list]) => list.length)
                 .map(([title, list]) => (
                   <Section key={title} title={title} count={title === "Completed" ? approved.length : list.length}>
-                    {list.map((t) => (
-                      <TaskLine key={t.id} t={t} showBrand={!brand} />
-                    ))}
+                    <ShowMore limit={5}>
+                      {list.map((t) => (
+                        <TaskLine key={t.id} t={t} showBrand={!brand} showAssignee={!person} />
+                      ))}
+                    </ShowMore>
                   </Section>
                 ))}
             </div>
@@ -221,7 +243,7 @@ export default async function TasksPage({ searchParams }) {
         {current === "board" && <TaskBoard tasks={shown} showBrand={!brand} />}
         {current === "team" &&
           (people.length ? (
-            <Workload people={people} tasks={all} />
+            <Workload people={people} tasks={all} link={(id) => href({ view: "", person: id })} />
           ) : (
             <Panel title="No team yet">
               <p className="text-sm text-muted">Add people to the Designers, Developers and Video Editors groups on the Team page — they show up here and in the task picker.</p>
