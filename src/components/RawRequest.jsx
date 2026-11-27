@@ -14,6 +14,8 @@ function dueIn(days) {
   const d = new Date(Date.now() + days * 864e5);
   return `${d.toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" })}T19:00`;
 }
+const atTime = (due, time) => `${String(due || dueIn(0)).slice(0, 10)}T${time || "19:00"}`;
+const timeOf = (due) => String(due || "").slice(11, 16) || "19:00";
 const DUE = [
   ["Today", 0],
   ["Tomorrow", 1],
@@ -41,7 +43,7 @@ export default function RawRequest({ task, crew = [], mine = false }) {
   const [f, setF] = useState(blank);
   const [files, setFiles] = useState([]);
   const [pickDate, setPickDate] = useState(false);
-  const quick = DUE.find(([, d]) => dueIn(d) === f.due_at);
+  const quick = DUE.find(([, d]) => dueIn(d).slice(0, 10) === String(f.due_at).slice(0, 10));
 
   if (!crew.length)
     return <p className="rounded-xl bg-panel-2 px-3 py-2.5 text-[12px] text-muted">Add people to the Production group on the Team page to ask them for raw photos or footage.</p>;
@@ -136,7 +138,7 @@ export default function RawRequest({ task, crew = [], mine = false }) {
               on={!pickDate && quick?.[0] === l}
               onClick={() => {
                 setPickDate(false);
-                setF((v) => ({ ...v, due_at: dueIn(d) }));
+                setF((v) => ({ ...v, due_at: atTime(dueIn(d), timeOf(v.due_at)) }));
               }}
             >
               {l}
@@ -146,6 +148,11 @@ export default function RawRequest({ task, crew = [], mine = false }) {
             Pick date
           </Chip>
         </div>
+        {!pickDate && quick && (
+          <label className="mt-2 flex items-center gap-2 text-[12.5px] text-muted">
+            By <input type="time" className="field w-auto py-1.5" value={timeOf(f.due_at)} onChange={(e) => setF((v) => ({ ...v, due_at: atTime(v.due_at, e.target.value) }))} />
+          </label>
+        )}
         {(pickDate || !quick) && <input type="datetime-local" className="field mt-2" value={f.due_at} onChange={(e) => setF((v) => ({ ...v, due_at: e.target.value }))} />}
       </div>
 

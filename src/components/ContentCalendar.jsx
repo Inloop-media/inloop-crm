@@ -219,6 +219,7 @@ function Drawer({ item, brandId, people, canEdit, canAssign, canDelete = false, 
     return k < todayKey() ? todayKey() : k;
   })();
   const [due, setDue] = useState(twoDaysBefore);
+  const [dueTime, setDueTime] = useState("19:00");
   const [priority, setPriority] = useState("medium");
   const [folders, setFolders] = useState([]); // extra Drive folders for the task (its own post folder is automatic)
   const st = itemState(item);
@@ -378,6 +379,7 @@ function Drawer({ item, brandId, people, canEdit, canAssign, canDelete = false, 
                   <div className="flex items-center gap-2">
                     <label className="text-xs text-muted">Due</label>
                     <input type="date" className="field" value={due} onChange={(e) => setDue(e.target.value)} />
+                    <input type="time" aria-label="Due time" className="field w-auto" value={dueTime} onChange={(e) => setDueTime(e.target.value)} />
                     <PrioritySelect value={priority} onChange={setPriority} />
                   </div>
                   <RawToggle value={raw} onChange={setRaw} kind={f.kind} who={people.find((p) => p.id === who)?.name.split(" ")[0]} brandId={brandId} />
@@ -396,7 +398,7 @@ function Drawer({ item, brandId, people, canEdit, canAssign, canDelete = false, 
                     disabled={!who || pending || (raw && (!raw.assignee_id || !raw.brief.trim()))}
                     onClick={() =>
                       run(async () => {
-                        const r = await assignCalendarItem(item.id, { assignee_id: who, due_at: due, priority, folders });
+                        const r = await assignCalendarItem(item.id, { assignee_id: who, due_at: due ? `${due}T${dueTime || "19:00"}` : due, priority, folders });
                         if (!r.ok || !raw) return r;
                         const q = await requestRaw(r.taskId, raw);
                         return q.ok ? r : { ok: false, error: `Task given, but the Production request didn't go: ${q.error} — ask from the task page.` };
