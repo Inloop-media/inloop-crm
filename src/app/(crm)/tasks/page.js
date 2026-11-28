@@ -8,7 +8,6 @@ import TaskDesk from "@/components/TaskDesk";
 import { filterHref, filterTasks } from "@/lib/taskFilters";
 import QuickAssign from "@/components/QuickAssign";
 import { listBrands } from "@/lib/brands";
-import { MemberRow } from "@/components/MyWork";
 import TeamToCheck from "@/components/TeamToCheck";
 import TeamTasks from "@/components/TeamTasks";
 import { requireMember } from "@/lib/auth";
@@ -111,7 +110,7 @@ export default async function TasksPage({ searchParams }) {
           <TeamToCheck me={me} />
           <TeamTasks me={me} />
         </div>
-        <TaskDesk me={me} sp={sp} base="/tasks" all={mine} active={brandsOf(mine)} member rowFor={(t) => <MemberRow key={t.id} t={t} />} />
+        <TaskDesk me={me} sp={sp} base="/tasks" all={mine} active={brandsOf(mine)} member />
       </div>
     );
   }
@@ -198,7 +197,7 @@ export default async function TasksPage({ searchParams }) {
               <p className="text-sm text-muted">Add people to the Designers, Developers and Video Editors groups on the Team page — they show up here and in the task picker.</p>
             </Panel>
           ))}
-        {current === "mine" && <TaskDesk me={me} sp={sp} base="/tasks" all={mine} active={brandsOf(mine)} member keep={{ view: "mine" }} rowFor={(t) => <MemberRow key={t.id} t={t} />} />}
+        {current === "mine" && <TaskDesk me={me} sp={sp} base="/tasks" all={mine} active={brandsOf(mine)} member keep={{ view: "mine" }} />}
       </div>
     </div>
   );

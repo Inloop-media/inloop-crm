@@ -13,7 +13,6 @@ import { dashboardData, myFollowUps } from "@/lib/leads";
 import { listBrands } from "@/lib/brands";
 import { leadAllTasks, listMakers, listTasks, reviewFiles } from "@/lib/tasks";
 import TaskDesk from "@/components/TaskDesk";
-import { MemberRow } from "@/components/MyWork";
 import QuickAssign from "@/components/QuickAssign";
 import { Block, HomeHeader } from "@/components/Home";
 import { canKeepNotes, canSeeAllLeads, canSeeLeads, headsTeam, isExecHead, isOpsHead, isSalesHead, isStrategist, leadTeam, myTeam, salesTeam } from "@/lib/permissions";
@@ -277,7 +276,7 @@ export default async function Dashboard({ searchParams }) {
         lead ? (
           <TaskDesk me={me} sp={sp} base="/" all={teamTasks} active={active} lead />
         ) : tasks.length ? (
-          <TaskDesk me={me} sp={sp} base="/" all={tasks} active={[...new Map(tasks.filter((t) => t.brand).map((t) => [t.brand.id, { id: t.brand.id, name: t.brand.name }])).values()]} member rowFor={(t) => <MemberRow key={t.id} t={t} />} />
+          <TaskDesk me={me} sp={sp} base="/" all={tasks} active={[...new Map(tasks.filter((t) => t.brand).map((t) => [t.brand.id, { id: t.brand.id, name: t.brand.name }])).values()]} member />
         ) : null
       }
     />

@@ -45,7 +45,7 @@ export function Counts({ items }) {
   // Tabs mode (Tasks page): the chosen card is the coral one; otherwise the first card is the highlight
   const tabs = items.some((it) => it.active !== undefined);
   return (
-    <div className={`rise mb-5 grid gap-3 ${COLS[items.length] || "grid-cols-3"}`}>
+    <div className={tabs ? `rise -mx-1 mb-5 flex gap-2.5 overflow-x-auto px-1 pb-1 sm:mx-0 sm:grid sm:gap-3 sm:overflow-visible sm:px-0 sm:pb-0 ${COLS[items.length] || "sm:grid-cols-3"}` : `rise mb-5 grid gap-3 ${COLS[items.length] || "grid-cols-3"}`}>
       {items.map((it, i) => {
         const has = it.value > 0;
         const coral = tabs ? it.active : i === 0 && has;
@@ -60,7 +60,7 @@ export function Counts({ items }) {
         const body = (
           <>
             <span className={`text-[12.5px] ${sub}`}>{it.label}</span>
-            <span className={`text-[30px] font-medium leading-none tracking-[-0.02em] tabular-nums ${num}`}>{it.value}</span>
+            <span className={`${tabs ? "text-[24px] sm:text-[30px]" : "text-[30px]"} font-medium leading-none tracking-[-0.02em] tabular-nums ${num}`}>{it.value}</span>
             {it.href && has && !tabs && (
               <span className={`mt-auto flex items-center gap-1 text-[12px] font-medium ${sub}`}>
                 Open list <Icon name="arrow" size={12} />
@@ -70,7 +70,7 @@ export function Counts({ items }) {
         );
         // Late: a soft red card (the card's own background is a sheen, so it's set here)
         const style = it.tone === "red" && has && !coral ? { background: "linear-gradient(rgb(244 63 94 / 0.1), rgb(244 63 94 / 0.1)), var(--card-sheen)", borderColor: "color-mix(in srgb, #f43f5e 22%, transparent)" } : undefined;
-        const cls = `${look} flex ${tabs ? "min-h-[84px]" : "min-h-[112px]"} flex-col gap-2.5 px-4 py-3.5 transition hover:-translate-y-0.5`;
+        const cls = `${look} flex ${tabs ? "min-h-[76px] w-[124px] shrink-0 sm:min-h-[84px] sm:w-auto" : "min-h-[112px]"} flex-col gap-2.5 px-4 py-3.5 transition hover:-translate-y-0.5`;
         return it.href ? (
           <Link key={it.label} href={it.href} scroll={false} aria-current={it.active ? "page" : undefined} className={cls} style={style}>
             {body}

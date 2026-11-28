@@ -12,7 +12,7 @@ const now = () => Date.now();
 const IST = "Asia/Kolkata";
 const dayKey = (d) => new Date(d).toLocaleDateString("en-CA", { timeZone: IST });
 
-function Next({ t }) {
+export function NextStep({ t }) {
   if (t.status === "assigned" || t.status === "revision") return <StartTask id={t.id} label={t.status === "revision" ? "Start fixing" : "Start"} />;
   if (t.status === "in_progress")
     return (
@@ -32,7 +32,7 @@ function Next({ t }) {
 
 /** One of my tasks with its next step on the right (Start / Upload & submit / where it is). */
 export function MemberRow({ t }) {
-  return <TaskLine key={t.id} t={t} showAssignee={false} showGiven note={t.status === "revision" ? t.feedback : ""} action={OPEN_TASK.includes(t.status) ? <Next t={t} /> : undefined} />;
+  return <TaskLine key={t.id} t={t} showAssignee={false} showGiven note={t.status === "revision" ? t.feedback : ""} action={OPEN_TASK.includes(t.status) ? <NextStep t={t} /> : undefined} />;
 }
 
 function List({ title, sub, tasks, tone, empty, count }) {
@@ -40,7 +40,7 @@ function List({ title, sub, tasks, tone, empty, count }) {
   return (
     <Section title={title} count={count ?? tasks.length} tone={tone} empty={empty} action={sub && <span className="hidden text-xs text-muted sm:block">{sub}</span>}>
       {tasks.map((t) => (
-        <TaskLine key={t.id} t={t} showAssignee={false} calendarTag={false} note={t.status === "revision" ? t.feedback : ""} action={OPEN_TASK.includes(t.status) ? <Next t={t} /> : undefined} />
+        <TaskLine key={t.id} t={t} showAssignee={false} calendarTag={false} note={t.status === "revision" ? t.feedback : ""} action={OPEN_TASK.includes(t.status) ? <NextStep t={t} /> : undefined} />
       ))}
     </Section>
   );
