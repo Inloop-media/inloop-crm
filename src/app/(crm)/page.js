@@ -15,13 +15,9 @@ import { leadAllTasks, listMakers, listTasks, reviewFiles } from "@/lib/tasks";
 import TaskDesk from "@/components/TaskDesk";
 import QuickAssign from "@/components/QuickAssign";
 import { Block, HomeHeader } from "@/components/Home";
-import { canKeepNotes, canSeeAllLeads, canSeeLeads, headsTeam, isExecHead, isOpsHead, isSalesHead, isStrategist, leadTeam, myTeam, salesTeam } from "@/lib/permissions";
-import TeamMeetings from "@/components/TeamMeetings";
-import MyNotes from "@/components/MyNotes";
+import { canSeeAllLeads, canSeeLeads, headsTeam, isExecHead, isOpsHead, isSalesHead, isStrategist, leadTeam, myTeam, salesTeam } from "@/lib/permissions";
 import TeamToCheck from "@/components/TeamToCheck";
 import TeamTasks from "@/components/TeamTasks";
-import { myNotes } from "@/lib/notes";
-import { canCallMeetings, meetingAudience, myTeamMeetings } from "@/lib/teamMeetings";
 import { listGroups } from "@/lib/leads";
 import { headIdsOf, ownHeadIds, runsGroup, sortGroups, teamLeadIdsOf } from "@/lib/groups";
 
@@ -127,20 +123,11 @@ async function GroupCards({ me }) {
 }
 
 /** The private to-do list (admin and the CBOs only). */
-async function Notes({ me }) {
-  if (!canKeepNotes(me)) return null;
-  return <MyNotes initial={await myNotes(me.id)} />;
-}
 
 /** The admin overview's top row (as it was before the calmer redesign): team meetings, then group cards. */
 function AdminTop({ me }) {
   return (
     <div className="flex flex-col gap-4">
-      {/* Notes and meetings side by side — each is a short list, full width wasted the space */}
-      <div className={`grid gap-4 ${canKeepNotes(me) ? "lg:grid-cols-2 lg:[&>*]:h-full" : ""}`}>
-        <Notes me={me} />
-        <Meetings me={me} />
-      </div>
       <BrandMonth />
       <GroupCards me={me} />
     </div>
@@ -153,30 +140,14 @@ function Side({ me, desk = false }) {
     <>
       {!desk && <TeamToCheck me={me} />}
       {!desk && <TeamTasks me={me} />}
-      <Notes me={me} />
-      <Meetings me={me} />
       <MyGroups me={me} />
     </>
   );
 }
 
-/** The team meetings card for any dashboard: what you're in, and "Schedule meeting" for team leads and up. */
-async function Meetings({ me }) {
-  const [meetings, audience] = await Promise.all([myTeamMeetings(me.id).catch(() => []), canCallMeetings(me) ? meetingAudience(me) : null]);
-  return (
-    <TeamMeetings
-      meetings={meetings}
-      audience={audience}
-      connected={Boolean(me.calendar_connected_at)}
-      domain={process.env.ALLOWED_DOMAIN}
-      now={nowMs()}
-    />
-  );
-}
 
 export const metadata = { title: "Dashboard" };
 
-const nowMs = () => Date.now();
 
 /** Execution heads (Udit, Krish): their teams' work — what to check, what's late, how each brand is doing. */
 async function ExecDashboard({ me, sp }) {

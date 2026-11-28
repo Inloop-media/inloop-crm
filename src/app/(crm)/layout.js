@@ -82,6 +82,7 @@ export default async function CrmLayout({ children }) {
   if (canAssignTasks(me) || isMaker(me) || tasksCount) main.push({ href: "/tasks", label: canAssignTasks(me) ? "Tasks" : "My tasks", icon: "tasks", badge: tasksCount });
   if (canSeeCalendar(me)) main.push({ href: "/calendar", label: "Content calendar", icon: "calendar" });
   if (canSeeLibrary(me)) main.push({ href: "/library", label: "Brand library", icon: "board" });
+  main.push({ href: "/meetings", label: "Meetings", icon: "video" });
   main.push({ href: "/dm", label: "Direct messages", icon: "chat", badge: dmCount });
   main.push({ href: "/requirements", label: "Requirements", icon: "list", badge: reqs.badge });
   main.push({ href: "/announcements", label: "Announcements", icon: "speaker", badge: announcements.length });
