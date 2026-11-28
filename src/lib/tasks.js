@@ -230,7 +230,11 @@ export async function taskBadge(me) {
   const review = canAssignTasks(me) ? db().from("tasks").select("id, status, assignee_id, assigned_by, lead_ok_at").in("status", ["completed", "client_rejected"]).limit(500) : null;
   const [a, b, queue] = await Promise.all([mine, review, leadTeam(me).length ? leadQueue(me, { count: true }) : 0]);
   if (a.error) return 0; // before migration 009
-  const toCheck = b?.data ? (await withLeadFlags(b.data)).filter((t) => !t.with_lead).length : 0;
+  // Same as the Tasks page opens on: a head with a team counts their team's work (and what they gave out);
+  // admin counts everything
+  const team = me.role !== "admin" && headsTeam(me) ? myTeam(me) : null;
+  const ours = (t) => !team?.length || team.includes(t.assignee_id) || t.assigned_by === me.id;
+  const toCheck = b?.data ? (await withLeadFlags(b.data)).filter((t) => !t.with_lead && ours(t)).length : 0;
   return (a.count || 0) + toCheck + (queue || 0);
 }
 
