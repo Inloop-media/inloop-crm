@@ -6,7 +6,6 @@ import Icon from "@/components/Icon";
 import { Avatar } from "@/components/ui";
 import { HoldPanel, LeadReviewPanel, MainAction, ReviewPanel, TaskAdmin, TaskFiles } from "@/components/TaskForms";
 import DriveUploads from "@/components/DriveUploads";
-import RawRequest from "@/components/RawRequest";
 import PostKit from "@/components/PostKit";
 import { KIND_COLOR, OPEN_TASK, TASK_STATUSES, taskKindLabel } from "@/lib/constants";
 import { ago, fmtDateTime } from "@/lib/format";
@@ -206,7 +205,7 @@ function Card({ title, sub, children, className = "" }) {
  *   mine    the viewer is doing this task
  *   people  who it can be given to (for heads)
  */
-export default function TaskView({ task, head, mine, leadCheck = false, people = [], crew = [] }) {
+export default function TaskView({ task, head, mine, leadCheck = false, people = [] }) {
   const refs = task.files.filter((f) => f.role === "reference");
   const showFeedback = task.feedback && ["revision", "assigned", "in_progress"].includes(task.status);
   const st = TASK_STATUSES[task.status] || { label: task.status, color: "#94a3b8" };
@@ -366,12 +365,6 @@ export default function TaskView({ task, head, mine, leadCheck = false, people =
               <HoldPanel task={task} heldBy={heldBy} />
             </div>
           </Card>
-
-          {(head || mine) && !["shoot", "posting"].includes(task.kind) && task.status !== "done" && (
-            <Card>
-              <RawRequest task={task} crew={crew} mine={mine} />
-            </Card>
-          )}
 
           <Card className="!py-2">
             <Prop label="Status">

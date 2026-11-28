@@ -112,8 +112,8 @@ export async function requestRaw(forId, input) {
   const me = await requireMember();
   const task = await loadTask(forId);
   if (!task) return { ok: false, error: "Task not found." };
-  // Managers / admin, or the designer / editor doing the task themselves
-  if (!canAssignTasks(me) && task.assignee_id !== me.id) return { ok: false, error: "Only the person doing this task or a manager can ask Production." };
+  // Only whoever gives the task (CBOs, managers, admin) asks Production — when assigning it
+  if (!canAssignTasks(me)) return { ok: false, error: "Only managers ask Production for a shoot." };
   if (task.kind === "shoot") return { ok: false, error: "This is already a shoot." };
   const what = RAW_WHAT.some(([id]) => id === input.what) ? input.what : "photos";
   const label = RAW_WHAT.find(([id]) => id === what)[1];

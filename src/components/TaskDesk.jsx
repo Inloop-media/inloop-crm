@@ -1,9 +1,8 @@
-// The tasks desk: search + filters (brand, person, type, assigned on, given by me), the number cards, and
+// The tasks desk: search + filters (brand, person, type, assigned on, given by me), then
 // every group of tasks as a fold-open table. Used on the Tasks page and on the dashboards (server component).
 import Link from "next/link";
 import Icon from "@/components/Icon";
 import { FilterPills } from "@/components/Desk";
-import { Counts } from "@/components/Home";
 import LinkSelect from "@/components/LinkSelect";
 import TaskTable from "@/components/TaskTable";
 import { NextStep } from "@/components/MyWork";
@@ -19,11 +18,8 @@ import { filterHref, filterTasks } from "@/lib/taskFilters";
  * checkRow   (task) => a richer row for the To check tab (e.g. with Approve / Send back on the dashboard)
  * member     the person doing the work: Do now / Coming up / Waiting / Completed, with Start / Upload on each row
  *
- * The number cards on top pick one group (click again for all); below, every group is a fold-open table.
+ * Every group is a fold-open table (?show=<group> opens just that one, e.g. from a dashboard link).
  */
-// The cards on top: the four groups that matter most
-const CARDS = ["check", "late", "progress", "lead", "now", "next", "waiting", "done"];
-
 export default function TaskDesk({ me, sp = {}, base = "/tasks", all, active = [], head = false, lead = false, member = false, keep = {}, extra = null, showList = true, checkRow = null }) {
   const f = filterTasks({ all, sp, me, active, lead, member });
   const href = (o) => filterHref(base, f, sp, keep, o);
@@ -104,17 +100,6 @@ export default function TaskDesk({ me, sp = {}, base = "/tasks", all, active = [
 
       {showList && (
         <>
-          <Counts
-            items={f.lists
-              .filter((l) => CARDS.includes(l.key))
-              .map((l) => ({
-                label: l.title,
-                value: l.list.length,
-                tone: ["check", "late", "now"].includes(l.key) ? "red" : "",
-                href: href({ show: sp.show === l.key ? "" : l.key }),
-                active: sp.show === l.key,
-              }))}
-          />
           {sp.show && f.lists.some((l) => l.key === sp.show) && (
             <Link href={href({ show: "" })} scroll={false} className="rise mb-3 inline-flex items-center gap-1 text-[12.5px] font-medium text-muted hover:text-ink">
               ← Show every group

@@ -4,14 +4,14 @@ import { requireMember } from "@/lib/auth";
 import { listAssets } from "@/lib/assets";
 import { canManageAssets, canSeeAssets } from "@/lib/permissions";
 
-export const metadata = { title: "Brand assets" };
+export const metadata = { title: "Inloop Assets" };
 
 export default async function AssetsPage() {
   const me = await requireMember(canSeeAssets);
   const { assets, migration } = await listAssets();
   return (
     <div className="page">
-      <PageTop title="Brand assets" sub="Inloop's company profiles, presentations, past work and client documents — download and share." />
+      <PageTop title="Inloop Assets" sub="Inloop's company profiles, presentations, past work and client documents — download and share." />
       {migration ? <p className="card p-6 text-[13px] text-muted">Run migration 024 in Supabase to turn this on.</p> : <AssetsBoard assets={assets} canManage={canManageAssets(me)} />}
     </div>
   );

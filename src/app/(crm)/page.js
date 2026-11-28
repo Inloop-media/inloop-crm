@@ -249,7 +249,6 @@ export default async function Dashboard({ searchParams }) {
         tasks={tasks}
         actions={<QuickAssign brands={active} people={people} label="New task" />}
         meetings={<AdminTop me={me} />}
-        desk={<TaskDesk me={me} sp={sp} base="/" all={tasks} active={active} head />}
       />
     );
   }

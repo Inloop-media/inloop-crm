@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import TaskView from "@/components/TaskView";
 import { requireMember } from "@/lib/auth";
-import { getTask, listMakers, productionPeople } from "@/lib/tasks";
+import { getTask, listMakers } from "@/lib/tasks";
 import { canAssignTasks } from "@/lib/permissions";
 
 export async function generateMetadata({ params }) {
@@ -18,8 +18,8 @@ export default async function TaskPage({ params }) {
   if (!task) notFound();
   const head = canAssignTasks(me);
   const mine = task.assignee_id === me.id;
-  const [people, crew] = await Promise.all([head ? listMakers(me) : [], (head || mine) && !["shoot", "posting"].includes(task.kind) ? productionPeople() : []]);
+  const people = head ? await listMakers(me) : [];
   // Ananya-style team lead: their check comes first
   const leadCheck = Boolean(task.with_lead && (task.lead_ids || []).includes(me.id));
-  return <TaskView task={task} head={head} mine={mine} leadCheck={leadCheck} people={people} crew={crew} />;
+  return <TaskView task={task} head={head} mine={mine} leadCheck={leadCheck} people={people} />;
 }

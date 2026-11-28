@@ -87,7 +87,7 @@ export default async function CrmLayout({ children }) {
   main.push({ href: "/announcements", label: "Announcements", icon: "speaker", badge: announcements.length });
   const sales = [];
   if (canSeeLeads(me)) sales.push({ href: "/leads", label: "Leads", icon: "leads", badge: leadCount });
-  if (canSeeAssets(me)) sales.push({ href: "/assets", label: "Brand assets", icon: "brief" });
+  if (canSeeAssets(me)) sales.push({ href: "/assets", label: "Inloop Assets", icon: "brief" });
   if (canSeeBriefs(me)) sales.push({ href: "/briefs", label: "Proposals", icon: "brief", badge: briefCount });
   if (canCreateLead(me)) sales.push({ href: "/leads/new", label: "New lead", icon: "plus" });
   const clients = [];
