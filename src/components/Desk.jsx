@@ -79,13 +79,24 @@ function duePill(t) {
  * One task as a calm row: what it is, whose and for which brand, and when it's due. High priority shows
  * as a small red dot, late work as a red due date. `action` replaces the open arrow on the right.
  */
-export function TaskLine({ t, showBrand = true, action, note, showAssignee = true, showStatus = false, calendarTag = true }) {
+/** "Given today" / "Given yesterday" / "Given 24 Nov" — when the task was handed out. */
+function givenText(t) {
+  if (!t.created_at) return "";
+  const k = dayKey(t.created_at);
+  if (k === dayKey(nowMs())) return "Given today";
+  if (k === dayKey(nowMs() - 864e5)) return "Given yesterday";
+  return `Given ${short.format(new Date(t.created_at))}`;
+}
+
+export function TaskLine({ t, showBrand = true, action, note, showAssignee = true, showStatus = false, calendarTag = true, showGiven = false }) {
   const s = TASK_STATUSES[t.status] || { label: t.status, color: "#94a3b8" };
   const c = KIND_COLOR[t.kind] || "#64748b";
   const due = duePill(t);
   const done = t.status === "done";
   const urgent = t.priority === "high" && !done;
-  const meta = [taskKindLabel(t.kind), showBrand && t.brand?.name, showAssignee && t.assignee?.name?.split(" ")[0], showStatus && (t.status === "completed" ? "To check" : t.status === "client_rejected" ? "Client changes" : s.label)].filter(Boolean);
+  const meta = [taskKindLabel(t.kind), showBrand && t.brand?.name, showAssignee && t.assignee?.name?.split(" ")[0], showStatus && (t.status === "completed" ? "To check" : t.status === "client_rejected" ? "Client changes" : s.label), showGiven && givenText(t)].filter(Boolean);
+  // Handed out today and not started yet: a small "New" tag
+  const fresh = showGiven && t.status === "assigned" && t.created_at && dayKey(t.created_at) === dayKey(nowMs());
   return (
     <li className="group relative flex items-center gap-3 border-b border-line py-3 last:border-0">
       <Link href={`/tasks/${t.id}`} className="absolute inset-0 z-0" aria-label={t.title} />
@@ -96,6 +107,7 @@ export function TaskLine({ t, showBrand = true, action, note, showAssignee = tru
         <span className={`flex items-center gap-1.5 text-[14px] font-medium group-hover:text-brand ${done ? "text-muted" : ""}`}>
           {urgent && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-rose-500" title="High priority" />}
           <span className="truncate">{t.title}</span>
+          {fresh && <span className="shrink-0 rounded-full bg-brand px-1.5 py-px text-[10px] font-semibold text-white">New</span>}
           {t.revision > 0 && <span className="shrink-0 text-[11px] font-normal text-muted">· v{t.revision + 1}</span>}
         </span>
         <span className="flex items-center gap-1 truncate text-[12px] text-muted">

@@ -65,7 +65,7 @@ function Ring({ value, total, label, icon }) {
  *   brands  listBrands()
  *   tasks   every task (empty if this member can't see tasks)
  */
-export default function AdminOverview({ me, data, brands = [], tasks = [], actions, salesOnly = false, meetings = null }) {
+export default function AdminOverview({ me, data, brands = [], tasks = [], actions, salesOnly = false, meetings = null, desk = null }) {
   const { leads, upcoming, proposals, members, now } = data;
   const today = dayKey(now);
   const d0 = new Date(now);
@@ -152,6 +152,13 @@ export default function AdminOverview({ me, data, brands = [], tasks = [], actio
         {greeting()}, {me.name.split(" ")[0]} 👋
       </h1>
       {meetings && <div className="mt-4">{meetings}</div>}
+      {/* The team's tasks — same tabs and filters as the Tasks page */}
+      {desk && (
+        <section id="tasks" className="mt-6 scroll-mt-4">
+          <h2 className="mb-3 text-[18px] font-medium">Tasks</h2>
+          {desk}
+        </section>
+      )}
 
       <div className="mt-4 grid gap-4 xl:grid-cols-12">
         {/* Hero */}

@@ -33,7 +33,7 @@ const STAGES = [
  *   tasks  this person's tasks
  *   side   cards for the top of the right column (team meetings, groups)
  */
-export default function UserHome({ me, data, tasks = [], followUps = [], side = null, sub = "" }) {
+export default function UserHome({ me, data, tasks = [], followUps = [], side = null, sub = "", desk = null }) {
   const { leads, upcoming, proposals, now } = data;
   const today = dayKey(now);
   const isLate = (t) => OPEN_TASK.includes(t.status) && t.due_at && new Date(t.due_at).getTime() < now;
@@ -125,7 +125,7 @@ export default function UserHome({ me, data, tasks = [], followUps = [], side = 
   return (
     <div className="page">
       <HomeHeader name={me.name} sub={sub} />
-      <Counts items={counts} />
+      {!desk && <Counts items={counts} />}
       <TwoCol
         main={
           <>
@@ -136,7 +136,8 @@ export default function UserHome({ me, data, tasks = [], followUps = [], side = 
                 ))}
               </ul>
             </Block>
-            {doesTasks &&
+            {desk}
+            {!desk && doesTasks &&
               (tasks.length ? (
                 <MyWork me={me} tasks={tasks} embedded />
               ) : (

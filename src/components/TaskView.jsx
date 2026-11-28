@@ -316,7 +316,7 @@ export default function TaskView({ task, head, mine, leadCheck = false, people =
 
           {(task.folders || []).length > 0 && (
             <Card title="Google Drive folders" sub={mine ? "Where to upload what" : "Where this work is saved"}>
-              <DriveUploads task={task} canUpload={mine || head} />
+              <DriveUploads task={task} canUpload={mine || head} canShare={head} />
             </Card>
           )}
 

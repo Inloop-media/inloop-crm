@@ -1,6 +1,6 @@
 import Link from "next/link";
 import UserHome from "@/components/UserHome";
-import HeadHome from "@/components/HeadHome";
+import HeadHome, { ReviewRow } from "@/components/HeadHome";
 import AdminHome from "@/components/AdminHome";
 import AdminOverview from "@/components/AdminOverview";
 import BrandMonth from "@/components/BrandMonth";
@@ -11,10 +11,12 @@ import Icon from "@/components/Icon";
 import { requireMember } from "@/lib/auth";
 import { dashboardData, myFollowUps } from "@/lib/leads";
 import { listBrands } from "@/lib/brands";
-import { listMakers, listTasks, reviewFiles } from "@/lib/tasks";
+import { leadAllTasks, listMakers, listTasks, reviewFiles } from "@/lib/tasks";
+import TaskDesk from "@/components/TaskDesk";
+import { MemberRow } from "@/components/MyWork";
 import QuickAssign from "@/components/QuickAssign";
 import { Block, HomeHeader } from "@/components/Home";
-import { canKeepNotes, canSeeAllLeads, canSeeLeads, headsTeam, isExecHead, isOpsHead, isSalesHead, isStrategist, myTeam, salesTeam } from "@/lib/permissions";
+import { canKeepNotes, canSeeAllLeads, canSeeLeads, headsTeam, isExecHead, isOpsHead, isSalesHead, isStrategist, leadTeam, myTeam, salesTeam } from "@/lib/permissions";
 import TeamMeetings from "@/components/TeamMeetings";
 import MyNotes from "@/components/MyNotes";
 import TeamToCheck from "@/components/TeamToCheck";
@@ -147,11 +149,11 @@ function AdminTop({ me }) {
 }
 
 /** The top of the right column on every dashboard: team meetings, then the groups you're in. */
-function Side({ me }) {
+function Side({ me, desk = false }) {
   return (
     <>
-      <TeamToCheck me={me} />
-      <TeamTasks me={me} />
+      {!desk && <TeamToCheck me={me} />}
+      {!desk && <TeamTasks me={me} />}
       <Notes me={me} />
       <Meetings me={me} />
       <MyGroups me={me} />
@@ -178,7 +180,7 @@ export const metadata = { title: "Dashboard" };
 const nowMs = () => Date.now();
 
 /** Execution heads (Udit, Krish): their teams' work — what to check, what's late, how each brand is doing. */
-async function ExecDashboard({ me }) {
+async function ExecDashboard({ me, sp }) {
   const [allTasks, allPeople, brands] = await Promise.all([listTasks(me, { view: "all" }), listMakers(me), listBrands()]);
   // A head who runs groups sees their teams' work (and anything they assigned themselves)
   const team = myTeam(me);
@@ -207,7 +209,13 @@ async function ExecDashboard({ me }) {
           <BrandMonth />
         </div>
       )}
-      <HeadHome tasks={tasks} brands={theirBrands} files={files} side={<Side me={me} />} />
+      <HeadHome
+        tasks={tasks}
+        brands={theirBrands}
+        files={files}
+        side={<Side me={me} />}
+        desk={<TaskDesk me={me} sp={sp} base="/" all={tasks} active={active} head checkRow={(t) => <ReviewRow key={t.id} t={t} files={files[t.id] || []} />} />}
+      />
     </div>
   );
 }
@@ -219,15 +227,16 @@ async function SalesHeadDashboard({ me }) {
   return <AdminHome me={me} data={{ ...data, members: data.members.filter((m) => team.includes(m.id)) }} brands={[]} tasks={[]} salesOnly side={<Side me={me} />} />;
 }
 
-export default async function Dashboard() {
+export default async function Dashboard({ searchParams }) {
   const me = await requireMember();
+  const sp = (await searchParams) || {};
   const staff = canSeeAllLeads(me);
 
   // Heads of departments see their own teams (the admin always sees everything)
   if (me.role !== "admin" && isSalesHead(me)) return <SalesHeadDashboard me={me} />;
-  if (me.role !== "admin" && headsTeam(me)) return <ExecDashboard me={me} />;
+  if (me.role !== "admin" && headsTeam(me)) return <ExecDashboard me={me} sp={sp} />;
   // Execution heads who aren't also on sales / strategy get a dashboard about their tasks
-  if (isExecHead(me) && !staff && !canSeeLeads(me) && !isStrategist(me)) return <ExecDashboard me={me} />;
+  if (isExecHead(me) && !staff && !canSeeLeads(me) && !isStrategist(me)) return <ExecDashboard me={me} sp={sp} />;
 
   // Admin / ops: what needs them, the agency at a glance, meetings
   if (staff) {
@@ -241,11 +250,36 @@ export default async function Dashboard() {
         tasks={tasks}
         actions={<QuickAssign brands={active} people={people} label="New task" />}
         meetings={<AdminTop me={me} />}
+        desk={<TaskDesk me={me} sp={sp} base="/" all={tasks} active={active} head />}
       />
     );
   }
 
   // Everyone else: the admin look, about their own work (tasks, leads and/or briefs — whatever they do)
-  const [data, tasks, followUps] = await Promise.all([dashboardData(me), listTasks(me, { view: "mine" }), myFollowUps(me)]);
-  return <UserHome me={me} data={data} tasks={tasks} followUps={followUps} side={<Side me={me} />} sub={(me.groups || []).map((g) => g.name).join(", ")} />;
+  const lead = leadTeam(me).length > 0;
+  const [data, tasks, followUps, teamTasks, brands] = await Promise.all([
+    dashboardData(me),
+    listTasks(me, { view: "mine" }),
+    myFollowUps(me),
+    lead ? leadAllTasks(me) : [],
+    lead ? listBrands() : [],
+  ]);
+  const active = brands.filter((b) => b.stage === "active").map((b) => ({ id: b.id, name: b.name }));
+  return (
+    <UserHome
+      me={me}
+      data={data}
+      tasks={tasks}
+      followUps={followUps}
+      side={<Side me={me} desk={lead} />}
+      sub={(me.groups || []).map((g) => g.name).join(", ")}
+      desk={
+        lead ? (
+          <TaskDesk me={me} sp={sp} base="/" all={teamTasks} active={active} lead />
+        ) : tasks.length ? (
+          <TaskDesk me={me} sp={sp} base="/" all={tasks} active={[...new Map(tasks.filter((t) => t.brand).map((t) => [t.brand.id, { id: t.brand.id, name: t.brand.name }])).values()]} member rowFor={(t) => <MemberRow key={t.id} t={t} />} />
+        ) : null
+      }
+    />
+  );
 }

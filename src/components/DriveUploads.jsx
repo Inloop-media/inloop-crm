@@ -5,7 +5,7 @@ import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Icon from "@/components/Icon";
 import FileDrop from "@/components/FileDrop";
-import { finishDriveUpload, startDriveUpload } from "@/app/(crm)/drive/actions";
+import { clientLink, finishDriveUpload, startDriveUpload } from "@/app/(crm)/drive/actions";
 
 const link = (id) => `https://drive.google.com/drive/folders/${id}`;
 const mb = (n) => (n >= 1e9 ? `${(n / 1e9).toFixed(1)} GB` : `${Math.max(1, Math.round(n / 1e6))} MB`);
@@ -30,7 +30,27 @@ function send(url, file, onProgress) {
   });
 }
 
-function Folder({ task, folder, files, canUpload, onUpload, busy }) {
+/** Managers: make this folder view-only for anyone with the link and copy it (for the client). */
+function ClientLink({ taskId, driveId }) {
+  const [state, setState] = useState({ busy: false, url: "", error: "" });
+  const go = async () => {
+    setState({ busy: true, url: "", error: "" });
+    const r = await clientLink(taskId, driveId).catch((e) => ({ ok: false, error: e.message }));
+    if (!r.ok) return setState({ busy: false, url: "", error: r.error });
+    await navigator.clipboard.writeText(r.url).catch(() => {});
+    setState({ busy: false, url: r.url, error: "" });
+  };
+  return (
+    <span className="flex flex-col items-end gap-1">
+      <button type="button" onClick={go} disabled={state.busy} className="btn-ghost btn-sm" title="Anyone with the link can view only this folder — no access request">
+        <Icon name="link" size={12} /> {state.busy ? "Making link…" : state.url ? "Link copied ✓" : "Client link"}
+      </button>
+      {state.error && <span className="max-w-[260px] text-right text-[11px] text-rose-400">{state.error}</span>}
+    </span>
+  );
+}
+
+function Folder({ task, folder, files, canUpload, onUpload, busy, canShare }) {
   const input = useRef(null);
   const parts = folder.path.split(" / ");
   const name = parts.pop() || "Brand folder";
@@ -49,7 +69,7 @@ function Folder({ task, folder, files, canUpload, onUpload, busy }) {
           </div>
         )}
       </div>
-      <div className="flex shrink-0 gap-2">
+      <div className="flex shrink-0 flex-wrap items-start gap-2">
         {canUpload && (
           <>
             <input ref={input} type="file" multiple className="hidden" onChange={(e) => {
@@ -65,12 +85,13 @@ function Folder({ task, folder, files, canUpload, onUpload, busy }) {
         <a href={link(folder.drive_id)} target="_blank" rel="noreferrer" className="btn-ghost btn-sm">
           Open in Drive <Icon name="external" size={12} />
         </a>
+        {canShare && <ClientLink taskId={task.id} driveId={folder.drive_id} />}
       </div>
     </li>
   );
 }
 
-export default function DriveUploads({ task, canUpload }) {
+export default function DriveUploads({ task, canUpload, canShare = false }) {
   const router = useRouter();
   const [status, setStatus] = useState(null); // { text, pct }
   const [error, setError] = useState("");
@@ -109,7 +130,7 @@ export default function DriveUploads({ task, canUpload }) {
       <p className="text-[12.5px] text-muted">{can ? "Upload your work into these Google Drive folders — each file goes straight into its folder." : "This task's work goes into these Google Drive folders."}</p>
       <ul className="flex flex-col gap-2">
         {folders.map((f) => (
-          <Folder key={f.drive_id} task={task} folder={f} files={(task.files || []).filter((x) => x.drive_folder_id === f.drive_id)} canUpload={can} onUpload={upload} busy={Boolean(status)} />
+          <Folder key={f.drive_id} task={task} folder={f} files={(task.files || []).filter((x) => x.drive_folder_id === f.drive_id)} canUpload={can} onUpload={upload} busy={Boolean(status)} canShare={canShare} />
         ))}
       </ul>
       {status && (

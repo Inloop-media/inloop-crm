@@ -30,6 +30,11 @@ function Next({ t }) {
   );
 }
 
+/** One of my tasks with its next step on the right (Start / Upload & submit / where it is). */
+export function MemberRow({ t }) {
+  return <TaskLine key={t.id} t={t} showAssignee={false} showGiven note={t.status === "revision" ? t.feedback : ""} action={OPEN_TASK.includes(t.status) ? <Next t={t} /> : undefined} />;
+}
+
 function List({ title, sub, tasks, tone, empty, count }) {
   if (!tasks.length && !empty) return null;
   return (

@@ -8,7 +8,7 @@ import { getBrand } from "@/lib/brands";
 import { canAssignTasks } from "@/lib/permissions";
 import { logTask } from "@/lib/tasks";
 import { pingLive } from "@/lib/live";
-import { brandFolders, driveConnection, ensurePath, fileInfo, setupBrand, startUpload } from "@/lib/drive";
+import { brandFolders, driveConnection, ensurePath, fileInfo, setupBrand, shareWithLink, startUpload } from "@/lib/drive";
 
 const str = (v, max) => String(v ?? "").trim().slice(0, max);
 const fail = (err) => ({ ok: false, error: String(err?.message || err || "Something went wrong.").slice(0, 300) });
@@ -137,6 +137,25 @@ export async function finishDriveUpload(taskId, folderId, driveFileId) {
     pingLive("tasks");
     revalidatePath(`/tasks/${task.id}`);
     return { ok: true };
+  } catch (err) {
+    return fail(err);
+  }
+}
+
+/** Managers: a view-only link to one of a task's Drive folders (or a file uploaded to it), to send the client. */
+export async function clientLink(taskId, driveId) {
+  const me = await requireMember();
+  if (!canAssignTasks(me)) return { ok: false, error: "Only managers share Drive links with clients." };
+  const id = str(driveId, 200);
+  const [{ data: folder }, { data: file }] = await Promise.all([
+    db().from("task_folders").select("path").eq("task_id", taskId).eq("drive_id", id).maybeSingle(),
+    db().from("task_files").select("name").eq("task_id", taskId).eq("drive_file_id", id).maybeSingle(),
+  ]);
+  if (!folder && !file) return { ok: false, error: "That isn't on this task." };
+  try {
+    const url = await shareWithLink(id);
+    await logTask(taskId, me.id, "note", { text: `Shared a view-only link with the client: ${folder?.path || file?.name}`, link: url }).catch(() => {});
+    return { ok: true, url };
   } catch (err) {
     return fail(err);
   }

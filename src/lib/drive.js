@@ -212,6 +212,23 @@ export async function fileInfo(id) {
   return api(`/files/${encodeURIComponent(id)}`, { query: { fields: "id,name,size,mimeType,webViewLink,parents" } });
 }
 
+/**
+ * "Anyone with the link can view" on just this folder / file (and what's inside a folder) — so a client opens
+ * the link without asking for access and sees nothing else of the Drive. Returns the link.
+ */
+export async function shareWithLink(id) {
+  try {
+    await api(`/files/${encodeURIComponent(id)}/permissions`, { method: "POST", query: { sendNotificationEmail: "false" }, body: { type: "anyone", role: "reader", allowFileDiscovery: false } });
+  } catch (err) {
+    const m = String(err.message || "");
+    if (/publish|outside|domain|policy|not allowed|sharing/i.test(m))
+      throw new DriveError("Google Workspace doesn't allow links outside inloopmedia.com yet — the Workspace admin turns on external sharing (admin.google.com → Apps → Google Drive → Sharing settings).");
+    throw err;
+  }
+  const f = await api(`/files/${encodeURIComponent(id)}`, { query: { fields: "id,webViewLink,mimeType" } });
+  return f.webViewLink || (f.mimeType === "application/vnd.google-apps.folder" ? folderLink(id) : `https://drive.google.com/file/d/${id}/view`);
+}
+
 /* ------------------------------ Brand library ------------------------------ */
 
 /** "<Brand> / Brand Library / Images / Product shots" — made if missing. */
